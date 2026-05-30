@@ -1,0 +1,27 @@
+node_modules/
+build/
+prebuilds/
+target/
+Cargo.lock
+
+# Native artifacts
+*.so
+*.dylib
+*.dll
+*.wasm
+*.exp
+*.lib
+*.pdb
+*.o
+*.obj
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log

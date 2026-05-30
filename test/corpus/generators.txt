@@ -1,0 +1,62 @@
+==================
+Generator function with yield
+==================
+
+fn* counter(limit: int) {
+    let mut i = 0
+    while i < limit {
+        yield i
+        i += 1
+    }
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (while_expression
+          condition: (binary_expression
+            left: (identifier)
+            right: (identifier))
+          body: (block
+            (expression_statement
+              (yield_expression
+                (identifier)))
+            (assignment_statement
+              target: (identifier)
+              value: (integer_literal))))))))
+
+==================
+Async function
+==================
+
+async fn fetch_data() {
+    yield "loading"
+    yield "done"
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (expression_statement
+        (yield_expression
+          (string_literal
+            (string_content))))
+      (expression_statement
+        (yield_expression
+          (string_literal
+            (string_content)))))))

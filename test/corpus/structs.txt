@@ -1,0 +1,71 @@
+==================
+Simple struct
+==================
+
+struct Point {
+    x: float,
+    y: float,
+}
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type)))))
+
+==================
+Generic struct
+==================
+
+struct Pair<A, B> {
+    first: A,
+    second: B,
+}
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier))
+      (type_parameter
+        name: (identifier)))
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (type_path
+          (identifier)))
+      (field_declaration
+        name: (identifier)
+        type: (type_path
+          (identifier))))))
+
+==================
+Struct literal
+==================
+
+let p = Point { x: 1.0, y: 2.0 }
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (float_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (float_literal))))))

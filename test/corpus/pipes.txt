@@ -1,0 +1,47 @@
+==================
+Pipe operator
+==================
+
+let r = 5 |> double() |> increment()
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (binary_expression
+      left: (binary_expression
+        left: (integer_literal)
+        right: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      right: (call_expression
+        function: (identifier)
+        arguments: (argument_list)))))
+
+==================
+Tap operator
+==================
+
+let r = data |> filter(pred) &. log() |> collect()
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (binary_expression
+      left: (binary_expression
+        left: (binary_expression
+          left: (identifier)
+          right: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier)))))
+        right: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      right: (call_expression
+        function: (identifier)
+        arguments: (argument_list)))))

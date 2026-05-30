@@ -1,0 +1,83 @@
+==================
+Generic function
+==================
+
+fn identity<T>(x: T) -> T {
+    return x
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier)))
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (return_statement
+        (identifier)))))
+
+==================
+Generic with bound
+==================
+
+fn show<T: Display>(x: T) {
+    print(x)
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier)
+        bound: (type_path
+          (identifier))))
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (identifier))))))))
+
+==================
+Enum with generic and variants
+==================
+
+enum Maybe<T> {
+    Just(T),
+    Nothing,
+}
+
+---
+
+(source_file
+  (enum_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier)))
+    body: (enum_variant_list
+      (enum_variant
+        name: (identifier)
+        tuple: (enum_variant_tuple
+          (type_path
+            (identifier))))
+      (enum_variant
+        name: (identifier)))))

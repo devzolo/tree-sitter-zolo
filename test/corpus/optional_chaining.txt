@@ -1,0 +1,52 @@
+==================
+Optional chaining
+==================
+
+let name = user?.profile?.name
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (optional_chain_expression
+      object: (optional_chain_expression
+        object: (identifier)
+        field: (identifier))
+      field: (identifier))))
+
+==================
+Null coalesce
+==================
+
+let title = book?.title ?? "untitled"
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (binary_expression
+      left: (optional_chain_expression
+        object: (identifier)
+        field: (identifier))
+      right: (string_literal
+        (string_content)))))
+
+==================
+Try operator
+==================
+
+let v = parse(input)?
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (try_expression
+      value: (call_expression
+        function: (identifier)
+        arguments: (argument_list
+          (call_argument
+            (identifier)))))))

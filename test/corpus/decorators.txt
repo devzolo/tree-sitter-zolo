@@ -1,0 +1,80 @@
+==================
+Function with single decorator
+==================
+
+@memoize
+fn fib(n: int) -> int {
+    return n
+}
+
+---
+
+(source_file
+  (function_item
+    (decorator
+      name: (identifier))
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (return_statement
+        (identifier)))))
+
+==================
+Function with multiple decorators and args
+==================
+
+@get("/users")
+@auth("admin")
+fn list_users() -> str {
+    return "ok"
+}
+
+---
+
+(source_file
+  (function_item
+    (decorator
+      name: (identifier)
+      arguments: (decorator_arguments
+        (string_literal
+          (string_content))))
+    (decorator
+      name: (identifier)
+      arguments: (decorator_arguments
+        (string_literal
+          (string_content))))
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (return_statement
+        (string_literal
+          (string_content))))))
+
+==================
+Derive on struct
+==================
+
+@derive(Eq, Hash)
+struct Id {
+    value: int,
+}
+
+---
+
+(source_file
+  (struct_item
+    (decorator
+      name: (identifier)
+      arguments: (decorator_arguments
+        (identifier)
+        (identifier)))
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type)))))

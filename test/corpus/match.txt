@@ -1,0 +1,67 @@
+==================
+Basic match expression
+==================
+
+let r = match x {
+    1 => "one",
+    2 => "two",
+    _ => "other",
+}
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (match_expression
+      value: (identifier)
+      (match_arm
+        pattern: (literal_pattern
+          (integer_literal))
+        body: (string_literal
+          (string_content)))
+      (match_arm
+        pattern: (literal_pattern
+          (integer_literal))
+        body: (string_literal
+          (string_content)))
+      (match_arm
+        pattern: (wildcard_pattern)
+        body: (string_literal
+          (string_content))))))
+
+==================
+Match with enum and guard
+==================
+
+match val {
+    Some(n) if n > 0 => n,
+    Some(_) => 0,
+    None => -1,
+}
+
+---
+
+(source_file
+  (expression_statement
+    (match_expression
+      value: (identifier)
+      (match_arm
+        pattern: (enum_pattern
+          path: (identifier)
+          (identifier_pattern
+            (identifier)))
+        guard: (binary_expression
+          left: (identifier)
+          right: (integer_literal))
+        body: (identifier))
+      (match_arm
+        pattern: (enum_pattern
+          path: (identifier)
+          (wildcard_pattern))
+        body: (integer_literal))
+      (match_arm
+        pattern: (identifier_pattern
+          (identifier))
+        body: (unary_expression
+          operand: (integer_literal))))))

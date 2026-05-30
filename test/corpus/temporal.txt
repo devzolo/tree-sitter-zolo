@@ -1,0 +1,47 @@
+==================
+Duration literals
+==================
+
+let a = 5s
+let b = 100ms
+let c = 30min
+let d = 2h
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (duration_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (duration_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (duration_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (duration_literal)))
+
+==================
+Every block
+==================
+
+every 1s {
+    print("tick")
+}
+
+---
+
+(source_file
+  (expression_statement
+    (every_expression
+      interval: (duration_literal)
+      body: (block
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_content))))))))))

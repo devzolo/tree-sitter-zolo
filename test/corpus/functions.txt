@@ -1,0 +1,77 @@
+==================
+Simple function with return type
+==================
+
+fn add(a: int, b: int) -> int {
+    return a + b
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (return_statement
+        (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+==================
+Function without return type (inferred)
+==================
+
+fn greet(name: str) {
+    print("hello {name}")
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content)
+                (string_interpolation
+                  (identifier))))))))))
+
+==================
+Public async function
+==================
+
+pub async fn fetch(url: str) -> str {
+    return "data"
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (return_statement
+        (string_literal
+          (string_content))))))

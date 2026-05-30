@@ -1,0 +1,185 @@
+==================
+For range loop
+==================
+
+for i in 0..10 {
+    print(i)
+}
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      binding: (identifier)
+      iter: (range_expression
+        (integer_literal)
+        (integer_literal))
+      body: (block
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier)))))))))
+
+==================
+If as expression
+==================
+
+let abs = if x < 0 { -x } else { x }
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (if_expression
+      condition: (binary_expression
+        left: (identifier)
+        right: (integer_literal))
+      consequence: (block
+        (expression_statement
+          (unary_expression
+            operand: (identifier))))
+      alternative: (block
+        (expression_statement
+          (identifier))))))
+
+==================
+Lambda
+==================
+
+let f = |x, y| x + y
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (lambda_expression
+      (parameter
+        name: (identifier))
+      (parameter
+        name: (identifier))
+      body: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+If with bare identifier condition
+==================
+
+if ready {
+    print("go")
+}
+
+---
+
+(source_file
+  (expression_statement
+    (if_expression
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (string_literal
+                  (string_content))))))))))
+
+==================
+While with bare identifier condition
+==================
+
+while running {
+    tick()
+}
+
+---
+
+(source_file
+  (expression_statement
+    (while_expression
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
+
+==================
+While with comparison condition
+==================
+
+while i < limit {
+    i += 1
+}
+
+---
+
+(source_file
+  (expression_statement
+    (while_expression
+      (binary_expression
+        (identifier)
+        (identifier))
+      (block
+        (assignment_statement
+          (identifier)
+          (integer_literal))))))
+
+==================
+For loop over bare identifier
+==================
+
+for item in items {
+    print(item)
+}
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (identifier)
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (identifier)))))))))
+
+==================
+Struct literal and control-flow coexist
+==================
+
+let p = Point { x: 1 }
+if ready {
+    show(p)
+}
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (integer_literal)))))
+  (expression_statement
+    (if_expression
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (identifier)))))))))

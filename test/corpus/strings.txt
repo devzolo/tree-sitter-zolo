@@ -1,0 +1,33 @@
+==================
+String interpolation
+==================
+
+let s = "hello {name}, you are {age} years old"
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal
+      (string_content)
+      (string_interpolation
+        (identifier))
+      (string_content)
+      (string_interpolation
+        (identifier))
+      (string_content))))
+
+==================
+Plain string
+==================
+
+let s = "no interp here"
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal
+      (string_content))))
