@@ -9,8 +9,8 @@ let r = 5 |> double() |> increment()
 (source_file
   (let_declaration
     pattern: (identifier)
-    value: (binary_expression
-      left: (binary_expression
+    value: (pipe_expression
+      left: (pipe_expression
         left: (integer_literal)
         right: (call_expression
           function: (identifier)
@@ -30,9 +30,9 @@ let r = data |> filter(pred) &. log() |> collect()
 (source_file
   (let_declaration
     pattern: (identifier)
-    value: (binary_expression
-      left: (binary_expression
-        left: (binary_expression
+    value: (pipe_expression
+      left: (pipe_expression
+        left: (pipe_expression
           left: (identifier)
           right: (call_expression
             function: (identifier)

@@ -1,0 +1,77 @@
+==================
+macro_rules basic
+==================
+
+macro_rules! greet {
+  () => { "hello, world" }
+}
+
+---
+
+(source_file
+  (macro_rules_item
+    (identifier)
+    (macro_rules_body
+      (macro_rule
+        (string_literal
+          (string_content))))))
+
+==================
+macro_rules with fragment and arms
+==================
+
+macro_rules! show {
+  ($x:expr) => { print($x) }
+  ($x:expr, $y:expr) => { print($x, $y) }
+}
+
+---
+
+(source_file
+  (macro_rules_item
+    (identifier)
+    (macro_rules_body
+      (macro_rule
+        (macro_fragment
+          (identifier)
+          (identifier))
+        (identifier)
+        (macro_fragment
+          (identifier)))
+      (macro_rule
+        (macro_fragment
+          (identifier)
+          (identifier))
+        (macro_fragment
+          (identifier)
+          (identifier))
+        (identifier)
+        (macro_fragment
+          (identifier))
+        (macro_fragment
+          (identifier))))))
+
+==================
+macro_rules with repetition
+==================
+
+macro_rules! sum {
+  ($($n:expr),*) => { fold(0, $($n)+*) }
+}
+
+---
+
+(source_file
+  (macro_rules_item
+    (identifier)
+    (macro_rules_body
+      (macro_rule
+        (macro_repetition
+          (macro_fragment
+            (identifier)
+            (identifier)))
+        (identifier)
+        (integer_literal)
+        (macro_repetition
+          (macro_fragment
+            (identifier)))))))

@@ -31,3 +31,43 @@ let s = "no interp here"
     pattern: (identifier)
     value: (string_literal
       (string_content))))
+
+==================
+Tagged raw string
+==================
+
+let d = json#"{ "port": 8080 }"#
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (tagged_raw_string_literal
+      tag: (identifier))))
+
+==================
+Fenced block string
+==================
+
+let s = ```sql SELECT 1 ```
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (fenced_string_literal)))
+
+==================
+Raw string ending in quotes
+==================
+
+let o = r#""hi""#
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_string_literal)))

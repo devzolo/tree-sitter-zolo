@@ -68,8 +68,8 @@
 (use_path
   (identifier) @local.definition.import)
 
-(use_list
-  (identifier) @local.definition.import)
+(use_item
+  name: (identifier) @local.definition.import)
 
 ; -- References -------------------------------------------------------------
 (identifier) @local.reference

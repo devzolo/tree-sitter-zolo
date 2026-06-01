@@ -75,3 +75,17 @@ pub async fn fetch(url: str) -> str {
       (return_statement
         (string_literal
           (string_content))))))
+
+==================
+Function with stacked modifiers
+==================
+
+pub override multi async fn render() {}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block)))

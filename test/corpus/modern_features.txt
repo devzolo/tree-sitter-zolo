@@ -1,0 +1,347 @@
+==================
+var declaration
+==================
+
+var x = 5
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+approximate equality with tolerance
+==================
+
+fn t() {
+  let a = x ~= y within 0.001
+  let b = x !~= y ulps 4
+  let c = x ~= y relative 0.01
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (approx_expression
+          (identifier)
+          (identifier)
+          (float_literal)))
+      (let_declaration
+        (identifier)
+        (approx_expression
+          (identifier)
+          (identifier)))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (integer_literal))
+      (let_declaration
+        (identifier)
+        (approx_expression
+          (identifier)
+          (identifier)))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (float_literal)))))
+
+==================
+defer_ok and defer_err
+==================
+
+fn t() {
+  defer_ok commit()
+  defer_err rollback()
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (defer_statement
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (defer_statement
+        (call_expression
+          (identifier)
+          (argument_list))))))
+
+==================
+use plugin
+==================
+
+use plugin shell
+use plugin winit::{Window, EventLoop}
+
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)))
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier))
+        (use_item
+          (identifier))))))
+
+==================
+override method
+==================
+
+impl Widget {
+  pub override fn render(self) {}
+}
+
+---
+
+(source_file
+  (impl_item
+    (type_path
+      (identifier))
+    (impl_body
+      (function_item
+        (identifier)
+        (parameter_list
+          (self_parameter))
+        (block)))))
+
+==================
+decimal types
+==================
+
+fn t() {
+  let a: decimal = 1.0
+  let b: bigdecimal = 2.0
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (primitive_type)
+        (float_literal))
+      (let_declaration
+        (identifier)
+        (primitive_type)
+        (float_literal)))))
+
+==================
+effect declaration, perform and handle
+==================
+
+effect IO {
+  fn read(path) -> str
+}
+
+fn read_config() with IO -> str {
+  return perform IO::read("config.toml")
+}
+
+fn main() {
+  let result = handle read_config() with {
+    IO::read(path) => "stub",
+  }
+}
+
+---
+
+(source_file
+  (effect_item
+    (identifier)
+    (effect_body
+      (effect_signature
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)))
+        (primitive_type))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (with_clause
+      (type_path
+        (identifier)))
+    (primitive_type)
+    (block
+      (return_statement
+        (perform_expression
+          (call_expression
+            (path_expression
+              (identifier)
+              (identifier))
+            (argument_list
+              (call_argument
+                (string_literal
+                  (string_content)))))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (handle_expression
+          (call_expression
+            (identifier)
+            (argument_list))
+          (handle_block
+            (handle_arm
+              (call_expression
+                (path_expression
+                  (identifier)
+                  (identifier))
+                (argument_list
+                  (call_argument
+                    (identifier))))
+              (string_literal
+                (string_content)))))))))
+
+==================
+scope and select
+==================
+
+fn main() {
+  scope {
+    spawn work()
+  }
+  select {
+    x := <- a => { print(x) }
+    after 50ms => { print("timeout") }
+    default => { print("none") }
+  }
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (scope_expression
+          (block
+            (expression_statement
+              (spawn_expression
+                (call_expression
+                  (identifier)
+                  (argument_list)))))))
+      (expression_statement
+        (select_expression
+          (select_arm
+            (select_guard
+              (identifier)
+              (identifier))
+            (block_expression
+              (block
+                (expression_statement
+                  (call_expression
+                    (identifier)
+                    (argument_list
+                      (call_argument
+                        (identifier))))))))
+          (select_arm
+            (select_guard
+              (duration_literal))
+            (block_expression
+              (block
+                (expression_statement
+                  (call_expression
+                    (identifier)
+                    (argument_list
+                      (call_argument
+                        (string_literal
+                          (string_content)))))))))
+          (select_arm
+            (select_guard)
+            (block_expression
+              (block
+                (expression_statement
+                  (call_expression
+                    (identifier)
+                    (argument_list
+                      (call_argument
+                        (string_literal
+                          (string_content))))))))))))))
+
+==================
+schema declaration
+==================
+
+schema Point {
+  x: int,
+  y: int,
+}
+
+---
+
+(source_file
+  (schema_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type))
+      (field_declaration
+        (identifier)
+        (primitive_type)))))
+
+==================
+state machine
+==================
+
+machine TrafficLight {
+  state Red, Yellow, Green
+  initial Red
+  Red -> Green on go
+  Green -> Yellow on caution { log("slow") }
+}
+
+---
+
+(source_file
+  (machine_item
+    (identifier)
+    (machine_body
+      (machine_state_decl
+        (identifier)
+        (identifier)
+        (identifier))
+      (machine_initial
+        (identifier))
+      (machine_transition
+        (identifier)
+        (identifier)
+        (identifier))
+      (machine_transition
+        (identifier)
+        (identifier)
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))))))))))

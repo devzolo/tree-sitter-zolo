@@ -40,13 +40,15 @@ fn list_users() -> str {
     (decorator
       name: (identifier)
       arguments: (decorator_arguments
-        (string_literal
-          (string_content))))
+        (call_argument
+          (string_literal
+            (string_content)))))
     (decorator
       name: (identifier)
       arguments: (decorator_arguments
-        (string_literal
-          (string_content))))
+        (call_argument
+          (string_literal
+            (string_content)))))
     name: (identifier)
     parameters: (parameter_list)
     return_type: (primitive_type)
@@ -71,8 +73,10 @@ struct Id {
     (decorator
       name: (identifier)
       arguments: (decorator_arguments
-        (identifier)
-        (identifier)))
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))))
     name: (identifier)
     body: (field_declaration_list
       (field_declaration

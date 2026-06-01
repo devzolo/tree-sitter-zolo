@@ -19,11 +19,18 @@
   "mod"
   "pub"
   "where"
+  "var"
+  "override"
+  "plugin"
+  "with"
+  "state"
+  "initial"
 ] @keyword
 
 [
   "fn"
   "macro"
+  "macro_rules"
 ] @keyword.function
 
 [
@@ -31,6 +38,9 @@
   "enum"
   "trait"
   "impl"
+  "schema"
+  "machine"
+  "effect"
 ] @keyword.type
 
 [
@@ -45,6 +55,10 @@
   "continue"
   "return"
   "guard"
+  "handle"
+  "perform"
+  "select"
+  "default"
 ] @keyword.control
 
 [
@@ -56,6 +70,7 @@
   "after"
   "timeout"
   "sleep"
+  "scope"
 ] @keyword.coroutine
 
 [
@@ -63,11 +78,17 @@
   "catch"
   "finally"
   "defer"
+  "defer_ok"
+  "defer_err"
 ] @keyword.exception
 
 [
   "as"
   "is"
+  "within"
+  "relative"
+  "ulps"
+  "absolute"
 ] @keyword.operator
 
 [
@@ -92,9 +113,13 @@
 (string_literal) @string
 (raw_string_literal) @string
 (triple_string_literal) @string
+(fenced_string_literal) @string
 (bytes_literal) @string
 (regex_literal) @string.regex
 (tagged_string_literal
+  tag: (identifier) @function.macro)
+(tagged_raw_string_literal) @string
+(tagged_raw_string_literal
   tag: (identifier) @function.macro)
 (string_interpolation
   "{" @punctuation.special
@@ -112,10 +137,12 @@
   "|>" "&." "->" "=>" "::"
   ".." "..=" "..."
   "?." "??" "?" ".*"
+  "~=" "!~=" ":=" "<-"
+  "~/" "~/="
 ] @operator
 
 ; -- Punctuation ------------------------------------------------------------
-[ "(" ")" "[" "]" "{" "}" ] @punctuation.bracket
+[ "(" ")" "[" "]" "{" "}" "#{" ] @punctuation.bracket
 [ "," ";" ":" "." "@" "$" ] @punctuation.delimiter
 
 ; -- Decorators -------------------------------------------------------------
@@ -126,6 +153,8 @@
 ; -- Items ------------------------------------------------------------------
 (function_item name: (identifier) @function)
 (macro_item name: (identifier) @function.macro)
+(macro_rules_item name: (identifier) @function.macro)
+(macro_fragment "$" @punctuation.special (identifier) @variable.parameter)
 (trait_method name: (identifier) @function.method)
 
 (struct_item name: (identifier) @type)
@@ -133,6 +162,21 @@
 (trait_item name: (identifier) @type)
 (type_alias name: (identifier) @type)
 (newtype_item name: (identifier) @type)
+(storage_class (identifier) @keyword.modifier)
+(override_declaration name: (identifier) @variable)
+(on_declaration hook: (identifier) @function.method)
+(effect_item name: (identifier) @type)
+(schema_item name: (identifier) @type)
+(machine_item name: (identifier) @type)
+(effect_signature name: (identifier) @function.method)
+(machine_state_decl name: (identifier) @constant)
+(machine_initial state: (identifier) @constant)
+(machine_transition
+  from: (identifier) @constant
+  to: (identifier) @constant
+  event: (identifier) @property)
+(select_guard
+  binding: (identifier) @variable)
 (enum_variant name: (identifier) @constructor)
 (field_declaration name: (identifier) @property)
 
@@ -178,7 +222,8 @@
 
 ; -- Use / Mod paths --------------------------------------------------------
 (use_path (identifier) @namespace)
-(use_list (identifier) @namespace)
+(use_item name: (identifier) @namespace)
+(use_item alias: (identifier) @namespace)
 (mod_path (identifier) @namespace)
 
 ; -- Parameters / Variables -------------------------------------------------

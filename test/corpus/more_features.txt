@@ -1,0 +1,204 @@
+==================
+map literal
+==================
+
+fn t() {
+  let a = #{}
+  let b = #{title: "x", width: 800}
+  let c = #{source}
+  let d = #{...base, extra: 1}
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (map_expression))
+      (let_declaration
+        (identifier)
+        (map_expression
+          (map_entry
+            (identifier)
+            (string_literal
+              (string_content)))
+          (map_entry
+            (identifier)
+            (integer_literal))))
+      (let_declaration
+        (identifier)
+        (map_expression
+          (map_entry
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (map_expression
+          (map_entry
+            (spread_expression
+              (identifier)))
+          (map_entry
+            (identifier)
+            (integer_literal)))))))
+
+==================
+storage classes
+==================
+
+fn t() {
+  let<lazy> a = expensive()
+  var<atomic, persistent> b = 0
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (storage_class
+          (identifier))
+        (identifier)
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (let_declaration
+        (storage_class
+          (identifier)
+          (identifier))
+        (identifier)
+        (integer_literal)))))
+
+==================
+pub let at module level
+==================
+
+pub let driver = "opengl"
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (string_literal
+      (string_content))))
+
+==================
+override declaration
+==================
+
+override driver = "opengl"
+
+---
+
+(source_file
+  (override_declaration
+    (identifier)
+    (string_literal
+      (string_content))))
+
+==================
+handle with named handler value
+==================
+
+fn t() {
+  let r = handle work() with test_world
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (handle_expression
+          (call_expression
+            (identifier)
+            (argument_list))
+          (identifier))))))
+
+==================
+generic on hook
+==================
+
+on reload {
+  refresh()
+}
+
+---
+
+(source_file
+  (on_declaration
+    (identifier)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list))))))
+
+==================
+raw string with three hashes
+==================
+
+const WGSL = r###"
+@vertex fn main() {}
+"###
+
+---
+
+(source_file
+  (const_item
+    (identifier)
+    (raw_string_literal)))
+
+==================
+handler value literal
+==================
+
+let world = handler {
+  Random::next_int(lo, hi) => 4,
+  Log::info(m) => { log.push(m) },
+}
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (handler_expression
+      (handle_arm
+        (call_expression
+          (path_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (call_argument
+              (identifier))
+            (call_argument
+              (identifier))))
+        (integer_literal))
+      (handle_arm
+        (call_expression
+          (path_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (call_argument
+              (identifier))))
+        (block_expression
+          (block
+            (expression_statement
+              (method_call_expression
+                (identifier)
+                (identifier)
+                (argument_list
+                  (call_argument
+                    (identifier)))))))))))
