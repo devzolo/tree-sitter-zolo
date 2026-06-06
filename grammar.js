@@ -841,17 +841,24 @@ module.exports = grammar({
       field('field', $._method_name),
     )),
 
-    // Method/field name can be an identifier or any keyword (per parser).
+    // Method/field name can be an identifier or any keyword (per parser). The
+    // keyword spellings are aliased to `identifier` so a keyword used in member
+    // position (`f.type`, `x?.match`, `d.match()`) parses to an `identifier`
+    // node instead of a bare keyword token. Highlight queries then style it as
+    // a property/method, not a keyword — matching the VS Code tmLanguage grammar
+    // (which uses a `(?<!\.)` lookbehind) and the web highlighters.
     _method_name: $ => choice(
       $.identifier,
-      'let', 'mut', 'const', 'fn', 'return', 'if', 'else', 'for', 'while',
-      'loop', 'break', 'continue', 'match', 'enum', 'struct', 'impl', 'trait',
-      'mod', 'use', 'pub', 'in', 'as', 'is', 'where', 'nil', 'self', 'type',
-      'newtype', 'comptime', 'async', 'await', 'yield', 'spawn', 'every',
-      'after', 'timeout', 'sleep', 'try', 'catch', 'finally', 'defer',
-      'guard', 'macro', 'on', 'var', 'override', 'defer_ok', 'defer_err',
-      'plugin', 'effect', 'handle', 'perform', 'scope', 'select',
-      'schema', 'machine', 'state', 'initial',
+      alias(choice(
+        'let', 'mut', 'const', 'fn', 'return', 'if', 'else', 'for', 'while',
+        'loop', 'break', 'continue', 'match', 'enum', 'struct', 'impl', 'trait',
+        'mod', 'use', 'pub', 'in', 'as', 'is', 'where', 'nil', 'self', 'type',
+        'newtype', 'comptime', 'async', 'await', 'yield', 'spawn', 'every',
+        'after', 'timeout', 'sleep', 'try', 'catch', 'finally', 'defer',
+        'guard', 'macro', 'on', 'var', 'override', 'defer_ok', 'defer_err',
+        'plugin', 'effect', 'handle', 'perform', 'scope', 'select',
+        'schema', 'machine', 'state', 'initial',
+      ), $.identifier),
     ),
 
     index_expression: $ => prec(PREC.call, seq(

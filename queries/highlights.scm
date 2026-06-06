@@ -21,7 +21,6 @@
   "where"
   "var"
   "override"
-  "plugin"
   "with"
   "state"
   "initial"
@@ -54,7 +53,6 @@
   "break"
   "continue"
   "return"
-  "guard"
   "handle"
   "perform"
   "select"
@@ -92,7 +90,6 @@
 ] @keyword.operator
 
 [
-  "comptime"
   "on"
   "shutdown"
   "panic"
