@@ -56,12 +56,6 @@ module.exports = grammar({
   word: $ => $.identifier,
 
   conflicts: $ => [
-    // Struct literal vs block expression after identifier
-    [$._expression, $._pattern],
-    // Tuple type vs parenthesized type
-    [$.tuple_type, $.parenthesized_type],
-    // Struct literal in `if cond { ... }` is ambiguous; we disambiguate via prec
-    [$.path_expression, $.type_path],
     // `let x` — prefer plain identifier over identifier_pattern wrapper
     [$.let_declaration, $.identifier_pattern],
     // `let Foo(` — decide between bare path and enum_pattern with args
@@ -1480,10 +1474,10 @@ module.exports = grammar({
     nil_literal: _ => 'nil',
 
     integer_literal: _ => token(choice(
-      seq(/0[xX][0-9a-fA-F](_?[0-9a-fA-F])*/),
-      seq(/0[oO][0-7](_?[0-7])*/),
-      seq(/0[bB][01](_?[01])*/),
-      seq(/[0-9](_?[0-9])*/),
+      /0[xX][0-9a-fA-F](_?[0-9a-fA-F])*/,
+      /0[oO][0-7](_?[0-7])*/,
+      /0[bB][01](_?[01])*/,
+      /[0-9](_?[0-9])*/,
     )),
 
     float_literal: _ => token(choice(

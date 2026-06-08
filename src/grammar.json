@@ -9660,40 +9660,20 @@
         "type": "CHOICE",
         "members": [
           {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "0[xX][0-9a-fA-F](_?[0-9a-fA-F])*"
-              }
-            ]
+            "type": "PATTERN",
+            "value": "0[xX][0-9a-fA-F](_?[0-9a-fA-F])*"
           },
           {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "0[oO][0-7](_?[0-7])*"
-              }
-            ]
+            "type": "PATTERN",
+            "value": "0[oO][0-7](_?[0-7])*"
           },
           {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "0[bB][01](_?[01])*"
-              }
-            ]
+            "type": "PATTERN",
+            "value": "0[bB][01](_?[01])*"
           },
           {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "[0-9](_?[0-9])*"
-              }
-            ]
+            "type": "PATTERN",
+            "value": "[0-9](_?[0-9])*"
           }
         ]
       }
@@ -10251,18 +10231,6 @@
     }
   ],
   "conflicts": [
-    [
-      "_expression",
-      "_pattern"
-    ],
-    [
-      "tuple_type",
-      "parenthesized_type"
-    ],
-    [
-      "path_expression",
-      "type_path"
-    ],
     [
       "let_declaration",
       "identifier_pattern"
