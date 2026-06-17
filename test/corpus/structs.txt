@@ -50,6 +50,33 @@ struct Pair<A, B> {
           (identifier))))))
 
 ==================
+Struct with using embeds
+==================
+
+struct Player {
+    using base: Entity,
+    using Vec2,
+    hp: int,
+}
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (type_path
+          (identifier)))
+      (field_declaration
+        type: (type_path
+          (identifier)))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type)))))
+
+==================
 Struct literal
 ==================
 

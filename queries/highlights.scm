@@ -22,6 +22,7 @@
   "var"
   "override"
   "with"
+  "using"
   "state"
   "initial"
 ] @keyword

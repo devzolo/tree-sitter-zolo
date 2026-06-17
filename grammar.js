@@ -263,14 +263,26 @@ module.exports = grammar({
       '}',
     ),
 
+    // A struct field, optionally an embed via the `using` modifier:
+    //   x: int                       — normal field
+    //   using base: Entity           — named embed (mirror crates/zolo-parser)
+    //   using Entity                  — anonymous embed (no name, no colon)
     field_declaration: $ => seq(
       repeat($.decorator),
       optional('pub'),
-      field('name', $.identifier),
-      ':',
-      field('type', $._type),
-      optional(seq('=', field('default', $._expression))),
-      optional(seq('where', field('constraint', $._expression))),
+      choice(
+        // Anonymous embed: `using Type` (field name derived from the type).
+        seq('using', field('type', $._type)),
+        // Normal field or named embed: `[using] name : Type [= default] [where]`.
+        seq(
+          optional('using'),
+          field('name', $.identifier),
+          ':',
+          field('type', $._type),
+          optional(seq('=', field('default', $._expression))),
+          optional(seq('where', field('constraint', $._expression))),
+        ),
+      ),
     ),
 
     compact_field_list: $ => seq(

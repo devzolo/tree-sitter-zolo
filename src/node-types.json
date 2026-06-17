@@ -1541,7 +1541,7 @@
       },
       "name": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "identifier",
@@ -5605,6 +5605,10 @@
   },
   {
     "type": "use",
+    "named": false
+  },
+  {
+    "type": "using",
     "named": false
   },
   {
