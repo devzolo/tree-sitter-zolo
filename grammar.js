@@ -308,6 +308,8 @@ module.exports = grammar({
       'enum',
       field('name', $.identifier),
       optional(field('type_parameters', $.type_parameters)),
+      // Numeric-discriminant backing type: `enum Packet: u8 { … }`.
+      optional(seq(':', field('backing_type', $._type))),
       field('body', choice($.enum_variant_list, $.enum_compact_list)),
     ),
 
@@ -332,6 +334,8 @@ module.exports = grammar({
         field('tuple', $.enum_variant_tuple),
         field('struct', $.field_declaration_list),
       )),
+      // Explicit discriminant on a unit variant: `Bye = 255`.
+      optional(seq('=', field('discriminant', $._expression))),
     ),
 
     enum_variant_tuple: $ => seq(
@@ -692,6 +696,7 @@ module.exports = grammar({
       $.field_expression,
       $.index_expression,
       $.optional_chain_expression,
+      $.force_chain_expression,
       $.try_expression,
       $.iter_expression,
       $.cast_expression,
@@ -798,9 +803,10 @@ module.exports = grammar({
     )),
 
     // pipe: x |> f(...)  /  x |> .map(g)  (elided receiver)  /  x &. tap
+    //       x ?> f(...)  (fallible pipe: unwrap Ok/Some, propagate Err/None)
     pipe_expression: $ => prec.left(PREC.pipe, seq(
       field('left', $._expression),
-      field('operator', choice('|>', '&.')),
+      field('operator', choice('|>', '?>', '&.')),
       field('right', choice($._pipe_method, $._expression)),
     )),
 
@@ -877,6 +883,13 @@ module.exports = grammar({
     optional_chain_expression: $ => prec(PREC.call, seq(
       field('object', $._expression),
       '?.',
+      field('field', $._method_name),
+    )),
+
+    // force-unwrap and chain: obj!.method(...) — panics on Err/None.
+    force_chain_expression: $ => prec(PREC.call, seq(
+      field('object', $._expression),
+      '!.',
       field('field', $._method_name),
     )),
 
@@ -1026,6 +1039,7 @@ module.exports = grammar({
       alias($._scrutinee_field, $.field_expression),
       alias($._scrutinee_index, $.index_expression),
       alias($._scrutinee_optional_chain, $.optional_chain_expression),
+      alias($._scrutinee_force_chain, $.force_chain_expression),
       alias($._scrutinee_try, $.try_expression),
       alias($._scrutinee_cast, $.cast_expression),
       alias($._scrutinee_type_check, $.type_check_expression),
@@ -1055,6 +1069,11 @@ module.exports = grammar({
     _scrutinee_optional_chain: $ => prec(PREC.call, seq(
       field('object', $._match_scrutinee),
       '?.',
+      field('field', $._method_name),
+    )),
+    _scrutinee_force_chain: $ => prec(PREC.call, seq(
+      field('object', $._match_scrutinee),
+      '!.',
       field('field', $._method_name),
     )),
     _scrutinee_try: $ => prec(PREC.try, seq(
@@ -1409,6 +1428,8 @@ module.exports = grammar({
     primitive_type: _ => choice(
       'int', 'float', 'bool', 'str', 'string', 'char',
       'any', 'void', 'never', 'bytes', 'bigint', 'decimal', 'bigdecimal',
+      // Sized integer types — also valid as enum discriminant backing types.
+      'u8', 'u16', 'u32', 'u64', 'i8', 'i16', 'i32', 'i64', 'usize', 'isize',
     ),
 
     type_path: $ => prec.left(seq(

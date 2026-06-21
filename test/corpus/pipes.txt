@@ -45,3 +45,24 @@ let r = data |> filter(pred) &. log() |> collect()
       right: (call_expression
         function: (identifier)
         arguments: (argument_list)))))
+
+==================
+Fallible pipe operator
+==================
+
+let r = x ?> parse() ?> double()
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (pipe_expression
+      left: (pipe_expression
+        left: (identifier)
+        right: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      right: (call_expression
+        function: (identifier)
+        arguments: (argument_list)))))

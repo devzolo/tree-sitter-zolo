@@ -50,3 +50,20 @@ let v = parse(input)?
         arguments: (argument_list
           (call_argument
             (identifier)))))))
+
+==================
+Force-unwrap chain operator
+==================
+
+let v = obj!.method()
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (force_chain_expression
+        object: (identifier)
+        field: (identifier))
+      arguments: (argument_list))))

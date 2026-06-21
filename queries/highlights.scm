@@ -132,9 +132,9 @@
   "&&" "||" "!"
   "&" "|" "^" "~" "<<" ">>"
   "=" "+=" "-=" "*=" "/=" "%=" "??="
-  "|>" "&." "->" "=>" "::"
+  "|>" "?>" "&." "->" "=>" "::"
   ".." "..=" "..."
-  "?." "??" "?" ".*"
+  "?." "!." "??" "?" ".*"
   "~=" "!~=" ":=" "<-"
   "~/" "~/="
 ] @operator
@@ -206,6 +206,8 @@
 (field_expression
   field: (identifier) @property)
 (optional_chain_expression
+  field: (identifier) @property)
+(force_chain_expression
   field: (identifier) @property)
 (struct_expression_field
   name: (identifier) @property)

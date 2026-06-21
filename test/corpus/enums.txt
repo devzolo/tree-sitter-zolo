@@ -1,0 +1,41 @@
+==================
+Plain enum
+==================
+
+enum Color { Red, Green, Blue }
+
+---
+
+(source_file
+  (enum_item
+    name: (identifier)
+    body: (enum_variant_list
+      (enum_variant name: (identifier))
+      (enum_variant name: (identifier))
+      (enum_variant name: (identifier)))))
+
+==================
+Enum with backing type and discriminants
+==================
+
+enum Packet: u8 {
+  Connect = 0,
+  Pong,
+  Bye = 255,
+}
+
+---
+
+(source_file
+  (enum_item
+    name: (identifier)
+    backing_type: (primitive_type)
+    body: (enum_variant_list
+      (enum_variant
+        name: (identifier)
+        discriminant: (integer_literal))
+      (enum_variant
+        name: (identifier))
+      (enum_variant
+        name: (identifier)
+        discriminant: (integer_literal)))))

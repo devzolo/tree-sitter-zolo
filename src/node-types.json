@@ -52,6 +52,10 @@
         "named": true
       },
       {
+        "type": "force_chain_expression",
+        "named": true
+      },
+      {
         "type": "handle_expression",
         "named": true
       },
@@ -1318,6 +1322,16 @@
     "type": "enum_item",
     "named": true,
     "fields": {
+      "backing_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_type",
+            "named": true
+          }
+        ]
+      },
       "body": {
         "multiple": false,
         "required": true,
@@ -1412,6 +1426,16 @@
     "type": "enum_variant",
     "named": true,
     "fields": {
+      "discriminant": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_expression",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": true,
@@ -1667,6 +1691,32 @@
         ]
       },
       "iter": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "force_chain_expression",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "object": {
         "multiple": false,
         "required": true,
         "types": [
@@ -3164,6 +3214,10 @@
             "named": true
           },
           {
+            "type": "force_chain_expression",
+            "named": true
+          },
+          {
             "type": "identifier",
             "named": true
           },
@@ -3716,6 +3770,10 @@
         "types": [
           {
             "type": "&.",
+            "named": false
+          },
+          {
+            "type": "?>",
             "named": false
           },
           {
@@ -5028,6 +5086,10 @@
     "named": false
   },
   {
+    "type": "!.",
+    "named": false
+  },
+  {
     "type": "!=",
     "named": false
   },
@@ -5201,6 +5263,10 @@
   },
   {
     "type": "?.",
+    "named": false
+  },
+  {
+    "type": "?>",
     "named": false
   },
   {
@@ -5394,6 +5460,22 @@
     "named": false
   },
   {
+    "type": "i16",
+    "named": false
+  },
+  {
+    "type": "i32",
+    "named": false
+  },
+  {
+    "type": "i64",
+    "named": false
+  },
+  {
+    "type": "i8",
+    "named": false
+  },
+  {
     "type": "identifier",
     "named": true
   },
@@ -5423,6 +5505,10 @@
   },
   {
     "type": "is",
+    "named": false
+  },
+  {
+    "type": "isize",
     "named": false
   },
   {
@@ -5600,6 +5686,22 @@
     "named": false
   },
   {
+    "type": "u16",
+    "named": false
+  },
+  {
+    "type": "u32",
+    "named": false
+  },
+  {
+    "type": "u64",
+    "named": false
+  },
+  {
+    "type": "u8",
+    "named": false
+  },
+  {
     "type": "ulps",
     "named": false
   },
@@ -5609,6 +5711,10 @@
   },
   {
     "type": "using",
+    "named": false
+  },
+  {
+    "type": "usize",
     "named": false
   },
   {
