@@ -1314,6 +1314,7 @@ module.exports = grammar({
       $.tuple_pattern,
       $.array_pattern,
       $.struct_pattern,
+      $.anon_struct_pattern,
       $.enum_pattern,
       $.range_pattern,
       $.or_pattern,
@@ -1359,6 +1360,17 @@ module.exports = grammar({
         commaSep1(choice($.field_pattern, '..')),
         optional(','),
       )),
+      '}',
+    )),
+
+    // Anonymous struct pattern: `{ x, y: pat, .. }` — field names resolve
+    // from the scrutinee's inferred type (specs/struct-destructuring.html D2).
+    anon_struct_pattern: $ => prec(2, seq(
+      '{',
+      seq(
+        commaSep1(choice($.field_pattern, '..')),
+        optional(','),
+      ),
       '}',
     )),
 

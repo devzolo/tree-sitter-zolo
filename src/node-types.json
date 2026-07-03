@@ -350,6 +350,10 @@
     "named": true,
     "subtypes": [
       {
+        "type": "anon_struct_pattern",
+        "named": true
+      },
+      {
         "type": "array_pattern",
         "named": true
       },
@@ -499,6 +503,21 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "anon_struct_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "field_pattern",
+          "named": true
+        }
+      ]
     }
   },
   {
