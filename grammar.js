@@ -222,11 +222,19 @@ module.exports = grammar({
 
     self_parameter: _ => 'self',
 
-    parameter: $ => seq(
-      repeat($.decorator),
-      field('name', $.identifier),
-      optional(seq(':', field('type', $._type))),
-      optional(seq('=', field('default', $._expression))),
+    parameter: $ => choice(
+      // Pattern parameter: `fn dist(Point { x, y })` / `fn f({ name }: User)`
+      // — specs/2026-07-03-pattern-binding-positions-design.md (D3).
+      seq(
+        field('pattern', choice($.struct_pattern, $.anon_struct_pattern)),
+        optional(seq(':', field('type', $._type))),
+      ),
+      seq(
+        repeat($.decorator),
+        field('name', $.identifier),
+        optional(seq(':', field('type', $._type))),
+        optional(seq('=', field('default', $._expression))),
+      ),
     ),
 
     variadic_parameter: $ => seq(
@@ -1111,6 +1119,8 @@ module.exports = grammar({
       field('binding', choice(
         $.identifier,
         $.tuple_pattern_binding,
+        $.struct_pattern,
+        $.anon_struct_pattern,
       )),
       'in',
       field('iter', $._expression),

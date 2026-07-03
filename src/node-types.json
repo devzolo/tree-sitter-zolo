@@ -1690,7 +1690,15 @@
         "required": true,
         "types": [
           {
+            "type": "anon_struct_pattern",
+            "named": true
+          },
+          {
             "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "struct_pattern",
             "named": true
           },
           {
@@ -3636,10 +3644,24 @@
       },
       "name": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "pattern": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "anon_struct_pattern",
+            "named": true
+          },
+          {
+            "type": "struct_pattern",
             "named": true
           }
         ]
