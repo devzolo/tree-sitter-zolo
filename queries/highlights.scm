@@ -25,6 +25,9 @@
   "using"
   "state"
   "initial"
+  "comptime"
+  "enable"
+  "requires"
 ] @keyword
 
 [
@@ -79,6 +82,7 @@
   "defer"
   "defer_ok"
   "defer_err"
+  "guard"
 ] @keyword.exception
 
 [
@@ -102,6 +106,7 @@
 ; -- Literals ---------------------------------------------------------------
 (integer_literal) @number
 (float_literal) @number.float
+(decimal_literal) @number.float
 (bigint_literal) @number
 (duration_literal) @number
 (bool_literal) @boolean
@@ -179,6 +184,9 @@
 (field_declaration name: (identifier) @property)
 
 (type_parameter name: (identifier) @type.parameter)
+(const_item name: (identifier) @constant)
+(associated_type name: (identifier) @type)
+(directive_name (identifier) @constant)
 
 ; Type-level identifiers
 (primitive_type) @type.builtin
@@ -202,6 +210,16 @@
   macro: (identifier) @function.macro
   "!" @function.macro)
 
+; `resume(v)` / `abort(e)` — reserved pseudo-calls in effect-handler arms.
+; Later patterns win, so this overrides the generic @function.call above.
+((call_expression
+  function: (identifier) @keyword.control)
+  (#any-of? @keyword.control "resume" "abort"))
+
+; Named-argument labels: `f(name: v)` / `@test(timeout: 5s)`.
+(call_argument
+  name: (identifier) @variable.parameter)
+
 ; -- Fields & paths ---------------------------------------------------------
 (field_expression
   field: (identifier) @property)
@@ -221,6 +239,10 @@
   rest: (identifier) @variable)
 (anon_struct_pattern
   rest: (identifier) @variable)
+(enum_pattern
+  rest: (identifier) @variable)
+(binding_pattern
+  name: (identifier) @variable)
 (record_type
   name: (identifier) @property)
 

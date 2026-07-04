@@ -1,0 +1,484 @@
+================================================================================
+Decimal and BigDecimal literal suffixes
+================================================================================
+
+let a = 1.5d
+let b = 100d
+let c = 2.75bd
+let d = 100bd
+let dur = 5s
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (decimal_literal))
+  (let_declaration
+    (identifier)
+    (decimal_literal))
+  (let_declaration
+    (identifier)
+    (decimal_literal))
+  (let_declaration
+    (identifier)
+    (decimal_literal))
+  (let_declaration
+    (identifier)
+    (duration_literal)))
+
+================================================================================
+Guard statement
+================================================================================
+
+fn check(x: int) -> int {
+  guard x > 0 else {
+    return 0
+  }
+  return x
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (guard_statement
+        (binary_expression
+          (identifier)
+          (integer_literal))
+        (block
+          (return_statement
+            (integer_literal))))
+      (return_statement
+        (identifier)))))
+
+================================================================================
+Enable and requires directives
+================================================================================
+
+enable strict_types;
+requires net;
+requires version >= 1.0;
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (enable_directive
+    (directive_name
+      (identifier)))
+  (requires_directive
+    (directive_name
+      (identifier)))
+  (requires_directive
+    (directive_name
+      (identifier))
+    (float_literal)))
+
+================================================================================
+Comptime block and expression
+================================================================================
+
+let answer = comptime {
+  let a = 6
+  let b = 7
+  a * b
+}
+let two = comptime 1 + 1
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (comptime_expression
+      (block_expression
+        (block
+          (let_declaration
+            (identifier)
+            (integer_literal))
+          (let_declaration
+            (identifier)
+            (integer_literal))
+          (expression_statement
+            (binary_expression
+              (identifier)
+              (identifier)))))))
+  (let_declaration
+    (identifier)
+    (comptime_expression
+      (binary_expression
+        (integer_literal)
+        (integer_literal)))))
+
+================================================================================
+Struct field type inference
+================================================================================
+
+struct Settings {
+  id = 0,
+  ratio = 1.5,
+  label = "none",
+  host: str = "localhost",
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (struct_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (integer_literal))
+      (field_declaration
+        (identifier)
+        (float_literal))
+      (field_declaration
+        (identifier)
+        (string_literal
+          (string_content)))
+      (field_declaration
+        (identifier)
+        (primitive_type)
+        (string_literal
+          (string_content))))))
+
+================================================================================
+Method named with a reserved word (builder pattern)
+================================================================================
+
+let r = q.with(opts).using(cfg)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (call_expression
+      (field_expression
+        (method_call_expression
+          (identifier)
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier))))
+        (identifier))
+      (argument_list
+        (call_argument
+          (identifier))))))
+
+================================================================================
+Destructuring assignment tuple swap
+================================================================================
+
+fn swap() {
+  (a, b) = (b, a);
+  (p.x, p.y) = (5, 6);
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (assignment_statement
+        (tuple_assign_target
+          (identifier)
+          (identifier))
+        (tuple_expression
+          (identifier)
+          (identifier)))
+      (assignment_statement
+        (tuple_assign_target
+          (field_expression
+            (identifier)
+            (identifier))
+          (field_expression
+            (identifier)
+            (identifier)))
+        (tuple_expression
+          (integer_literal)
+          (integer_literal))))))
+
+================================================================================
+Anonymous record type and rest pattern
+================================================================================
+
+fn describe(r: { name: str, age: int }) -> str {
+  return r.name
+}
+
+fn split(u: User) {
+  let User { name, ..rest } = u
+  let { email, ..basics } = u
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (record_type
+          (identifier)
+          (primitive_type)
+          (identifier)
+          (primitive_type))))
+    (primitive_type)
+    (block
+      (return_statement
+        (field_expression
+          (identifier)
+          (identifier)))))
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (block
+      (let_declaration
+        (struct_pattern
+          (identifier)
+          (field_pattern
+            (identifier))
+          (identifier))
+        (identifier))
+      (let_declaration
+        (anon_struct_pattern
+          (field_pattern
+            (identifier))
+          (identifier))
+        (identifier)))))
+
+================================================================================
+Struct literal spread
+================================================================================
+
+let renamed = User { name: "Bob", ..u }
+let copy = User { ..u }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (string_literal
+            (string_content)))
+        (struct_expression_field
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier))))))
+
+================================================================================
+If-let and while-let
+================================================================================
+
+fn demo(it: Iter) {
+  if let Option::Some(v) = find(1) {
+    print(v)
+  }
+  while let Option::Some(x) = it.next() {
+    print(x)
+  }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (block
+      (expression_statement
+        (if_let_expression
+          (enum_pattern
+            (path_expression
+              (identifier)
+              (identifier))
+            (identifier_pattern
+              (identifier)))
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (integer_literal))))
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (call_argument
+                    (identifier))))))))
+      (expression_statement
+        (while_let_expression
+          (enum_pattern
+            (path_expression
+              (identifier)
+              (identifier))
+            (identifier_pattern
+              (identifier)))
+          (method_call_expression
+            (identifier)
+            (identifier)
+            (argument_list))
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (call_argument
+                    (identifier)))))))))))
+
+================================================================================
+Or, binding and range patterns
+================================================================================
+
+fn classify(n: int) -> str {
+  return match n {
+    0 | 1 => "small",
+    x @ 2..=9 => "digit",
+    _ => "big",
+  }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (return_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (or_pattern
+              (literal_pattern
+                (integer_literal))
+              (literal_pattern
+                (integer_literal)))
+            (string_literal
+              (string_content)))
+          (match_arm
+            (binding_pattern
+              (identifier)
+              (range_pattern
+                (integer_literal)
+                (integer_literal)))
+            (string_literal
+              (string_content)))
+          (match_arm
+            (wildcard_pattern)
+            (string_literal
+              (string_content))))))))
+
+================================================================================
+BigInt literal
+================================================================================
+
+let big = 123456789012345678901234567890n
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (bigint_literal)))
+
+================================================================================
+Try catch finally
+================================================================================
+
+fn risky() {
+  try {
+    boom()
+  } catch e {
+    print(e)
+  } finally {
+    print("done")
+  }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (try_catch_expression
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list))))
+          (identifier)
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (call_argument
+                    (identifier))))))
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content))))))))))))
+
+================================================================================
+Named call arguments
+================================================================================
+
+let r = connect(host: "localhost", port: 8080)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)
+          (string_literal
+            (string_content)))
+        (call_argument
+          (identifier)
+          (integer_literal))))))

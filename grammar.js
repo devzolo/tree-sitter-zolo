@@ -146,7 +146,32 @@ module.exports = grammar({
       $.machine_item,
       $.override_declaration,
       $.macro_rules_item,
+      $.enable_directive,
+      $.requires_directive,
     ),
+
+    // -- Directives: `enable <feature>;` / `requires <cap> [op version];` --
+    // (crates/zolo-parser parse_enable/parse_requires; token.rs Enable/Requires)
+    enable_directive: $ => seq(
+      'enable',
+      field('feature', $.directive_name),
+      optional(';'),
+    ),
+
+    requires_directive: $ => seq(
+      'requires',
+      field('capability', $.directive_name),
+      optional(seq(
+        field('operator', choice('>=', '<=', '==', '>', '<')),
+        field('version', choice($.float_literal, $.integer_literal, $.string_literal)),
+      )),
+      optional(';'),
+    ),
+
+    directive_name: $ => prec.right(seq(
+      $.identifier,
+      repeat(seq('.', $.identifier)),
+    )),
 
     // -- Decorators -------------------------------------------------------
     decorator: $ => seq(
@@ -286,12 +311,19 @@ module.exports = grammar({
         // Anonymous embed: `using Type` (field name derived from the type).
         seq('using', field('type', $._type)),
         // Normal field or named embed: `[using] name : Type [= default] [where]`.
+        // The type is optional only when a default follows — field type
+        // inference `id = 0` (parser.rs gates the optional type on `=`).
         seq(
           optional('using'),
           field('name', $.identifier),
-          ':',
-          field('type', $._type),
-          optional(seq('=', field('default', $._expression))),
+          choice(
+            seq(
+              ':',
+              field('type', $._type),
+              optional(seq('=', field('default', $._expression))),
+            ),
+            seq('=', field('default', $._expression)),
+          ),
           optional(seq('where', field('constraint', $._expression))),
         ),
       ),
@@ -617,7 +649,17 @@ module.exports = grammar({
       $.break_statement,
       $.continue_statement,
       $.defer_statement,
+      $.guard_statement,
       $.expression_statement,
+    ),
+
+    // `guard cond else { diverge }` (parser.rs parse_guard).
+    guard_statement: $ => seq(
+      'guard',
+      field('condition', $._expression),
+      'else',
+      field('else_block', $.block),
+      optional(';'),
     ),
 
     let_declaration: $ => seq(
@@ -759,7 +801,16 @@ module.exports = grammar({
       $.sleep_expression,
       $.macro_invocation,
       $.macro_param,
+      $.comptime_expression,
     ),
+
+    // `comptime { … }` block or `comptime <expr>` (parser.rs Expr::Comptime).
+    // The block form rides `block_expression` via `_expression` — listing
+    // `$.block` here too would conflict with it.
+    comptime_expression: $ => prec.right(seq(
+      'comptime',
+      field('body', $._expression),
+    )),
 
     self_expression: _ => 'self',
 
@@ -899,6 +950,7 @@ module.exports = grammar({
         'guard', 'macro', 'on', 'var', 'override', 'defer_ok', 'defer_err',
         'plugin', 'effect', 'handle', 'perform', 'scope', 'select',
         'schema', 'machine', 'state', 'initial',
+        'with', 'using', 'const_assert', 'enable', 'requires',
       ), $.identifier),
     ),
 
@@ -1561,6 +1613,7 @@ module.exports = grammar({
     _literal: $ => choice(
       $.integer_literal,
       $.float_literal,
+      $.decimal_literal,
       $.bigint_literal,
       $.duration_literal,
       $.string_literal,
@@ -1587,18 +1640,27 @@ module.exports = grammar({
     )),
 
     float_literal: _ => token(choice(
-      // 1.0  1.0e10  1.0e-10  (optional d/bd = decimal/bigdecimal)
-      /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?(bd|d)?/,
+      // 1.0  1.0e10  1.0e-10
+      /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?/,
       // 1e10
-      /[0-9](_?[0-9])*[eE][+-]?[0-9]+(bd|d)?/,
+      /[0-9](_?[0-9])*[eE][+-]?[0-9]+/,
+    )),
+
+    // 1d / 1.5d (Decimal, rust_decimal) and 1bd / 1.5bd (BigDecimal).
+    // Mirrors the lexer: the `d`/`bd` suffixes win over the `d`(days)
+    // duration unit, which is why `d` is absent from duration_literal.
+    decimal_literal: _ => token(choice(
+      /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?(bd|d)/,
+      /[0-9](_?[0-9])*([eE][+-]?[0-9]+)?(bd|d)/,
     )),
 
     bigint_literal: _ => token(/[0-9](_?[0-9])*n/),
 
-    // 5s, 100ms, 30min, 2h, 1d, 1w, 500us, 1ns
+    // 5s, 100ms, 30min, 2h, 1w, 500us, 1ns — no `d`: bare `Nd` lexes as
+    // Decimal (see decimal_literal above / lexer.rs read_number).
     duration_literal: _ => token(seq(
       /[0-9](_?[0-9])*(\.[0-9](_?[0-9])*)?/,
-      choice('min', 'ms', 'ns', 'us', 's', 'h', 'd', 'w'),
+      choice('min', 'ms', 'ns', 'us', 's', 'h', 'w'),
     )),
 
     char_literal: _ => token(seq(
