@@ -211,9 +211,17 @@
   field: (identifier) @property)
 (struct_expression_field
   name: (identifier) @property)
+(struct_expression_field
+  spread: (identifier) @variable)
 (map_entry
   key: (identifier) @property)
 (field_pattern
+  name: (identifier) @property)
+(struct_pattern
+  rest: (identifier) @variable)
+(anon_struct_pattern
+  rest: (identifier) @variable)
+(record_type
   name: (identifier) @property)
 
 (path_expression

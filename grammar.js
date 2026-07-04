@@ -80,6 +80,10 @@ module.exports = grammar({
     [$.function_type, $.union_type],
     // `|| -> T| name` — parameter (untyped) vs type_path
     [$.parameter, $.type_path],
+    // `{ a: b, ... }` after a lambda return type — record_type field label
+    // vs an identifier pattern in a `a: pattern` field_pattern; GLR keeps
+    // both until the closing brace context disambiguates.
+    [$.identifier_pattern, $.type_path],
     // `Name { ... }` struct literal vs a control-flow head followed by a block
     // (`match x { ... }`, `if x { ... }`); GLR keeps both and prunes the invalid.
     [$._expression, $.struct_expression],
@@ -652,12 +656,29 @@ module.exports = grammar({
     )),
 
     assignment_statement: $ => prec.right(seq(
-      field('target', $._expression),
+      field('target', choice($._expression, $.tuple_assign_target)),
       field('operator', choice(
         '=', '+=', '-=', '*=', '/=', '~/=', '%=', '??=',
       )),
       field('value', $._expression),
       optional(';'),
+    )),
+
+    // D5: `(a, b) = ...` — positional destructuring-assignment target.
+    // Two or more comma-separated places; a single `(x)` stays an ordinary
+    // parenthesized-expression target. prec(1) beats the identical
+    // tuple_expression reduction when `=` follows.
+    // KNOWN LIMIT: when the PREVIOUS line ends in an expression, the `(`
+    // is consumed as call arguments (the compiler's parser fixes this with
+    // a newline guard; tree-sitter would need an external scanner) — only
+    // highlighting is affected, and a `;` on the previous line avoids it.
+    tuple_assign_target: $ => prec(1, seq(
+      '(',
+      $._expression,
+      ',',
+      commaSep1($._expression),
+      optional(','),
+      ')',
     )),
 
     return_statement: $ => prec.right(seq(
@@ -988,6 +1009,9 @@ module.exports = grammar({
       ),
       // Shorthand: { x } means { x: x }
       field('shorthand', $.identifier),
+      // Construction spread: `User { name: "Z", ..rest }` — must be last;
+      // remaining fields come from `rest` (named > spread > default).
+      seq('..', field('spread', $._expression)),
     ),
 
     // -- Control-flow expressions ----------------------------------------
@@ -1367,7 +1391,7 @@ module.exports = grammar({
       field('name', $.identifier),
       '{',
       optional(seq(
-        commaSep1(choice($.field_pattern, '..')),
+        commaSep1(choice($.field_pattern, $._field_rest_pattern)),
         optional(','),
       )),
       '}',
@@ -1378,7 +1402,7 @@ module.exports = grammar({
     anon_struct_pattern: $ => prec(2, seq(
       '{',
       seq(
-        commaSep1(choice($.field_pattern, '..')),
+        commaSep1(choice($.field_pattern, $._field_rest_pattern)),
         optional(','),
       ),
       '}',
@@ -1404,8 +1428,12 @@ module.exports = grammar({
 
     _enum_pattern_body: $ => choice(
       seq('(', optional(seq(commaSep1($._pattern), optional(','))), ')'),
-      seq('{', optional(seq(commaSep1(choice($.field_pattern, '..')), optional(','))), '}'),
+      seq('{', optional(seq(commaSep1(choice($.field_pattern, $._field_rest_pattern)), optional(','))), '}'),
     ),
+
+    // `..` discards the remaining fields; `..rest` binds them as an
+    // anonymous record value (specs/struct-destructuring.html D4).
+    _field_rest_pattern: $ => seq('..', optional(field('rest', $.identifier))),
 
     field_pattern: $ => seq(
       field('name', $.identifier),
@@ -1439,6 +1467,7 @@ module.exports = grammar({
       $.generic_type,
       $.array_type,
       $.map_type,
+      $.record_type,
       $.tuple_type,
       $.parenthesized_type,
       $.optional_type,
@@ -1473,6 +1502,28 @@ module.exports = grammar({
     variadic_type: $ => prec.right(seq('...', $._type)),
 
     map_type: $ => seq('{', $._type, ':', $._type, '}'),
+
+    // Anonymous record type: `{ name: str, age: int }`. Labels are plain
+    // identifiers; `{str: int}` stays a map_type because primitive names lex
+    // as keywords. `{ ident : ... }` prefers record over map: the prec(1) on
+    // the field rule beats type_path's prec.left(0) reduce at the `:`, so an
+    // identifier key shifts into the record field instead of reducing to a
+    // map key type (mirrors the compiler's parse_type rule: non-primitive
+    // label + `:` → record). Cosmetic trade-off: `{User: int}` highlights as
+    // a record, matching the compiler for lowercase and diverging only for
+    // uppercase-keyed map types, which don't occur in practice.
+    record_type: $ => seq(
+      '{',
+      commaSep1($._record_type_field),
+      optional(','),
+      '}',
+    ),
+
+    _record_type_field: $ => prec(1, seq(
+      field('name', $.identifier),
+      ':',
+      field('type', $._type),
+    )),
 
     tuple_type: $ => seq(
       '(',
