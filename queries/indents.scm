@@ -6,6 +6,7 @@
 ; -- Containers that open an indentation level ------------------------------
 [
   (block)
+  (trailing_lambda)
   (declaration_body)
   (field_declaration_list)
   (compact_field_list)

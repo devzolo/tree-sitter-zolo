@@ -90,6 +90,15 @@ module.exports = grammar({
     // Struct-free scrutinee postfix: field access vs method call (mirrors the
     // `[field_expression, method_call_expression]` conflict above).
     [$._scrutinee_field, $._scrutinee_method_call],
+    // C3 trailing lambda: `f(a) {` — attach `trailing_lambda` to THIS call
+    // vs. reduce now and let `{` start a new statement/block elsewhere. Only
+    // a genuine tie when the block is pipe-led (the only shape
+    // `trailing_lambda` can match); GLR tries both, `trailing_lambda`'s
+    // `prec.dynamic` picks the attached reading, and a pipe-less thunk simply
+    // fails the attach branch so the non-attached reading survives.
+    [$.call_expression],
+    // Same ambiguity for `recv.m(a) {` / parens-less `recv.m {`.
+    [$.method_call_expression],
   ],
 
   inline: $ => [
@@ -899,9 +908,13 @@ module.exports = grammar({
     spread_expression: $ => prec.right(seq('...', $._expression)),
 
     // -- Call -------------------------------------------------------------
+    // Trailing lambda (C3): `f(a) { |x| … }` attaches a pipe-led block as one
+    // more argument after the closing `)`. See `trailing_lambda` below for
+    // why it's gated on a leading `|`/`||`.
     call_expression: $ => prec(PREC.call, seq(
       field('function', $._expression),
       field('arguments', $.argument_list),
+      optional(field('trailing_lambda', $.trailing_lambda)),
     )),
 
     argument_list: $ => seq(
@@ -909,6 +922,36 @@ module.exports = grammar({
       optional(seq(commaSep1($.call_argument), optional(','))),
       ')',
     ),
+
+    // `{ |params| … }` / `{ || … }` attached directly after a call's
+    // argument list, or after a parens-less method name (see
+    // `method_call_expression`). Gated on the block's FIRST token being a
+    // lambda pipe so it can never compete with an ordinary block body
+    // (if/while/match consequence, a bare `{ stmt }` thunk) or a
+    // struct-literal body — none of those start with `|`.
+    //
+    // This intentionally narrows tree-sitter's scope versus the Rust parser
+    // (crates/zolo-parser/src/parser.rs `parse_trailing_lambda_block` /
+    // `maybe_attach_trailing_lambda` / `trailing_block_starts_with_pipe`),
+    // which ALSO accepts a pipe-less "thunk" trailing lambda
+    // (`benchmark("x") { work() }`) via a same-line check that tree-sitter
+    // cannot replicate without an external scanner. A thunk block is left
+    // alone here — it still parses as a plain `block` (e.g. an ordinary
+    // second statement), unchanged from before this feature.
+    //
+    // A block starting with `|`/`||` is still structurally ambiguous with an
+    // ordinary `block` whose sole statement is a stray `lambda_expression`
+    // (ordinarily an unlikely thing to write); `prec.dynamic` prefers the
+    // trailing-lambda reading so real call-with-trailing-lambda code wins.
+    trailing_lambda: $ => prec.dynamic(1, seq(
+      '{',
+      choice(
+        '||',
+        seq('|', optional(seq(commaSep1($.parameter), optional(','))), '|'),
+      ),
+      repeat($._statement),
+      '}',
+    )),
 
     call_argument: $ => choice(
       // Named argument: name: value
@@ -920,13 +963,38 @@ module.exports = grammar({
       $._expression,
     ),
 
-    method_call_expression: $ => prec(PREC.call, seq(
+    // Trailing lambda (C3): `recv.m(a) { |x| … }` extends the parenthesized
+    // form the same way `call_expression` does; `recv.m { |x| … }` is the
+    // parens-less form — the trailing lambda alone supplies the argument
+    // list. Without a pipe-led block following, `recv.m` stays a bare
+    // `field_expression` below (no arguments at all).
+    //
+    // `prec.dynamic(1, …)`: `expr.name(...)` is already ambiguous with
+    // `call_expression(field_expression(expr, name), args)` (see the
+    // `[field_expression, method_call_expression]` conflict) and previously
+    // settled on `method_call_expression` via tree-sitter's unweighted
+    // default tie-break. Restructuring this rule's body to add the
+    // trailing-lambda choice shifted that default (observed regression:
+    // `it.next()` in the "If-let and while-let" corpus case flipped to
+    // `call_expression(field_expression(...))`). Pin the original winner
+    // explicitly instead of relying on the default.
+    method_call_expression: $ => prec.dynamic(1, prec(PREC.call, seq(
       field('receiver', $._expression),
       '.',
       field('method', $._method_name),
-      field('arguments', $.argument_list),
-    )),
+      choice(
+        seq(
+          field('arguments', $.argument_list),
+          optional(field('trailing_lambda', $.trailing_lambda)),
+        ),
+        field('trailing_lambda', $.trailing_lambda),
+      ),
+    ))),
 
+    // Plain field/property access: `recv.field`. When `recv.name` is instead
+    // followed by a pipe-led block (`recv.name { |x| … }`), that shape is
+    // claimed by `method_call_expression`'s parens-less trailing-lambda
+    // alternative above, not here — `field_expression` has no argument form.
     field_expression: $ => prec(PREC.call, seq(
       field('object', $._expression),
       '.',

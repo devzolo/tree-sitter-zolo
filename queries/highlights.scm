@@ -206,6 +206,13 @@
 (method_call_expression
   method: (identifier) @function.method.call)
 
+; Trailing lambda (C3): `f(a) { |x| … }` / `recv.m { |x| … }` — the
+; `trailing_lambda` node's own braces/pipes fall through to the generic
+; punctuation/operator token rules below, and its `parameter` children to the
+; `(parameter name: (identifier) @variable.parameter)` rule further down; no
+; dedicated capture is needed here, matching `lambda_expression` (which also
+; has no bespoke rule of its own).
+
 (macro_invocation
   macro: (identifier) @function.macro
   "!" @function.macro)

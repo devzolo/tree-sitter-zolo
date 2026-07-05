@@ -161,15 +161,14 @@ let r = q.with(opts).using(cfg)
 (source_file
   (let_declaration
     (identifier)
-    (call_expression
-      (field_expression
-        (method_call_expression
-          (identifier)
-          (identifier)
-          (argument_list
-            (call_argument
-              (identifier))))
-        (identifier))
+    (method_call_expression
+      (method_call_expression
+        (identifier)
+        (identifier)
+        (argument_list
+          (call_argument
+            (identifier))))
+      (identifier)
       (argument_list
         (call_argument
           (identifier))))))
@@ -482,3 +481,189 @@ let r = connect(host: "localhost", port: 8080)
         (call_argument
           (identifier)
           (integer_literal))))))
+
+================================================================================
+Trailing lambda: parens-less method call (C3)
+================================================================================
+
+xs.each { |x| print(x) }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (trailing_lambda
+        (parameter
+          (identifier))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (identifier)))))))))
+
+================================================================================
+Trailing lambda: paren call (C3)
+================================================================================
+
+f(a) { |x| x }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)))
+      (trailing_lambda
+        (parameter
+          (identifier))
+        (expression_statement
+          (identifier))))))
+
+================================================================================
+Trailing lambda: method call with args (C3)
+================================================================================
+
+pool.retry(3) { |x| work(x) }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (integer_literal)))
+      (trailing_lambda
+        (parameter
+          (identifier))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (identifier)))))))))
+
+================================================================================
+Trailing lambda: zero-param || form (C3)
+================================================================================
+
+retry() { || work() }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)
+      (trailing_lambda
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
+
+================================================================================
+Trailing lambda negative: struct literal stays a struct (C3)
+================================================================================
+
+User { name: "x" }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (string_literal
+            (string_content)))))))
+
+================================================================================
+Trailing lambda negative: if body stays a block (C3)
+================================================================================
+
+if flag { print(1) }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (if_expression
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (integer_literal)))))))))
+
+================================================================================
+Trailing lambda negative: while body stays a block (C3)
+================================================================================
+
+while c { go() }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (while_expression
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
+
+================================================================================
+Trailing lambda negative: match arms stay match arms (C3)
+================================================================================
+
+match e { A => 1 }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (identifier_pattern
+          (identifier))
+        (integer_literal)))))
+
+================================================================================
+Trailing lambda negative: pipe-less thunk is NOT a trailing lambda (C3)
+================================================================================
+
+benchmark("x") { work() }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (string_literal
+            (string_content))))))
+  (expression_statement
+    (block_expression
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
