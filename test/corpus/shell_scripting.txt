@@ -1,0 +1,82 @@
+==================
+Shebang on line 1
+==================
+
+#!/usr/bin/env zolo
+let x = 1
+
+---
+
+(source_file
+  (shebang)
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal)))
+
+==================
+parallel block runs statements concurrently
+==================
+
+fn main() {
+  parallel {
+    a()
+    b()
+  }
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (parallel_block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list)))
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list))))))))
+
+==================
+parallel call remains a plain function call
+==================
+
+fn main() {
+  parallel(fs)
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier))))))))
+
+==================
+Generic tagged template: sh command literal
+==================
+
+let c = sh"git status {branch}"
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (tagged_string_literal
+      tag: (identifier)
+      (string_content)
+      (string_interpolation
+        (identifier)))))

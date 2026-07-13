@@ -4,10 +4,43 @@
   "word": "identifier",
   "rules": {
     "source_file": {
-      "type": "REPEAT",
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "shebang"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_top_level_item"
+          }
+        }
+      ]
+    },
+    "shebang": {
+      "type": "TOKEN",
       "content": {
-        "type": "SYMBOL",
-        "name": "_top_level_item"
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "#!"
+          },
+          {
+            "type": "PATTERN",
+            "value": "[^\\r\\n]*"
+          }
+        ]
       }
     },
     "_top_level_item": {
@@ -4273,6 +4306,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "parallel_block"
+        },
+        {
+          "type": "SYMBOL",
           "name": "select_expression"
         },
         {
@@ -8283,6 +8320,46 @@
           }
         }
       ]
+    },
+    "parallel_block": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_parallel_open"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_statement"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "}"
+        }
+      ]
+    },
+    "_parallel_open": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "parallel"
+          },
+          {
+            "type": "PATTERN",
+            "value": "\\s*"
+          },
+          {
+            "type": "STRING",
+            "value": "{"
+          }
+        ]
+      }
     },
     "select_expression": {
       "type": "SEQ",

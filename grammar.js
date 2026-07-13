@@ -118,7 +118,14 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // Source file
     // ---------------------------------------------------------------------
-    source_file: $ => repeat($._top_level_item),
+    // `#!/usr/bin/env zolo` on line 1 only is lexer trivia (see
+    // crates/zolo-lexer/src/lexer.rs Lexer::new, which skips a `#!`-prefixed
+    // first line before tokenizing). It is NOT valid mid-file — a stray `#!`
+    // elsewhere is a parser error (`Hash` + `Bang`) — so it is deliberately
+    // NOT in `extras`; it can only ever appear once, right here.
+    source_file: $ => seq(optional($.shebang), repeat($._top_level_item)),
+
+    shebang: _ => token(seq('#!', /[^\r\n]*/)),
 
     _top_level_item: $ => choice(
       $._item,
@@ -800,6 +807,7 @@ module.exports = grammar({
       $.yield_expression,
       $.spawn_expression,
       $.scope_expression,
+      $.parallel_block,
       $.select_expression,
       $.perform_expression,
       $.handle_expression,
@@ -1385,6 +1393,28 @@ module.exports = grammar({
 
     // structured concurrency: scope { spawn ...; spawn ... }
     scope_expression: $ => seq('scope', field('body', $.block)),
+
+    // `parallel { … }` — concurrency block: each top-level statement of the
+    // block runs concurrently, joined at the closing brace (specs/
+    // shell-scripting.html §11; desugars to `scope { spawn { … } × N }` in
+    // the front-end pipeline — mirrors parser.rs
+    // parse_ident_expr_with_name's `name == "parallel"` check). `parallel`
+    // is NOT a reserved word: std::effect declares a fn named `parallel`,
+    // so `parallel(fs)` must keep parsing as an ordinary call. Mirrors
+    // `handler_expression`/`_handler_open` immediately below: `parallel {`
+    // is lexed as ONE token (optional whitespace before `{`) so a bare
+    // `parallel` elsewhere stays a plain identifier. As with `handler`,
+    // this does not special-case a struct literal literally named
+    // `parallel` (`parallel { field: v }`) — the real parser resolves that
+    // rare case via `looks_like_struct_literal()`, which has no grammar-only
+    // equivalent here.
+    parallel_block: $ => seq(
+      $._parallel_open,
+      repeat($._statement),
+      '}',
+    ),
+
+    _parallel_open: _ => token(seq('parallel', /\s*/, '{')),
 
     // select { x := <- ch => ...; after Ns => ...; default => ... }
     select_expression: $ => seq('select', '{', repeat($.select_arm), '}'),

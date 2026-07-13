@@ -2,6 +2,7 @@
 ; Captures follow the standard nvim-treesitter / Helix capture conventions.
 
 ; -- Comments ---------------------------------------------------------------
+(shebang) @comment
 (line_comment) @comment
 (block_comment) @comment
 (doc_comment) @comment.documentation
@@ -63,6 +64,15 @@
   "default"
 ] @keyword.control
 
+; `parallel` (concurrency block, specs/shell-scripting.html §11) is
+; deliberately NOT listed here, unlike `scope`/`spawn`: it is not a reserved
+; word (std::effect declares a fn named `parallel`, so `parallel(fs)` must
+; keep parsing as an ordinary call). grammar.js resolves the ambiguity by
+; lexing `parallel {` as one token (mirroring `handler {` /
+; `_handler_open`), and — like `_handler_open` — that hidden merged token
+; produces no tree node at all (verified via `tree-sitter parse -x`), so
+; there is nothing here to capture without also colorizing the following
+; `{`/whitespace. Same reasoning applies to `handler` above.
 [
   "async"
   "await"
@@ -119,6 +129,12 @@
 (fenced_string_literal) @string
 (bytes_literal) @string
 (regex_literal) @string.regex
+; Generic tagged template `tag"...{expr}..."` (any identifier tag — sql, sh,
+; json, html, ... all share this one grammar rule). Whole-node @string first
+; so the body/quotes get a base color (mirrors `tagged_raw_string_literal`
+; below); the `tag` field capture is a later pattern, so it wins and
+; overrides just that sub-range per the "later patterns win" convention.
+(tagged_string_literal) @string
 (tagged_string_literal
   tag: (identifier) @function.macro)
 (tagged_raw_string_literal) @string

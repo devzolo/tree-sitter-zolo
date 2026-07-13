@@ -120,6 +120,10 @@
         "named": true
       },
       {
+        "type": "parallel_block",
+        "named": true
+      },
+      {
         "type": "parenthesized_expression",
         "named": true
       },
@@ -3771,6 +3775,21 @@
     }
   },
   {
+    "type": "parallel_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "parameter",
     "named": true,
     "fields": {
@@ -4335,6 +4354,10 @@
         },
         {
           "type": "_statement",
+          "named": true
+        },
+        {
+          "type": "shebang",
           "named": true
         }
       ]
@@ -5967,6 +5990,10 @@
   {
     "type": "self",
     "named": false
+  },
+  {
+    "type": "shebang",
+    "named": true
   },
   {
     "type": "shutdown",
