@@ -1,0 +1,41 @@
+==================
+is not: negated type check in expression position
+==================
+
+let alive = stream is not nil
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (type_check_expression
+      value: (identifier)
+      type: (type_path
+        (identifier)))))
+
+==================
+is not: negated type check as match scrutinee
+==================
+
+match stream is not nil {
+    true => 1,
+    _ => 0,
+}
+
+---
+
+(source_file
+  (expression_statement
+    (match_expression
+      value: (type_check_expression
+        value: (identifier)
+        type: (type_path
+          (identifier)))
+      (match_arm
+        pattern: (literal_pattern
+          (bool_literal))
+        body: (integer_literal))
+      (match_arm
+        pattern: (wildcard_pattern)
+        body: (integer_literal)))))

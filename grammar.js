@@ -1248,6 +1248,10 @@ module.exports = grammar({
     _scrutinee_type_check: $ => prec.left(PREC.cast, seq(
       field('value', $._match_scrutinee),
       'is',
+      // `is not <type>` — mirrors type_check_expression; the compiler
+      // desugars to `!(x is T)` and accepts it anywhere an expression
+      // parses, scrutinee position included.
+      optional('not'),
       field('type', $._type),
     )),
 

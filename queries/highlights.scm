@@ -98,6 +98,10 @@
 [
   "as"
   "is"
+  ; `not` is an anonymous token only inside the two `is not` type-check
+  ; rules (never a reserved word), so this is contextual by construction —
+  ; a variable/function named `not` parses as identifier and stays unstyled.
+  "not"
   "within"
   "relative"
   "ulps"
