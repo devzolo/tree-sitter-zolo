@@ -2,7 +2,8 @@ package tree_sitter_zolo
 
 // #cgo CFLAGS: -std=c11 -fPIC
 // #include "../../src/parser.c"
-// // NOTE: if your language has an external scanner, add it here.
+// // `_markup_lt` — see src/scanner.c.
+// #include "../../src/scanner.c"
 import "C"
 
 import "unsafe"

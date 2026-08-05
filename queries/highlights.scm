@@ -296,3 +296,34 @@
 
 ; -- Identifiers (fallback) -------------------------------------------------
 (identifier) @variable
+
+; -- Markup (Verniz V4b) ----------------------------------------------------
+; Last in the file on purpose: tag and attribute names are `identifier`
+; nodes, and the `(identifier) @variable` fallback above would otherwise
+; claim them. Later patterns win.
+(markup_open_tag name: (identifier) @tag)
+(markup_close_tag name: (identifier) @tag)
+(markup_self_closing_tag name: (identifier) @tag)
+
+(markup_attribute name: (markup_attribute_name) @tag.attribute)
+
+; Anchored inside the markup nodes so they never restyle the comparison
+; operators `<` and `>`, which an unanchored list would.
+(markup_open_tag ["<" ">"] @tag.delimiter)
+(markup_close_tag ["</" ">"] @tag.delimiter)
+(markup_self_closing_tag ["<" "/>"] @tag.delimiter)
+(markup_fragment_open ["<" ">"] @tag.delimiter)
+(markup_fragment_close ["</" ">"] @tag.delimiter)
+(markup_attribute "=" @operator)
+
+; `{ … }` is the escape back into Zolo — the braces are punctuation, and
+; what is inside is ordinary code highlighted by every rule above.
+(markup_interpolation ["{" "}"] @punctuation.special)
+(markup_attribute_expression ["{" "}"] @punctuation.special)
+
+; `<!-- … -->`. Inside markup this is the ONLY comment form: `//` there is
+; indistinguishable from a URL, so it stays text.
+(markup_comment) @comment
+
+; Literal text between tags carries no highlight of its own.
+(markup_text) @none

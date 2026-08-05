@@ -108,6 +108,10 @@
         "named": true
       },
       {
+        "type": "markup_element",
+        "named": true
+      },
+      {
         "type": "match_expression",
         "named": true
       },
@@ -3313,6 +3317,204 @@
     }
   },
   {
+    "type": "markup_attribute",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "markup_attribute_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_literal",
+            "named": true
+          },
+          {
+            "type": "markup_attribute_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "markup_attribute_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "markup_close_tag",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "markup_element",
+    "named": true,
+    "fields": {
+      "close_tag": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "markup_close_tag",
+            "named": true
+          },
+          {
+            "type": "markup_fragment_close",
+            "named": true
+          }
+        ]
+      },
+      "open_tag": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "markup_fragment_open",
+            "named": true
+          },
+          {
+            "type": "markup_open_tag",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "markup_comment",
+          "named": true
+        },
+        {
+          "type": "markup_element",
+          "named": true
+        },
+        {
+          "type": "markup_interpolation",
+          "named": true
+        },
+        {
+          "type": "markup_self_closing_tag",
+          "named": true
+        },
+        {
+          "type": "markup_text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "markup_fragment_close",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "markup_fragment_open",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "markup_interpolation",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "markup_open_tag",
+    "named": true,
+    "fields": {
+      "attribute": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "markup_attribute",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "markup_self_closing_tag",
+    "named": true,
+    "fields": {
+      "attribute": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "markup_attribute",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "match_arm",
     "named": true,
     "fields": {
@@ -5548,6 +5750,10 @@
     "named": false
   },
   {
+    "type": "/>",
+    "named": false
+  },
+  {
     "type": ":",
     "named": false
   },
@@ -5569,6 +5775,10 @@
   },
   {
     "type": "<-",
+    "named": false
+  },
+  {
+    "type": "</",
     "named": false
   },
   {
@@ -5897,6 +6107,18 @@
   {
     "type": "macro_rules",
     "named": false
+  },
+  {
+    "type": "markup_attribute_name",
+    "named": true
+  },
+  {
+    "type": "markup_comment",
+    "named": true
+  },
+  {
+    "type": "markup_text",
+    "named": true
   },
   {
     "type": "match",

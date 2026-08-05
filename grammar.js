@@ -55,6 +55,13 @@ module.exports = grammar({
 
   word: $ => $.identifier,
 
+  // `<` on a new line opens markup; `<` mid-expression is a comparison. That
+  // is a LEXER decision in the compiler too (`markup_starts_here`), and it
+  // has to be one here: as a shared token the generator settles it with the
+  // comparison operator's precedence, out of reach of `conflicts` and
+  // `prec.dynamic`. See src/scanner.c.
+  externals: $ => [$._markup_lt],
+
   conflicts: $ => [
     // `let x` — prefer plain identifier over identifier_pattern wrapper
     [$.let_declaration, $.identifier_pattern],
@@ -99,6 +106,11 @@ module.exports = grammar({
     [$.call_expression],
     // Same ambiguity for `recv.m(a) {` / parens-less `recv.m {`.
     [$.method_call_expression],
+    // `let x = ""` on one line and `<div>…</div>` on the next. Without this
+    // the generator resolves the `<` as a shift into `binary_expression`
+    // (comparison precedence beats reducing the statement), the markup
+    // reading is never built, and the file parses as `"" < div`. Declared as
+    // a conflict, GLR carries both and only the one that closes survives.
   ],
 
   inline: $ => [
@@ -819,7 +831,187 @@ module.exports = grammar({
       $.macro_invocation,
       $.macro_param,
       $.comptime_expression,
+      $.markup_element,
     ),
+
+    // ---------------------------------------------------------------------
+    // Markup (Verniz V4b) — mirrors parser.rs `parse_element`
+    // ---------------------------------------------------------------------
+    // `<div class="card">…</div>` is an ordinary expression that desugars to
+    // a builder call. There is no second grammar for control flow inside it:
+    // `{ if x { … } }` is the language's own `if`, which is why
+    // `markup_interpolation` holds STATEMENTS rather than one expression.
+    //
+    // Two things keep `<` unambiguous, and both are mirrored here:
+    //
+    //   - An element may only start where an expression may START. That falls
+    //     out of `markup_element` being an `_expression`. The residual tie is
+    //     with a comparison or a generic whose `<` follows a newline, and
+    //     that one is settled in the LEXER, by the external scanner: a `<`
+    //     on a new line arrives as `_markup_lt`, a token no comparison can
+    //     claim. So the plain `<` branch is only ever reached where markup
+    //     is the sole reading anyway, and `prec.dynamic(-1)` keeps markup
+    //     LOSING every remaining tie. It has to lose: a markup branch that
+    //     never closes still survives via error recovery, so a positive
+    //     dynamic precedence made `let n: Maybe<int>` parse `<int>` as an
+    //     open tag and swallow the rest of the file as text.
+    //   - Inside children, text is CONTENT. `markup_text` is one greedy token
+    //     so `5 < 10`, `&`, `%` and a bare `https://…` stay text. `//` cannot
+    //     open a comment there — it is indistinguishable from a URL — which
+    //     is why the token carries lexical precedence over `line_comment`,
+    //     and why the comment form inside markup is `<!-- … -->`.
+    // Entry into markup from `_expression`. The opening `<` is ALWAYS the
+    // scanner's token here, NEVER the plain one, and that is load-bearing.
+    // Admitting the plain `<` makes it a token that can start a statement,
+    // which hands the parser a second reading of every `<` that follows a
+    // complete expression or type: `let n: Maybe<int> = 1` reduced the type
+    // at `Maybe`, opened `<int>` as a tag and swallowed the rest of the file
+    // as text. Nine corpus files regressed exactly that way. Neither
+    // `prec(-1)` nor `prec.dynamic(-1)` rescues it — the tie is shift/reduce
+    // and an unclosed markup branch still survives via error recovery — so
+    // the plain `<` is confined to `_markup_nested_element` below, whose
+    // context (markup children) admits no comparison at all.
+    //
+    // LIMIT: markup that opens on the SAME line as what precedes it, e.g.
+    // `layout("Blog", <div>` — the compiler's `Comma` allowlist case. The
+    // scanner only recognises the newline clause of `markup_starts_here`, so
+    // that shape does not parse here yet.
+    markup_element: $ => prec.dynamic(-1, choice(
+      $.markup_self_closing_tag,
+      seq(
+        field('open_tag', $.markup_open_tag),
+        repeat($._markup_child),
+        field('close_tag', $.markup_close_tag),
+      ),
+      seq(
+        field('open_tag', $.markup_fragment_open),
+        repeat($._markup_child),
+        field('close_tag', $.markup_fragment_close),
+      ),
+    )),
+
+    // The same three shapes, reached from inside children, where the plain
+    // `<` is unambiguous. Aliased back to the entry node names so queries and
+    // consumers see one vocabulary.
+    _markup_nested_element: $ => choice(
+      alias($._nested_self_closing_tag, $.markup_self_closing_tag),
+      seq(
+        field('open_tag', alias($._nested_open_tag, $.markup_open_tag)),
+        repeat($._markup_child),
+        field('close_tag', $.markup_close_tag),
+      ),
+      seq(
+        field('open_tag', alias($._nested_fragment_open, $.markup_fragment_open)),
+        repeat($._markup_child),
+        field('close_tag', $.markup_fragment_close),
+      ),
+    ),
+
+    _nested_open_tag: $ => seq(
+      '<',
+      field('name', $._markup_tag_name),
+      repeat(field('attribute', $.markup_attribute)),
+      '>',
+    ),
+
+    _nested_self_closing_tag: $ => seq(
+      '<',
+      field('name', $._markup_tag_name),
+      repeat(field('attribute', $.markup_attribute)),
+      '/>',
+    ),
+
+    _nested_fragment_open: _ => seq('<', '>'),
+
+    // The tag name is REQUIRED and the fragment `<>…</>` gets its own pair of
+    // rules, rather than the name being `optional()`. With it optional, the
+    // state right after `<` accepts a name OR an attribute, and since both are
+    // identifiers the lexer read `<p>` as an element with no name and one
+    // attribute named `p` — which then made every `/>` unparsable, because the
+    // self-closing form does need a name.
+    markup_open_tag: $ => seq(
+      alias($._markup_lt, '<'),
+      field('name', $._markup_tag_name),
+      repeat(field('attribute', $.markup_attribute)),
+      '>',
+    ),
+
+    markup_self_closing_tag: $ => seq(
+      alias($._markup_lt, '<'),
+      field('name', $._markup_tag_name),
+      repeat(field('attribute', $.markup_attribute)),
+      '/>',
+    ),
+
+    // `<>…</>` — siblings with no wrapping element. It flows through the same
+    // path in the compiler, as an element whose tag name is empty.
+    markup_fragment_open: $ => seq(alias($._markup_lt, '<'), '>'),
+
+    markup_close_tag: $ => seq(
+      '</',
+      field('name', $._markup_tag_name),
+      '>',
+    ),
+
+    markup_fragment_close: _ => seq('</', '>'),
+
+    // A tag name may be a keyword: `<title>`, `<main>`, `<for>` are all real
+    // HTML and the parser reads it with `expect_ident_or_keyword`.
+    _markup_tag_name: $ => $._method_name,
+
+    _markup_child: $ => choice(
+      $.markup_text,
+      $.markup_comment,
+      $.markup_interpolation,
+      // Aliased, not just included: a hidden rule with several children is
+      // INLINED into its parent, so a nested `<span>` lost its own node and
+      // its open/close tags surfaced as extra fields of the enclosing
+      // element. The alias gives it a node again, under the entry name.
+      alias($._markup_nested_element, $.markup_element),
+    ),
+
+    markup_interpolation: $ => seq('{', repeat($._statement), '}'),
+
+    // Text runs until markup resumes. The two-character alternatives are how
+    // a DFA (no lookahead available) expresses "a `<` that does not open a
+    // tag": `at_tag_open` in the lexer admits only `<` + alpha / `_` / `/` /
+    // `>` / `!-`, so anything else after `<` is literal text.
+    markup_text: _ => token(prec(1, repeat1(choice(
+      /[^<{]/,
+      /<[^a-zA-Z_/>!]/,
+      /<![^-]/,
+    )))),
+
+    markup_comment: _ => token(prec(2, seq(
+      '<!--',
+      /[^-]*-+([^->][^-]*-+)*/,
+      '>',
+    ))),
+
+    markup_attribute: $ => seq(
+      field('name', $.markup_attribute_name),
+      optional(seq('=', field('value', $._markup_attribute_value))),
+    ),
+
+    // `bind:value`, `data-testid`, `aria-label`. The lexer splits each of
+    // these into three tokens and `parse_attr_name` re-joins them ONLY when
+    // the pieces are physically adjacent, so one token is the honest
+    // spelling: `bind : value` with spaces is not a name.
+    markup_attribute_name: _ => token(prec(1,
+      /[a-zA-Z_][a-zA-Z0-9_]*([:-][a-zA-Z_][a-zA-Z0-9_]*)*/,
+    )),
+
+    // A bare name is `true` — the HTML spelling of a boolean attribute
+    // (`<input disabled>`).
+    _markup_attribute_value: $ => choice(
+      $.markup_attribute_expression,
+      $._literal,
+    ),
+
+    // An `on*` attribute is a HANDLER, so its braces hold statements and the
+    // result is a thunk; every other attribute holds an expression. Accepting
+    // statements covers both, since an expression is one.
+    markup_attribute_expression: $ => seq('{', repeat($._statement), '}'),
 
     // `comptime { … }` block or `comptime <expr>` (parser.rs Expr::Comptime).
     // The block form rides `block_expression` via `_expression` — listing

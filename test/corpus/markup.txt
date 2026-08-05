@@ -1,0 +1,349 @@
+==================
+Element with attributes and text
+==================
+
+fn a() -> View {
+    <p class="x">ola</p>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Self-closing tag
+==================
+
+fn a() -> View {
+    <img src="/logo.png" alt="Zolo"/>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          (markup_self_closing_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))))))))
+
+==================
+Boolean attribute, directive name and hyphenated name
+==================
+
+fn a() -> View {
+    <input disabled bind:value={nome} data-testid="painel"/>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          (markup_self_closing_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name))
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (markup_attribute_expression
+                (expression_statement
+                  (identifier))))
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))))))))
+
+==================
+Handler attribute holds statements
+==================
+
+fn a() -> View {
+    <button onclick={ n -= step }>x</button>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (markup_attribute_expression
+                (assignment_statement
+                  target: (identifier)
+                  value: (identifier)))))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Nesting and interpolation on one line
+==================
+
+fn a() -> View {
+    <p>ola, <span>{nome}</span>!</p>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier))
+            (markup_interpolation
+              (expression_statement
+                (identifier)))
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Fragment
+==================
+
+fn a() -> View {
+    <>
+        <span>a</span>
+    </>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_fragment_open)
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier))
+            (markup_text)
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          close_tag: (markup_fragment_close))))))
+
+==================
+Control flow in children is the language's own
+==================
+
+fn a() -> View {
+    <ul>
+        { for tag in tags {
+            <li>{tag}</li>
+        } }
+    </ul>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          (markup_interpolation
+            (expression_statement
+              (for_expression
+                binding: (identifier)
+                iter: (identifier)
+                body: (block
+                  (expression_statement
+                    (markup_element
+                      open_tag: (markup_open_tag
+                        name: (identifier))
+                      (markup_interpolation
+                        (expression_statement
+                          (identifier)))
+                      close_tag: (markup_close_tag
+                        name: (identifier))))))))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+A `<` that does not open a tag stays text
+==================
+
+fn a() -> View {
+    <p>quando 5 < 10, mostre https://exemplo.com & cia</p>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Markup comment
+==================
+
+fn a() -> View {
+    <div>
+        <!-- `//` seria uma URL aqui, entao o comentario e este -->
+    </div>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_comment)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+A statement before markup does not turn into a comparison
+==================
+
+fn a() -> View {
+    var<signal> nome = ""
+    <div class="x">ola</div>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (let_declaration
+        storage: (storage_class
+          (identifier))
+        pattern: (identifier)
+        value: (string_literal))
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Generics keep their `<` when markup follows
+==================
+
+fn a() -> View {
+    let n: Maybe<int> = m
+    <p>x</p>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        type: (generic_type
+          name: (identifier)
+          (primitive_type))
+        value: (identifier))
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
