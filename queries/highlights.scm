@@ -327,3 +327,8 @@
 
 ; Literal text between tags carries no highlight of its own.
 (markup_text) @none
+
+; `<style>`/`<script>` body: CSS/JS, verbatim. Editors that resolve
+; `injections.scm` render this as the injected language instead; this scope
+; is the fallback for the ones that don't.
+(markup_raw_text) @string

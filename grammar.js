@@ -60,7 +60,17 @@ module.exports = grammar({
   // has to be one here: as a shared token the generator settles it with the
   // comparison operator's precedence, out of reach of `conflicts` and
   // `prec.dynamic`. See src/scanner.c.
-  externals: $ => [$._markup_lt],
+  // `$._error_sentinel` is a fourth external token that NO rule below ever
+  // references. That absence is the point: tree-sitter only asks the scanner
+  // about a token when some reachable grammar state expects it, so in
+  // ordinary parsing `valid_symbols[ERROR_SENTINEL]` is always false. During
+  // error recovery tree-sitter instead sets EVERY `valid_symbols` entry to
+  // true while it probes for a token to resynchronize on — including this
+  // one — so its truth is exactly the signal scanner.c uses to detect that
+  // mode and refuse to run `scan_raw_text` there. See scanner.c for the bug
+  // this closes (a stray token turning the rest of the file into one
+  // `markup_raw_text`).
+  externals: $ => [$._markup_lt, $._style_raw_text, $._script_raw_text, $._error_sentinel],
 
   conflicts: $ => [
     // `let x` — prefer plain identifier over identifier_pattern wrapper
@@ -878,6 +888,23 @@ module.exports = grammar({
     // that shape does not parse here yet.
     markup_element: $ => prec.dynamic(-1, choice(
       $.markup_self_closing_tag,
+      // `<style/>`/`<script/>`: the real parser accepts a self-closing raw
+      // text tag (`parse_element` checks for `/` before ever entering
+      // raw-text mode), so this grammar must too — REQUIRED, not cosmetic.
+      // `_style_tag_name`/`_script_tag_name` are precedence-boosted
+      // (`prec(2)`) so they win the lexer's tie-break against the generic
+      // `identifier` at the tag-name position, UNCONDITIONALLY — the lexer
+      // does not know yet whether a `/>` or a `>` follows. That means the
+      // generic `$.markup_self_closing_tag` (which expects `_markup_tag_name`
+      // there) can no longer see the text "style"/"script" at all once those
+      // tokens exist: the shared tag-name position always hands it the
+      // specific token instead, which it has no production to shift. Without
+      // this branch that is exactly an unparsable `<style/>` — confirmed by
+      // review round 1 (fresh worktree before this fix: `<style/>` produced
+      // an `ERROR` node). These two dedicated self-closing productions are
+      // what give that specific token somewhere to go.
+      alias($._style_self_closing_tag, $.markup_self_closing_tag),
+      alias($._script_self_closing_tag, $.markup_self_closing_tag),
       seq(
         field('open_tag', $.markup_open_tag),
         repeat($._markup_child),
@@ -888,13 +915,107 @@ module.exports = grammar({
         repeat($._markup_child),
         field('close_tag', $.markup_fragment_close),
       ),
+      // `<style>`/`<script>` are raw text elements: the body is a single
+      // token from the scanner, not children. One branch per tag because
+      // it is the `valid_symbols` of each branch's state that tells the
+      // scanner which closing sequence to look for (see scanner.c).
+      //
+      // The open tag here is NOT the generic `$.markup_open_tag` — it is
+      // `_style_open_tag`/`_script_open_tag`, whose NAME is the specific
+      // `style`/`script` token, not `_markup_tag_name`. That is load-bearing:
+      // if this reused the generic open tag, the parser state right after
+      // ANY `<tag>` would be the same one (name text is erased once reduced
+      // to `markup_open_tag`), so `valid_symbols[STYLE_RAW_TEXT]` would be
+      // true for `<div>` too, and the scanner — which has no idea what tag
+      // it is inside, only what the grammar currently allows — would
+      // greedily scan for a `</style` that never comes, swallowing the rest
+      // of the file. Giving `style`/`script` their own tag-name token makes
+      // the two parser states genuinely different, so the external scanner
+      // is only ever asked to look for raw text after a REAL `<style>` or
+      // `<script>`. Confirmed by running the corpus before this fix: every
+      // non-raw-text markup test failed with exactly that symptom.
+      seq(
+        field('open_tag', alias($._style_open_tag, $.markup_open_tag)),
+        optional(alias($._style_raw_text, $.markup_raw_text)),
+        field('close_tag', $.markup_close_tag),
+      ),
+      seq(
+        field('open_tag', alias($._script_open_tag, $.markup_open_tag)),
+        optional(alias($._script_raw_text, $.markup_raw_text)),
+        field('close_tag', $.markup_close_tag),
+      ),
     )),
+
+    // Open tag for `<style>`, entry form (scanner's `<`). The name is the
+    // specific `_style_tag_name` token, not `_markup_tag_name` — see the
+    // comment on the raw-text branches of `markup_element` above for why.
+    _style_open_tag: $ => seq(
+      alias($._markup_lt, '<'),
+      field('name', alias($._style_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '>',
+    ),
+
+    _script_open_tag: $ => seq(
+      alias($._markup_lt, '<'),
+      field('name', alias($._script_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '>',
+    ),
+
+    // Self-closing counterparts, entry form: `<style/>`/`<script/>`. Same
+    // dedicated tag-name token as the open tags above, `/>` instead of `>`.
+    _style_self_closing_tag: $ => seq(
+      alias($._markup_lt, '<'),
+      field('name', alias($._style_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '/>',
+    ),
+
+    _script_self_closing_tag: $ => seq(
+      alias($._markup_lt, '<'),
+      field('name', alias($._script_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '/>',
+    ),
+
+    // Higher lexical precedence than `identifier`/`_method_name`, so the
+    // literal spelling wins ONLY where both are simultaneously valid in the
+    // same parser state — right after `<`, choosing between a raw-text open
+    // tag and the generic one. This is a REGEX token, deliberately not a
+    // bare string: this grammar sets `word: $ => $.identifier`, which makes
+    // the generator auto-extract every string-literal token matching that
+    // word pattern into a GLOBAL keyword (that is how `let`/`if`/`fn`
+    // already work). Doing that here would reserve `style`/`script`
+    // everywhere, breaking `use std::html::{style, script, ...}` — an
+    // ordinary import list — a few lines above every example in this repo.
+    // A regex is excluded from keyword extraction, so `_style_tag_name` and
+    // `_script_tag_name` stay reachable ONLY from the two rules above,
+    // and `style`/`script` keep lexing as plain `identifier` everywhere
+    // else, imports included.
+    //
+    // Case-SENSITIVE, exact-lowercase, to match the compiler:
+    // `is_raw_text_tag` (crates/zolo-lexer/src/lexer.rs) is `name == "style"
+    // || name == "script"`. A Zolo tag is an identifier that resolves to a
+    // function, not an HTML element name — there is no element registry, so
+    // HTML's case-insensitivity does not transfer. A `/i` flag here made a
+    // user's own `<Style>` component take the raw-text branch, swallowing
+    // its children as escaped text instead of parsing them.
+    _style_tag_name: _ => token(prec(2, /style/)),
+    _script_tag_name: _ => token(prec(2, /script/)),
 
     // The same three shapes, reached from inside children, where the plain
     // `<` is unambiguous. Aliased back to the entry node names so queries and
     // consumers see one vocabulary.
     _markup_nested_element: $ => choice(
       alias($._nested_self_closing_tag, $.markup_self_closing_tag),
+      // Self-closing `<style/>`/`<script/>` reached as a NESTED child, e.g.
+      // `<div><style/></div>` — required for the same reason as the entry
+      // self-closing branches above: the precedence-boosted tag-name token
+      // preempts the generic one unconditionally, so the generic
+      // `_nested_self_closing_tag` can no longer see "style"/"script" text.
+      alias($._nested_style_self_closing_tag, $.markup_self_closing_tag),
+      alias($._nested_script_self_closing_tag, $.markup_self_closing_tag),
       seq(
         field('open_tag', alias($._nested_open_tag, $.markup_open_tag)),
         repeat($._markup_child),
@@ -905,6 +1026,23 @@ module.exports = grammar({
         repeat($._markup_child),
         field('close_tag', $.markup_fragment_close),
       ),
+      // Same raw-text fork as `markup_element` above, for `<style>`/
+      // `<script>` reached as a NESTED child (e.g. `<head><style>…`), which
+      // is how the real `std::html` markup nests them. Without this branch
+      // only the top-level (entry) form got raw-text treatment, and a
+      // nested `<style>` kept opening `markup_interpolation` on `{`.
+      // Same reasoning as the entry branches: a DEDICATED open tag, whose
+      // name is the specific token, not the generic `_nested_open_tag`.
+      seq(
+        field('open_tag', alias($._nested_style_open_tag, $.markup_open_tag)),
+        optional(alias($._style_raw_text, $.markup_raw_text)),
+        field('close_tag', $.markup_close_tag),
+      ),
+      seq(
+        field('open_tag', alias($._nested_script_open_tag, $.markup_open_tag)),
+        optional(alias($._script_raw_text, $.markup_raw_text)),
+        field('close_tag', $.markup_close_tag),
+      ),
     ),
 
     _nested_open_tag: $ => seq(
@@ -914,9 +1052,41 @@ module.exports = grammar({
       '>',
     ),
 
+    // Nested counterparts of `_style_open_tag`/`_script_open_tag`: same
+    // dedicated tag-name token, plain `<` instead of the scanner's, because
+    // inside markup children a bare `<` is already unambiguous.
+    _nested_style_open_tag: $ => seq(
+      '<',
+      field('name', alias($._style_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '>',
+    ),
+
+    _nested_script_open_tag: $ => seq(
+      '<',
+      field('name', alias($._script_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '>',
+    ),
+
     _nested_self_closing_tag: $ => seq(
       '<',
       field('name', $._markup_tag_name),
+      repeat(field('attribute', $.markup_attribute)),
+      '/>',
+    ),
+
+    // Nested counterparts of `_style_self_closing_tag`/`_script_self_closing_tag`.
+    _nested_style_self_closing_tag: $ => seq(
+      '<',
+      field('name', alias($._style_tag_name, $.identifier)),
+      repeat(field('attribute', $.markup_attribute)),
+      '/>',
+    ),
+
+    _nested_script_self_closing_tag: $ => seq(
+      '<',
+      field('name', alias($._script_tag_name, $.identifier)),
       repeat(field('attribute', $.markup_attribute)),
       '/>',
     ),

@@ -1,0 +1,33 @@
+==================
+A stray `)` produces a LOCAL error, not a runaway raw-text scan
+==================
+
+fn a() {
+    let x = )
+}
+
+fn b() -> int {
+    let y = 1
+    return y
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (let_declaration
+        pattern: (identifier))
+      (ERROR)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (integer_literal))
+      (return_statement
+        (identifier)))))

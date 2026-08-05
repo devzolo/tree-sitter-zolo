@@ -347,3 +347,285 @@ fn a() -> View {
           (markup_text)
           close_tag: (markup_close_tag
             name: (identifier)))))))
+
+==================
+Raw text element
+==================
+
+fn a() -> View {
+    <style>.a > .b { gap: 1px }</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text element with script tag
+==================
+
+fn a() -> View {
+    <script>if (a < b) { f() }</script>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text element nested inside another markup element
+==================
+
+fn a() -> View {
+    <head>
+        <style>main { color: red }</style>
+    </head>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier))
+            (markup_raw_text)
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text element with an empty body
+==================
+
+fn a() -> View {
+    <style></style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text element as the sole child of an ordinary nested element
+==================
+
+fn a() -> View {
+    <div><style>x</style></div>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier))
+            (markup_raw_text)
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Self-closing raw text element (style)
+==================
+
+fn a() -> View {
+    <style/>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          (markup_self_closing_tag
+            name: (identifier)))))))
+
+==================
+Self-closing raw text element (script)
+==================
+
+fn a() -> View {
+    <script/>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          (markup_self_closing_tag
+            name: (identifier)))))))
+
+==================
+Self-closing raw text element nested inside an ordinary element
+==================
+
+fn a() -> View {
+    <div><style/></div>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_element
+            (markup_self_closing_tag
+              name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text element tag name is case-SENSITIVE: `<STYLE>` is an ordinary component, not raw text
+==================
+
+fn a() -> View {
+    <STYLE>ola</STYLE>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text close tag requires a name boundary (script) — a longer name inside the body is not the close tag
+==================
+
+fn a() -> View {
+    <script>console.log(1);</scripts>;</script>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text close tag requires a name boundary (style) — same check, CSS content containing the tag name
+==================
+
+fn a() -> View {
+    <style>.a { content: "</styled>" }</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))

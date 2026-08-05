@@ -42,3 +42,20 @@
 ; Regex literal: re"pattern"
 ((regex_literal) @injection.content
   (#set! injection.language "regex"))
+
+; -- Raw text elements -------------------------------------------------------
+; The body of `<style>`/`<script>` is CSS/JS, not Zolo — it is a single
+; `markup_raw_text` node, never interpolated (see grammar.js and TE139 in the
+; compiler).
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag)
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "style")
+ (#set! injection.language "css"))
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag)
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "script")
+ (#set! injection.language "javascript"))

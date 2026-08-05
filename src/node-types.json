@@ -3427,6 +3427,10 @@
           "named": true
         },
         {
+          "type": "markup_raw_text",
+          "named": true
+        },
+        {
           "type": "markup_self_closing_tag",
           "named": true
         },
@@ -6114,6 +6118,10 @@
   },
   {
     "type": "markup_comment",
+    "named": true
+  },
+  {
+    "type": "markup_raw_text",
     "named": true
   },
   {
