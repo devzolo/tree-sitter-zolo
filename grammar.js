@@ -672,6 +672,12 @@ module.exports = grammar({
           commaSep1(field('signal', $.identifier)),
           optional(field('bind', $.identifier)),
         ),
+        // `on boot` runs once per process, `on worker [id]` once per HTTP
+        // worker. Spelled out rather than left to the `hook` fallback below:
+        // that fallback is `identifier` followed straight by the block, so
+        // `on worker id { … }` did not parse at all.
+        seq('boot', optional(field('bind', $.identifier))),
+        seq('worker', optional(field('bind', $.identifier))),
         field('hook', $.identifier),
       )),
       field('body', $.block),

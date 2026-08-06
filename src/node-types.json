@@ -3849,6 +3849,10 @@
             "named": false
           },
           {
+            "type": "boot",
+            "named": false
+          },
+          {
             "type": "identifier",
             "named": true
           },
@@ -3862,6 +3866,10 @@
           },
           {
             "type": "signal",
+            "named": false
+          },
+          {
+            "type": "worker",
             "named": false
           }
         ]
@@ -5903,6 +5911,10 @@
     "named": false
   },
   {
+    "type": "boot",
+    "named": false
+  },
+  {
     "type": "break",
     "named": false
   },
@@ -6343,6 +6355,10 @@
   },
   {
     "type": "within",
+    "named": false
+  },
+  {
+    "type": "worker",
     "named": false
   },
   {

@@ -345,3 +345,34 @@ machine TrafficLight {
                 (call_argument
                   (string_literal
                     (string_content)))))))))))
+
+================================================================================
+on boot / on worker phases
+================================================================================
+
+on boot {
+  migrate()
+}
+
+on worker id {
+  warm(id)
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (on_declaration
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list)))))
+  (on_declaration
+    (identifier)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier))))))))

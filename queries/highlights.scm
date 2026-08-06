@@ -113,6 +113,8 @@
   "shutdown"
   "panic"
   "signal"
+  "boot"
+  "worker"
 ] @keyword
 
 "self" @variable.builtin
