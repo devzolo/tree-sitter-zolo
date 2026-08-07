@@ -629,3 +629,196 @@ fn a() -> View {
           (markup_raw_text)
           close_tag: (markup_close_tag
             name: (identifier)))))))
+
+==================
+Comments between attributes in a tag
+==================
+
+fn v() -> View {
+    <div
+        // a line comment
+        class="a"
+        /* block with /> inside */
+        id="b"
+    >x</div>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            (line_comment)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))
+            (block_comment)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Doc comment forms inside a tag are plain comments
+==================
+
+fn v() -> View {
+    <span
+        /// a doc comment form
+        class="a"
+        //! a module doc form
+        id="b"
+        /** a block doc form */
+    >x</span>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            (line_comment)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))
+            (line_comment)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))
+            (block_comment))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+A comment just before the self closing slash
+==================
+
+fn v() -> View {
+    <img
+        src="a.png"
+        // an unbalanced " quote and a { brace stay in the comment
+        /* "quoted" and { braced } content, and a /> too */
+    />
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          (markup_self_closing_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))
+            (line_comment)
+            (block_comment)))))))
+
+==================
+A slash pair in text position is not a comment
+==================
+
+fn v() -> View {
+    <a href="https://x.dev//path">see https://x.dev//path</a>
+}
+
+fn w() -> View {
+    <div>
+        // a slash pair leading a line of children is still text
+    </div>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+A comment inside the closing tag
+==================
+
+fn v() -> View {
+    <div class="a">x</div // a comment inside the closing tag
+    >
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_text)
+          close_tag: (markup_close_tag
+            name: (identifier)
+            (line_comment)))))))

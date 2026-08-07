@@ -323,8 +323,11 @@
 (markup_interpolation ["{" "}"] @punctuation.special)
 (markup_attribute_expression ["{" "}"] @punctuation.special)
 
-; `<!-- … -->`. Inside markup this is the ONLY comment form: `//` there is
-; indistinguishable from a URL, so it stays text.
+; `<!-- … -->` is the comment form in the CHILDREN position: `//` there is
+; indistinguishable from a URL, so it stays text. Inside a TAG the opposite
+; holds — `//` and `/* */` are ordinary Zolo comments there (they ride the
+; `extras`, so they are real `line_comment`/`block_comment` nodes between the
+; attributes) and the captures at the top of this file already paint them.
 (markup_comment) @comment
 
 ; Literal text between tags carries no highlight of its own.
