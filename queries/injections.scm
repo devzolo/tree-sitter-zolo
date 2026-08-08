@@ -44,18 +44,35 @@
   (#set! injection.language "regex"))
 
 ; -- Raw text elements -------------------------------------------------------
-; The body of `<style>`/`<script>` is CSS/JS, not Zolo — it is a single
-; `markup_raw_text` node, never interpolated (see grammar.js and TE139 in the
-; compiler).
+; The body of `<script>` is JS, not Zolo — a single `markup_raw_text` node,
+; never interpolated (see grammar.js and TE139 in the compiler). `<style>`
+; is CSS the same way, EXCEPT for a live `@(expr)` escape
+; (specs/verniz-css.html §6.4): its body is `repeat($._style_body_part)`, so
+; a style element can hold SEVERAL `markup_raw_text` chunks (one per gap
+; between interpolations, possibly zero-width — see `css_interpolation`
+; below) rather than the single chunk `<script>` always gets.
+; `injection.combined` stitches those chunks into one logical CSS document
+; instead of N unrelated ones, so e.g. a rule's `{ … }` that happens to
+; straddle an interpolation still reads as balanced CSS.
 
 ((markup_element
    open_tag: (markup_open_tag name: (identifier) @_tag)
    (markup_raw_text) @injection.content)
  (#eq? @_tag "style")
- (#set! injection.language "css"))
+ (#set! injection.language "css")
+ (#set! injection.combined))
 
 ((markup_element
    open_tag: (markup_open_tag name: (identifier) @_tag)
    (markup_raw_text) @injection.content)
  (#eq? @_tag "script")
  (#set! injection.language "javascript"))
+
+; `@(expr)` itself: `expr`, not the whole node — `@(`/`)` are not valid
+; standalone Zolo on their own (unlike `{expr}` above, which IS a valid
+; `block_expression` when reparsed whole — that is why `string_interpolation`
+; injects the full node and this does not).
+((css_interpolation
+   expression: (_) @injection.content)
+ (#set! injection.language "zolo")
+ (#set! injection.include-children))

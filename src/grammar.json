@@ -4509,21 +4509,11 @@
                 }
               },
               {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "_style_raw_text"
-                    },
-                    "named": true,
-                    "value": "markup_raw_text"
-                  },
-                  {
-                    "type": "BLANK"
-                  }
-                ]
+                "type": "REPEAT",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_style_body_part"
+                }
               },
               {
                 "type": "FIELD",
@@ -4771,6 +4761,49 @@
         }
       }
     },
+    "_style_body_part": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_style_raw_text"
+          },
+          "named": true,
+          "value": "markup_raw_text"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "css_interpolation"
+        }
+      ]
+    },
+    "css_interpolation": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "@"
+        },
+        {
+          "type": "STRING",
+          "value": "("
+        },
+        {
+          "type": "FIELD",
+          "name": "expression",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_expression"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": ")"
+        }
+      ]
+    },
     "_markup_nested_element": {
       "type": "CHOICE",
       "members": [
@@ -4884,21 +4917,11 @@
               }
             },
             {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_style_raw_text"
-                  },
-                  "named": true,
-                  "value": "markup_raw_text"
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
+              "type": "REPEAT",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_style_body_part"
+              }
             },
             {
               "type": "FIELD",

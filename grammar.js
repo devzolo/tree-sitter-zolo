@@ -942,7 +942,7 @@ module.exports = grammar({
       // non-raw-text markup test failed with exactly that symptom.
       seq(
         field('open_tag', alias($._style_open_tag, $.markup_open_tag)),
-        optional(alias($._style_raw_text, $.markup_raw_text)),
+        repeat($._style_body_part),
         field('close_tag', $.markup_close_tag),
       ),
       seq(
@@ -1010,6 +1010,43 @@ module.exports = grammar({
     _style_tag_name: _ => token(prec(2, /style/)),
     _script_tag_name: _ => token(prec(2, /script/)),
 
+    // The body of `<style>` (specs/verniz-css.html §6.4): a sequence of raw
+    // CSS chunks and `@(expr)` escapes back to Zolo, instead of the single
+    // opaque `markup_raw_text` token `<script>` still gets (`<script>` has
+    // no such escape, by design — see the comment on `css_interpolation`
+    // below). `scan_raw_text` in scanner.c stops a `_style_raw_text` chunk
+    // at EITHER the closing tag OR a live `@(` (outside a CSS string/
+    // comment); which one determines whether `repeat()` sees another raw
+    // chunk or a `css_interpolation` next. A chunk can be empty-adjacent to
+    // an interpolation (`<style>@(x)</style>` has no CSS before it) — that
+    // is why this is `repeat()` of a choice, not `seq(raw_text, repeat(...))`.
+    _style_body_part: $ => choice(
+      alias($._style_raw_text, $.markup_raw_text),
+      $.css_interpolation,
+    ),
+
+    // `@(expr)` — the CSS interpolation escape inside a `<style>` body
+    // (specs/verniz-css.html §6.4). `expr` is a single ordinary Zolo
+    // expression: crates/zolo-parser/src/parser.rs `parse_element_children`'s
+    // `TokenKind::At` arm calls `parse_expr`, not `parse_stmt` — unlike
+    // `markup_interpolation` (`{ … }`), which holds statements. Nested
+    // parens inside `expr` (a call, a grouped expression, …) need no special
+    // handling here, unlike the TextMate grammar's hand-rolled depth
+    // counter: `$._expression`'s own sub-rules (`call_expression`,
+    // `parenthesized_expression`, …) already consume their own matching `)`
+    // as ordinary recursive-descent grammar, leaving exactly the outer `)`
+    // for this rule. The scanner only ever stops a `_style_raw_text` chunk
+    // right before a `@` that is IMMEDIATELY followed by `(` (no whitespace
+    // tolerated, matching the lexer's `peek2() == b'('` one-byte lookahead),
+    // so by the time the parser reaches this rule the `(` is guaranteed
+    // adjacent.
+    css_interpolation: $ => seq(
+      '@',
+      '(',
+      field('expression', $._expression),
+      ')',
+    ),
+
     // The same three shapes, reached from inside children, where the plain
     // `<` is unambiguous. Aliased back to the entry node names so queries and
     // consumers see one vocabulary.
@@ -1041,7 +1078,7 @@ module.exports = grammar({
       // name is the specific token, not the generic `_nested_open_tag`.
       seq(
         field('open_tag', alias($._nested_style_open_tag, $.markup_open_tag)),
-        optional(alias($._style_raw_text, $.markup_raw_text)),
+        repeat($._style_body_part),
         field('close_tag', $.markup_close_tag),
       ),
       seq(

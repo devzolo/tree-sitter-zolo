@@ -32,12 +32,25 @@
 // (`_style_tag_name`/`_script_tag_name` in grammar.js, not the generic
 // `_markup_tag_name`), so the parser state — and therefore `valid_symbols` —
 // genuinely differs per tag. That is what lets `scan_raw_text` below stay a
-// single, tag-agnostic function: whichever of `STYLE_RAW_TEXT`/
-// `SCRIPT_RAW_TEXT` is valid is the one the grammar is actually asking for.
-// See grammar.js for why the tag-name token had to be dedicated (reusing the
-// generic open tag made `valid_symbols[STYLE_RAW_TEXT]` true for every
-// element, not just `<style>`, and this scanner swallowed the rest of the
-// file looking for a `</style` that never came).
+// single, tag-agnostic function for `SCRIPT_RAW_TEXT`: whichever of
+// `STYLE_RAW_TEXT`/`SCRIPT_RAW_TEXT` is valid is the one the grammar is
+// actually asking for. See grammar.js for why the tag-name token had to be
+// dedicated (reusing the generic open tag made `valid_symbols[STYLE_RAW_TEXT]`
+// true for every element, not just `<style>`, and this scanner swallowed the
+// rest of the file looking for a `</style` that never came).
+//
+// `STYLE_RAW_TEXT` alone gets a SECOND function, `scan_style_raw_text`
+// (specs/verniz-css.html §6.4): a live `@(` in a `<style>` body opens a Zolo
+// expression (grammar.js `css_interpolation`), so that scan must ALSO stop
+// early there — but only when the `@(` sits outside a CSS string or
+// comment, which is why it tracks CSS quote/comment state that
+// `scan_raw_text` never needed. `<script>` gets no equivalent: JS has its
+// own `@decorator` syntax, so `SCRIPT_RAW_TEXT` keeps using the original,
+// simpler `scan_raw_text`. Both functions must keep agreeing with
+// `next_raw_text_token` in crates/zolo-lexer/src/lexer.rs, which is the
+// oracle for all of this (the close-tag boundary check AND, for style, the
+// quote/comment-tracking chunk scan and the `is_style && b == '@' &&
+// peek2() == '(' ` one-byte lookahead).
 
 #include "tree_sitter/parser.h"
 
@@ -171,6 +184,134 @@ static bool scan_raw_text(TSLexer *lexer, const char *close) {
   return any;
 }
 
+/// `<style>`-only variant of `scan_raw_text`: same close-tag scan, PLUS a
+/// stop at a live `@(` (the CSS interpolation escape, grammar.js
+/// `css_interpolation`) and CSS quote/comment tracking so a `@(` written
+/// inside a string or a comment does NOT stop the scan there — the oracle
+/// is the chunk-scan loop in `next_raw_text_token`
+/// (crates/zolo-lexer/src/lexer.rs), which this mirrors condition for
+/// condition:
+///
+///   - The close-tag check runs FIRST, unconditionally — even mid-string or
+///     mid-comment, exactly like the lexer's `while ... &&
+///     !self.at_raw_close(name)` loop condition, which is checked before the
+///     `in_comment`/`quote` branches. A literal `</style` always wins.
+///   - Inside a `/* … */` comment, everything is skipped verbatim until the
+///     matching `*/` — including a `@(` — mirroring the lexer's `in_comment`
+///     branch.
+///   - Inside a `'…'`/`"…"` CSS string, `\` escapes the next byte, and the
+///     string ends at a matching quote OR an unescaped newline (real CSS
+///     strings cannot span lines) — mirroring the lexer's `quote` branch,
+///     including a `@(` written inside the string.
+///   - Outside both, a `@` immediately followed by `(` (no whitespace
+///     tolerated) ends the chunk right before the `@`, mirroring
+///     `is_style && b == '@' && self.peek2() == b'(' ` in the lexer. A
+///     zero-width result here (nothing consumed before the `@(`) is
+///     expected and correct — e.g. `<style>@(x)</style>` has no CSS before
+///     the interpolation — `grammar.js`'s `repeat($._style_body_part)`
+///     is what lets `css_interpolation` follow immediately with no raw-text
+///     node in between (see `scan_raw_text` above for the same zero-width
+///     shape at an immediate `</style`).
+static bool scan_style_raw_text(TSLexer *lexer, const char *close) {
+  size_t n = strlen(close);
+  bool any = false;
+  bool in_comment = false;
+  int32_t quote = 0; // 0 = not in a CSS string, else the quote byte ('\'' or '"')
+
+  for (;;) {
+    if (lexer->eof(lexer)) {
+      break;
+    }
+
+    // Close tag: always checked first, even mid-string/mid-comment — see
+    // the function doc comment.
+    if (lexer->lookahead == '<') {
+      lexer->mark_end(lexer);
+      lexer->advance(lexer, false);
+      size_t i = 0;
+      while (i < n && lexer->lookahead == (int32_t)close[i]) {
+        lexer->advance(lexer, false);
+        i++;
+      }
+      if (i == n && at_close_boundary(lexer)) {
+        return any;
+      }
+      any = true;
+      continue;
+    }
+
+    if (in_comment) {
+      if (lexer->lookahead == '*') {
+        lexer->advance(lexer, false);
+        if (lexer->lookahead == '/') {
+          lexer->advance(lexer, false);
+          in_comment = false;
+        }
+      } else {
+        lexer->advance(lexer, false);
+      }
+      any = true;
+      lexer->mark_end(lexer);
+      continue;
+    }
+
+    if (quote != 0) {
+      if (lexer->lookahead == '\\') {
+        lexer->advance(lexer, false); // the backslash; the escaped byte falls through below
+        if (!lexer->eof(lexer)) {
+          lexer->advance(lexer, false);
+        }
+      } else {
+        if (lexer->lookahead == quote || lexer->lookahead == '\n') {
+          quote = 0;
+        }
+        lexer->advance(lexer, false);
+      }
+      any = true;
+      lexer->mark_end(lexer);
+      continue;
+    }
+
+    // Live `@(` outside a string/comment: stop here (possibly zero-width)
+    // and let grammar.js's `css_interpolation` take over.
+    if (lexer->lookahead == '@') {
+      lexer->mark_end(lexer);
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '(') {
+        return any;
+      }
+      // Not `@(` (e.g. an at-rule like `@media`) — ordinary content.
+      any = true;
+      lexer->mark_end(lexer);
+      continue;
+    }
+
+    if (lexer->lookahead == '/') {
+      lexer->advance(lexer, false); // the `/`; a following `*` falls through below
+      if (lexer->lookahead == '*') {
+        lexer->advance(lexer, false);
+        in_comment = true;
+      }
+      any = true;
+      lexer->mark_end(lexer);
+      continue;
+    }
+
+    if (lexer->lookahead == '"' || lexer->lookahead == '\'') {
+      quote = lexer->lookahead;
+      lexer->advance(lexer, false);
+      any = true;
+      lexer->mark_end(lexer);
+      continue;
+    }
+
+    lexer->advance(lexer, false);
+    any = true;
+    lexer->mark_end(lexer);
+  }
+  return any;
+}
+
 bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
                                             const bool *valid_symbols) {
   (void)payload;
@@ -184,7 +325,7 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
-  if (valid_symbols[STYLE_RAW_TEXT] && scan_raw_text(lexer, "/style")) {
+  if (valid_symbols[STYLE_RAW_TEXT] && scan_style_raw_text(lexer, "/style")) {
     lexer->result_symbol = STYLE_RAW_TEXT;
     return true;
   }

@@ -323,6 +323,15 @@
 (markup_interpolation ["{" "}"] @punctuation.special)
 (markup_attribute_expression ["{" "}"] @punctuation.special)
 
+; `@(expr)` — the CSS interpolation escape inside a `<style>` body
+; (specs/verniz-css.html §6.4, grammar.js `css_interpolation`). Same
+; "later pattern wins" override as `markup_interpolation` above: without
+; this, the generic `@punctuation.delimiter`/`@punctuation.bracket` rules
+; near the top of the file would claim the `@`/`(`/`)` instead. `expr`
+; itself needs no rule of its own — every capture above already applies to
+; it, the same way it does inside `markup_interpolation`.
+(css_interpolation ["@" "(" ")"] @punctuation.special)
+
 ; `<!-- … -->` is the comment form in the CHILDREN position: `//` there is
 ; indistinguishable from a URL, so it stays text. Inside a TAG the opposite
 ; holds — `//` and `/* */` are ordinary Zolo comments there (they ride the

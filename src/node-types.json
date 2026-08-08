@@ -1223,6 +1223,22 @@
     "fields": {}
   },
   {
+    "type": "css_interpolation",
+    "named": true,
+    "fields": {
+      "expression": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "declaration_body",
     "named": true,
     "fields": {},
@@ -3414,6 +3430,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "css_interpolation",
+          "named": true
+        },
         {
           "type": "markup_comment",
           "named": true

@@ -822,3 +822,235 @@ fn v() -> View {
           close_tag: (markup_close_tag
             name: (identifier)
             (line_comment)))))))
+
+==================
+Raw text element (style) with a `@(expr)` interpolation
+==================
+
+fn a() -> View {
+    <style>
+      .card:hover { border-color: @(theme.accent); }
+    </style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          (css_interpolation
+            expression: (field_expression
+              object: (identifier)
+              field: (identifier)))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+A `@(expr)` interpolation immediately after the open tag needs no raw text chunk before it
+==================
+
+fn a() -> View {
+    <style>@(x)</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (css_interpolation
+            expression: (identifier))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+An at-rule (`@media`) is not a CSS interpolation — `@` must be immediately followed by `(`
+==================
+
+fn a() -> View {
+    <style>@media (min-width: 600px) { .card { padding: 2rem } }</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+`@(` inside a CSS string stays raw text, not an interpolation
+==================
+
+fn a() -> View {
+    <style>.a::after { content: "@(not zolo)"; }</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+`@(` inside a CSS comment stays raw text, not an interpolation
+==================
+
+fn a() -> View {
+    <style>/* @(also not zolo) */ .a { color: red }</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+`<script>` never interpolates `@(` — no equivalent escape, by design
+==================
+
+fn a() -> View {
+    <script>const s = "@(still js)"; if (a < b) { f() }</script>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+`@(...)` balances nested parens (a call and a grouped expression) before closing
+==================
+
+fn a() -> View {
+    <style>.x { width: @(calc_width(pad, (base + extra)) + fallback); height: 1px; }</style>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_raw_text)
+          (css_interpolation
+            expression: (binary_expression
+              left: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (identifier))
+                  (call_argument
+                    (parenthesized_expression
+                      (binary_expression
+                        left: (identifier)
+                        right: (identifier))))))
+              right: (identifier)))
+          (markup_raw_text)
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Raw text element (style) nested inside another markup element, with an interpolation
+==================
+
+fn a() -> View {
+    <head>
+        <style>.a { color: @(c); }</style>
+    </head>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier))
+            (markup_raw_text)
+            (css_interpolation
+              expression: (identifier))
+            (markup_raw_text)
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
