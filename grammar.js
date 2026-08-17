@@ -91,6 +91,9 @@ module.exports = grammar({
     [$.type_alias, $.union_type],
     // `let x: T |` — extend annotated type with union vs end of let
     [$.let_declaration, $.union_type],
+    // `let x: impl A + B = ...` — trait-bound `+` must remain distinct from
+    // a union nested inside a generic trait argument while editing.
+    [$._type_bound, $.union_type],
     // `|x: T|` — lambda parameter end vs union_type continuation
     [$.parameter, $.union_type],
     // `fn(...) -> T |` — function_type return vs union_type continuation
@@ -114,6 +117,7 @@ module.exports = grammar({
     // `prec.dynamic` picks the attached reading, and a pipe-less thunk simply
     // fails the attach branch so the non-attached reading survives.
     [$.call_expression],
+    [$.optional_call_expression],
     // Same ambiguity for `recv.m(a) {` / parens-less `recv.m {`.
     [$.method_call_expression],
     // `let x = ""` on one line and `<div>…</div>` on the next. Without this
@@ -299,8 +303,16 @@ module.exports = grammar({
       seq(
         repeat($.decorator),
         field('name', $.identifier),
-        optional(seq(':', field('type', $._type))),
-        optional(seq('=', field('default', $._expression))),
+        choice(
+          // Optional declarator: `callback?: fn() -> View`. The shorthand
+          // supplies nil itself, so an explicit default is intentionally not
+          // part of this branch (matching the Rust parser).
+          seq('?', ':', field('type', $._type)),
+          seq(
+            optional(seq(':', field('type', $._type))),
+            optional(seq('=', field('default', $._expression))),
+          ),
+        ),
       ),
     ),
 
@@ -363,8 +375,44 @@ module.exports = grammar({
             seq('=', field('default', $._expression)),
           ),
           optional(seq('where', field('constraint', $._expression))),
+          optional(field('accessors', $.field_accessor_block)),
         ),
       ),
+    ),
+
+    // Stored-field accessors are contextual syntax: `get`, `set`, and the
+    // backing name `field` remain ordinary identifiers everywhere else.
+    field_accessor_block: $ => seq(
+      '{',
+      repeat(choice($.field_getter, $.field_setter, ',')),
+      '}',
+    ),
+
+    field_getter: $ => seq(
+      optional($.field_accessor_visibility),
+      'get',
+      optional(field('body', $.block)),
+    ),
+
+    field_setter: $ => seq(
+      optional($.field_accessor_visibility),
+      'set',
+      optional(seq('(', field('parameter', $.identifier), ')')),
+      optional(field('body', $.block)),
+    ),
+
+    field_accessor_visibility: $ => seq(
+      'pub',
+      optional(seq(
+        '(',
+        choice(
+          'crate',
+          'super',
+          'mod',
+          seq('in', $.mod_path),
+        ),
+        ')',
+      )),
     ),
 
     compact_field_list: $ => seq(
@@ -707,6 +755,7 @@ module.exports = grammar({
     ),
 
     let_declaration: $ => seq(
+      repeat($.decorator),
       optional('pub'),
       choice('let', 'var'),
       optional(field('storage', $.storage_class)),
@@ -717,7 +766,10 @@ module.exports = grammar({
         $.native_multi_binding,
         $._pattern,
       )),
-      optional(seq(':', field('type', $._type))),
+      optional(seq(':', choice(
+        field('type', $._type),
+        field('constraint', $.local_impl_trait_constraint),
+      ))),
       optional(seq('=', field('value', $._expression))),
       optional(seq('else', field('else_block', $.block))),
       optional(';'),
@@ -725,6 +777,13 @@ module.exports = grammar({
 
     // storage class: let<lazy> / var<atomic, persistent>
     storage_class: $ => seq('<', commaSep1($.identifier), '>'),
+
+    // Binding-level compile-time trait constraint. This preserves the
+    // initializer's concrete type; it is not a trait-object type position.
+    local_impl_trait_constraint: $ => seq(
+      'impl',
+      field('bounds', $._type_bound),
+    ),
 
     // let (a, b, c) = expr
     tuple_pattern_binding: $ => seq(
@@ -807,6 +866,7 @@ module.exports = grammar({
       $.range_expression,
       $.spread_expression,
       $.call_expression,
+      $.optional_call_expression,
       $.method_call_expression,
       $.field_expression,
       $.index_expression,
@@ -847,6 +907,7 @@ module.exports = grammar({
       $.macro_invocation,
       $.macro_param,
       $.comptime_expression,
+      $.quote_expression,
       $.markup_element,
     ),
 
@@ -1170,17 +1231,37 @@ module.exports = grammar({
 
     // A tag name may be a keyword: `<title>`, `<main>`, `<for>` are all real
     // HTML and the parser reads it with `expect_ident_or_keyword`.
-    _markup_tag_name: $ => $._method_name,
+    _markup_tag_name: $ => choice(
+      $._method_name,
+      $.markup_qualified_name,
+    ),
+
+    markup_qualified_name: $ => prec(1, seq(
+      field('module', $._method_name),
+      repeat1(seq('.', field('member', $._method_name))),
+    )),
 
     _markup_child: $ => choice(
       $.markup_text,
       $.markup_comment,
+      $.markup_named_child_block,
       $.markup_interpolation,
       // Aliased, not just included: a hidden rule with several children is
       // INLINED into its parent, so a nested `<span>` lost its own node and
       // its open/close tags surfaced as extra fields of the enclosing
       // element. The alias gives it a node again, under the entry name.
       alias($._markup_nested_element, $.markup_element),
+    ),
+
+    // `{fn row(item) { ... }}` is a direct child owned by the surrounding
+    // component: the compiler binds it as the named `row` argument instead
+    // of appending it to ordinary `children`. Keep a dedicated node rather
+    // than hiding it inside generic interpolation so highlighting and editor
+    // queries can distinguish the slot declaration.
+    markup_named_child_block: $ => seq(
+      '{',
+      field('function', $.function_item),
+      '}',
     ),
 
     markup_interpolation: $ => seq('{', repeat($._statement), '}'),
@@ -1201,9 +1282,30 @@ module.exports = grammar({
       '>',
     ))),
 
-    markup_attribute: $ => seq(
-      field('name', $.markup_attribute_name),
-      optional(seq('=', field('value', $._markup_attribute_value))),
+    markup_attribute: $ => choice(
+      seq(
+        field('name', $.markup_attribute_name),
+        optional(seq('=', field('value', $._markup_attribute_value))),
+      ),
+      $.markup_shorthand_attribute,
+      $.markup_spread_attribute,
+    ),
+
+    markup_spread_attribute: $ => seq(
+      '{',
+      '...',
+      field('value', $._expression),
+      '}',
+    ),
+
+    // `<Card {item}/>` is exactly `<Card item={item}/>` at the compiler
+    // boundary. Keep a dedicated node so completion, rename and refactors can
+    // distinguish the property name supplied by the identifier from a generic
+    // attribute-value interpolation.
+    markup_shorthand_attribute: $ => seq(
+      '{',
+      field('name', $.identifier),
+      '}',
     ),
 
     // `bind:value`, `data-testid`, `aria-label`. The lexer splits each of
@@ -1233,6 +1335,37 @@ module.exports = grammar({
       'comptime',
       field('body', $._expression),
     )),
+
+    // Token-backed structured quasiquote. The quoted body is deliberately
+    // opaque syntax text: only `${expr}` / `${..expr}` become ordinary Zolo
+    // expression subtrees. Recursive brace groups keep nested generated
+    // blocks balanced without exposing the compiler's internal AST grammar.
+    quote_expression: $ => prec.right(seq(
+      'quote',
+      field('category', choice(
+        'items', 'item', 'member', 'param', 'stmt', 'expr', 'type', 'pattern', 'ident', 'match_arm',
+      )),
+      field('body', $.quote_body),
+    )),
+
+    quote_body: $ => seq(
+      '{',
+      repeat(choice(
+        $.quote_hole,
+        $.quote_body,
+        $.quote_text,
+      )),
+      '}',
+    ),
+
+    quote_hole: $ => seq(
+      '${',
+      optional(field('spread', '..')),
+      field('value', $._expression),
+      '}',
+    ),
+
+    quote_text: _ => token(choice(/[^{}$]+/, '$')),
 
     self_expression: _ => 'self',
 
@@ -1326,6 +1459,13 @@ module.exports = grammar({
     // why it's gated on a leading `|`/`||`.
     call_expression: $ => prec(PREC.call, seq(
       field('function', $._expression),
+      field('arguments', $.argument_list),
+      optional(field('trailing_lambda', $.trailing_lambda)),
+    )),
+
+    optional_call_expression: $ => prec(PREC.call, seq(
+      field('function', $._expression),
+      '?.',
       field('arguments', $.argument_list),
       optional(field('trailing_lambda', $.trailing_lambda)),
     )),
@@ -1711,6 +1851,8 @@ module.exports = grammar({
     // Matchers and transcribers are token trees (balanced delimiters wrapping
     // arbitrary tokens), so we parse structure without interpreting the macro DSL.
     macro_rules_item: $ => seq(
+      repeat($.decorator),
+      optional('pub'),
       'macro_rules',
       '!',
       field('name', $.identifier),
@@ -2099,9 +2241,19 @@ module.exports = grammar({
     function_type: $ => seq(
       'fn',
       '(',
-      optional(seq(commaSep1($._type), optional(','))),
+      optional(seq(commaSep1(choice($._type, $.function_type_parameter)), optional(','))),
       ')',
       optional(seq('->', $._type)),
+    ),
+
+    // Source-level call labels for callable values: `fn(item: Todo) -> View`.
+    // The Rust parser requires either every parameter to be labelled or none;
+    // tree-sitter keeps the recovery grammar permissive so partially typed
+    // signatures still highlight while editing.
+    function_type_parameter: $ => seq(
+      field('name', $.identifier),
+      ':',
+      field('type', $._type),
     ),
 
     union_type: $ => prec.left(seq($._type, '|', $._type)),

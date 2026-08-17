@@ -152,6 +152,18 @@
 (escape_sequence) @string.escape
 (format_spec) @string.special
 
+; Structured, token-backed quasiquotes. The raw generated source remains
+; opaque; interpolation expressions keep their normal Zolo captures.
+(quote_expression
+  "quote" @keyword)
+(quote_expression
+  category: [
+    "items" "item" "member" "param" "stmt" "expr" "type" "pattern" "ident" "match_arm"
+  ] @type.builtin)
+(quote_hole
+  "${" @punctuation.special
+  "}" @punctuation.special)
+
 ; -- Operators --------------------------------------------------------------
 [
   "+" "-" "*" "/" "%" "**"
@@ -204,6 +216,13 @@
   binding: (identifier) @variable)
 (enum_variant name: (identifier) @constructor)
 (field_declaration name: (identifier) @property)
+(field_getter "get" @keyword.function)
+(field_setter
+  "set" @keyword.function
+  parameter: (identifier) @variable.parameter)
+(field_setter "set" @keyword.function)
+(field_accessor_visibility "pub" @keyword)
+(field_accessor_visibility ["crate" "super" "mod" "in"] @keyword)
 
 (type_parameter name: (identifier) @type.parameter)
 (const_item name: (identifier) @constant)
@@ -215,6 +234,7 @@
 (type_path (identifier) @type)
 (generic_type name: (identifier) @type)
 (function_type "fn" @keyword.function)
+(function_type_parameter name: (identifier) @variable.parameter)
 (optional_type "?" @operator)
 
 ; -- Calls ------------------------------------------------------------------
@@ -222,6 +242,13 @@
   function: (identifier) @function.call)
 
 (call_expression
+  function: (path_expression
+    (identifier) @function.call .))
+
+(optional_call_expression
+  function: (identifier) @function.call)
+
+(optional_call_expression
   function: (path_expression
     (identifier) @function.call .))
 
@@ -299,6 +326,22 @@
 ; -- Identifiers (fallback) -------------------------------------------------
 (identifier) @variable
 
+; Stored accessor identifiers are contextual and must override the generic
+; identifier fallback above (later query patterns win). These shapes cover the
+; canonical getter/setter bodies; deeper expressions remain normal variables
+; rather than globally reserving the otherwise legal name `field`.
+(field_setter parameter: (identifier) @variable.parameter)
+((field_getter
+  body: (block
+    (return_statement
+      (identifier) @variable.builtin)))
+  (#eq? @variable.builtin "field"))
+((field_setter
+  body: (block
+    (assignment_statement
+      target: (identifier) @variable.builtin)))
+  (#eq? @variable.builtin "field"))
+
 ; -- Markup (Verniz V4b) ----------------------------------------------------
 ; Last in the file on purpose: tag and attribute names are `identifier`
 ; nodes, and the `(identifier) @variable` fallback above would otherwise
@@ -306,8 +349,13 @@
 (markup_open_tag name: (identifier) @tag)
 (markup_close_tag name: (identifier) @tag)
 (markup_self_closing_tag name: (identifier) @tag)
+(markup_qualified_name
+  module: (identifier) @namespace
+  member: (identifier) @tag)
 
 (markup_attribute name: (markup_attribute_name) @tag.attribute)
+(markup_shorthand_attribute name: (identifier) @variable)
+(markup_spread_attribute "..." @operator)
 
 ; Anchored inside the markup nodes so they never restyle the comparison
 ; operators `<` and `>`, which an unanchored list would.
@@ -321,7 +369,10 @@
 ; `{ … }` is the escape back into Zolo — the braces are punctuation, and
 ; what is inside is ordinary code highlighted by every rule above.
 (markup_interpolation ["{" "}"] @punctuation.special)
+(markup_named_child_block ["{" "}"] @punctuation.special)
 (markup_attribute_expression ["{" "}"] @punctuation.special)
+(markup_shorthand_attribute ["{" "}"] @punctuation.special)
+(markup_spread_attribute ["{" "}"] @punctuation.special)
 
 ; `@(expr)` — the CSS interpolation escape inside a `<style>` body
 ; (specs/verniz-css.html §6.4, grammar.js `css_interpolation`). Same

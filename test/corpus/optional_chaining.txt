@@ -67,3 +67,20 @@ let v = obj!.method()
         object: (identifier)
         field: (identifier))
       arguments: (argument_list))))
+
+==================
+Optional direct call
+==================
+
+let result = callback?.(21)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (optional_call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (integer_literal))))))

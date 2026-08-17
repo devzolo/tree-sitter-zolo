@@ -82,3 +82,47 @@ struct Id {
       (field_declaration
         name: (identifier)
         type: (primitive_type)))))
+
+==================
+Decorator exported by macro_rules
+==================
+
+@let_decorator
+pub macro_rules! cleanup {
+  () => { 1 }
+}
+
+---
+
+(source_file
+  (macro_rules_item
+    (decorator
+      name: (identifier))
+    name: (identifier)
+    body: (macro_rules_body
+      (macro_rule
+        transcriber: (integer_literal)))))
+
+==================
+Decorator applied to local let
+==================
+
+fn main() {
+  @cleanup
+  let resource = acquire()
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (let_declaration
+        (decorator
+          name: (identifier))
+        pattern: (identifier)
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list))))))

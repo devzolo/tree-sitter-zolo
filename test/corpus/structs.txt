@@ -50,6 +50,52 @@ struct Pair<A, B> {
           (identifier))))))
 
 ==================
+Stored field accessors
+==================
+
+struct Account {
+    balance: int = 0 {
+        get {
+            return field
+        }
+        pub(mod) set(amount) {
+            field = amount
+        }
+    },
+    id: int {
+        get
+    },
+}
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type)
+        default: (integer_literal)
+        accessors: (field_accessor_block
+          (field_getter
+            body: (block
+              (return_statement
+                (identifier))))
+          (field_setter
+            (field_accessor_visibility)
+            parameter: (identifier)
+            body: (block
+              (assignment_statement
+                target: (identifier)
+                value: (identifier))))))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type)
+        accessors: (field_accessor_block
+          (field_getter))))))
+
+==================
 Struct with using embeds
 ==================
 

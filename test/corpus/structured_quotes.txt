@@ -1,0 +1,112 @@
+================================================================================
+Structured quote with value and spread holes
+================================================================================
+
+let generated = quote items {
+  impl ${info.ref} {
+    ${..methods}
+  }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_hole
+          (field_expression
+            (identifier)
+            (identifier)))
+        (quote_text)
+        (quote_body
+          (quote_hole
+            (range_expression
+              (identifier)))
+          (quote_text))
+        (quote_text)))))
+
+================================================================================
+Quote categories
+================================================================================
+
+let a = quote item { fn answer() -> int { return 42 } }
+let b = quote member { fn name() -> str { return "zolo" } }
+let c = quote stmt { print("ok") }
+let d = quote expr { left + ${right} }
+let e = quote type { Map<str, ${value_type}> }
+let f = quote pattern { Some(${inner}) }
+let g = quote ident { ${name} }
+let h = quote match_arm { Some(x) => ${body} }
+let i = quote param { value: int }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_body
+          (quote_text))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_body
+          (quote_text))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_hole
+          (identifier))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_hole
+          (identifier))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_hole
+          (identifier))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_hole
+          (identifier))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)
+        (quote_hole
+          (identifier))
+        (quote_text))))
+  (let_declaration
+    (identifier)
+    (quote_expression
+      (quote_body
+        (quote_text)))))

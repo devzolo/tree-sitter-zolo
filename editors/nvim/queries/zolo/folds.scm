@@ -26,6 +26,7 @@
   (while_let_expression)
   (loop_expression)
   (lambda_expression)
+  (trailing_lambda)
   (every_expression)
   (after_expression)
   (timeout_expression)

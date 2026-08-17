@@ -1,0 +1,40 @@
+==================
+Local impl trait binding
+==================
+
+fn main() {
+  let file: impl Cleanup = File.open("data.txt")
+  let rich: impl core::cleanup::Cleanup + Display = make_resource()
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        constraint: (local_impl_trait_constraint
+          bounds: (type_path
+            (identifier)))
+        value: (method_call_expression
+          receiver: (identifier)
+          method: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (let_declaration
+        pattern: (identifier)
+        constraint: (local_impl_trait_constraint
+          bounds: (type_path
+            (identifier)
+            (identifier)
+            (identifier))
+          bounds: (type_path
+            (identifier)))
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list))))))

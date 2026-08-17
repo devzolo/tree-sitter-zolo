@@ -28,6 +28,91 @@ fn a() -> View {
             name: (identifier)))))))
 
 ==================
+Ordered attribute spread
+==================
+
+fn button(attrs: map) -> View {
+    <button {...attrs} class="primary"/>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          (markup_self_closing_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              (markup_spread_attribute
+                value: (identifier)))
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content)))))))))
+
+==================
+Qualified component tags and directives
+==================
+
+fn page(item: Todo, active: bool, color: str) -> View {
+    <ui.Card {item} class:active style:color>
+        <ui.Label/>
+    </ui.Card>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier)))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (markup_qualified_name
+              module: (identifier)
+              member: (identifier))
+            attribute: (markup_attribute
+              (markup_shorthand_attribute
+                name: (identifier)))
+            attribute: (markup_attribute
+              name: (markup_attribute_name))
+            attribute: (markup_attribute
+              name: (markup_attribute_name)))
+          (markup_element
+            (markup_self_closing_tag
+              name: (markup_qualified_name
+                module: (identifier)
+                member: (identifier))))
+          close_tag: (markup_close_tag
+            name: (markup_qualified_name
+              module: (identifier)
+              member: (identifier))))))))
+
+==================
 Self-closing tag
 ==================
 
@@ -1052,5 +1137,106 @@ fn a() -> View {
             (markup_raw_text)
             close_tag: (markup_close_tag
               name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Named child block belongs to the surrounding component
+==================
+
+fn page() -> View {
+    <Card>
+        {fn row(item) {
+            <p>{item}</p>
+        }}
+        <p>footer</p>
+    </Card>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier))
+          (markup_text)
+          (markup_named_child_block
+            function: (function_item
+              name: (identifier)
+              parameters: (parameter_list
+                (parameter
+                  name: (identifier)))
+              body: (block
+                (expression_statement
+                  (markup_element
+                    open_tag: (markup_open_tag
+                      name: (identifier))
+                    (markup_interpolation
+                      (expression_statement
+                        (identifier)))
+                    close_tag: (markup_close_tag
+                      name: (identifier)))))))
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier))
+            (markup_text)
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
+Property and bind shorthand attributes
+==================
+
+fn card(item: Todo, onclick: fn() -> nil, value: str) -> View {
+    <Card {item} {onclick}>
+        <input bind:value/>
+    </Card>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier)))
+      (parameter
+        name: (identifier)
+        type: (function_type
+          (type_path
+            (identifier))))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              (markup_shorthand_attribute
+                name: (identifier)))
+            attribute: (markup_attribute
+              (markup_shorthand_attribute
+                name: (identifier))))
+          (markup_element
+            (markup_self_closing_tag
+              name: (identifier)
+              attribute: (markup_attribute
+                name: (markup_attribute_name))))
           close_tag: (markup_close_tag
             name: (identifier)))))))

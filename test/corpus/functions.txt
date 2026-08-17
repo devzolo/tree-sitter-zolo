@@ -89,3 +89,50 @@ pub override multi async fn render() {}
     name: (identifier)
     parameters: (parameter_list)
     body: (block)))
+
+==================
+Optional parameter declarator
+==================
+
+fn apply(callback?: fn(int) -> int) {}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (function_type
+          (primitive_type)
+          (primitive_type))))
+    body: (block)))
+
+==================
+Named parameters in a function type
+==================
+
+fn render(row: fn(item: Todo, index: int) -> View) -> View {}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (function_type
+          (function_type_parameter
+            name: (identifier)
+            type: (type_path
+              (identifier)))
+          (function_type_parameter
+            name: (identifier)
+            type: (primitive_type))
+          (type_path
+            (identifier)))))
+    return_type: (type_path
+      (identifier))
+    body: (block)))

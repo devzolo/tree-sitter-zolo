@@ -5,6 +5,7 @@
 (function_item) @local.scope
 (trait_method) @local.scope
 (lambda_expression) @local.scope
+(trailing_lambda) @local.scope
 (block) @local.scope
 (match_arm) @local.scope
 (for_expression) @local.scope
@@ -68,8 +69,8 @@
 (use_path
   (identifier) @local.definition.import)
 
-(use_list
-  (identifier) @local.definition.import)
+(use_item
+  name: (identifier) @local.definition.import)
 
 ; -- References -------------------------------------------------------------
 (identifier) @local.reference
