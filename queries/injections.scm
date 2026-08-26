@@ -68,6 +68,8 @@
  (#eq? @_tag "script")
  (#not-match? @_open "^<script[ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]*>$")
  (#not-match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]*>$")
+ (#not-match? @_open "^<script[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*>$")
+ (#not-match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*>$")
  (#set! injection.language "javascript"))
 
 ((markup_element
@@ -75,6 +77,20 @@
    (markup_raw_text) @injection.content)
  (#eq? @_tag "script")
  (#match? @_open "^<script[ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]*>$")
+ (#set! injection.language "typescript"))
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag) @_open
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "script")
+ (#match? @_open "^<script[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*>$")
+ (#set! injection.language "typescript"))
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag) @_open
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "script")
+ (#match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*>$")
  (#set! injection.language "typescript"))
 
 ((markup_element

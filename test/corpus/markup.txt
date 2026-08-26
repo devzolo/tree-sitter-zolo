@@ -484,6 +484,50 @@ fn a() -> View {
             name: (identifier)))))))
 
 ==================
+Inline client mount and ref directives
+==================
+
+fn a() -> View {
+    <button client:ref="action">
+        <script client:mount lang="ts">
+            const { root, refs } = $mount()
+        </script>
+    </button>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (identifier)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (identifier)
+              attribute: (markup_attribute
+                name: (markup_attribute_name))
+              attribute: (markup_attribute
+                name: (markup_attribute_name)
+                value: (string_literal
+                  (string_content))))
+            (markup_raw_text)
+            close_tag: (markup_close_tag
+              name: (identifier)))
+          close_tag: (markup_close_tag
+            name: (identifier)))))))
+
+==================
 Raw text element nested inside another markup element
 ==================
 

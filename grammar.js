@@ -2276,6 +2276,7 @@ module.exports = grammar({
       $.bigint_literal,
       $.duration_literal,
       $.string_literal,
+      $.raw_triple_string_literal,
       $.raw_string_literal,
       $.triple_string_literal,
       $.fenced_string_literal,
@@ -2378,12 +2379,57 @@ module.exports = grammar({
       ),
     )),
 
-    // """ ... """
-    triple_string_literal: _ => token(seq(
+    // r""" ... """ and r#""" ... """# raw blocks. A structural newline
+    // distinguishes these from the backwards-compatible exact raw syntax whose
+    // content may itself begin with quotes. The real lexer also validates the
+    // closing margin and performs dedent; tree-sitter keeps the block opaque.
+    raw_triple_string_literal: $ => choice(
+      seq(
+        token(prec(3, /r"""\r?\n/)),
+        repeat($._raw_triple_string_content),
+        token.immediate(prec(3, '"""')),
+      ),
+      seq(
+        token(prec(3, /r#"""\r?\n/)),
+        repeat($._raw_triple_string_content),
+        token.immediate(prec(3, '"""#')),
+      ),
+      seq(
+        token(prec(3, /r##"""\r?\n/)),
+        repeat($._raw_triple_string_content),
+        token.immediate(prec(3, '"""##')),
+      ),
+      seq(
+        token(prec(3, /r###"""\r?\n/)),
+        repeat($._raw_triple_string_content),
+        token.immediate(prec(3, '"""###')),
+      ),
+    ),
+
+    _raw_triple_string_content: _ => token.immediate(prec(1, choice(
+      /[^"]+/,
+      /"+/,
+    ))),
+
+    // """ ... """ with escapes and {expr} interpolation. In a block, the
+    // compiler additionally requires the closer to occupy its own line.
+    triple_string_literal: $ => seq(
       '"""',
-      /([^"]|"[^"]|""[^"])*/,
+      repeat(choice(
+        $.triple_string_content,
+        $.escape_sequence,
+        $.triple_brace_escape,
+        $.string_interpolation,
+      )),
       '"""',
-    )),
+    ),
+
+    triple_string_content: _ => token.immediate(prec(1, choice(
+      /[^"\\{]+/,
+      /"[^"]|""[^"]/,
+    ))),
+
+    triple_brace_escape: _ => token.immediate(choice('{{', '}}')),
 
     bytes_literal: $ => seq(
       'b"',

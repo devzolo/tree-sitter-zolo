@@ -131,6 +131,7 @@
 
 (string_literal) @string
 (raw_string_literal) @string
+(raw_triple_string_literal) @string
 (triple_string_literal) @string
 (fenced_string_literal) @string
 (bytes_literal) @string
@@ -150,6 +151,7 @@
   "{" @punctuation.special
   "}" @punctuation.special)
 (escape_sequence) @string.escape
+(triple_brace_escape) @string.escape
 (format_spec) @string.special
 
 ; Structured, token-backed quasiquotes. The raw generated source remains

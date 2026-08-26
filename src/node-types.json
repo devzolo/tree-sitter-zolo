@@ -356,6 +356,10 @@
         "named": true
       },
       {
+        "type": "raw_triple_string_literal",
+        "named": true
+      },
+      {
         "type": "regex_literal",
         "named": true
       },
@@ -4754,6 +4758,11 @@
     }
   },
   {
+    "type": "raw_triple_string_literal",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "record_type",
     "named": true,
     "fields": {
@@ -5537,6 +5546,33 @@
     }
   },
   {
+    "type": "triple_string_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "string_interpolation",
+          "named": true
+        },
+        {
+          "type": "triple_brace_escape",
+          "named": true
+        },
+        {
+          "type": "triple_string_content",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "try_catch_expression",
     "named": true,
     "fields": {
@@ -6124,6 +6160,22 @@
   },
   {
     "type": "\"",
+    "named": false
+  },
+  {
+    "type": "\"\"\"",
+    "named": false
+  },
+  {
+    "type": "\"\"\"#",
+    "named": false
+  },
+  {
+    "type": "\"\"\"##",
+    "named": false
+  },
+  {
+    "type": "\"\"\"###",
     "named": false
   },
   {
@@ -6811,7 +6863,11 @@
     "named": false
   },
   {
-    "type": "triple_string_literal",
+    "type": "triple_brace_escape",
+    "named": true
+  },
+  {
+    "type": "triple_string_content",
     "named": true
   },
   {

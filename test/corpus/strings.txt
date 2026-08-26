@@ -71,3 +71,41 @@ let o = r#""hi""#
   (let_declaration
     pattern: (identifier)
     value: (raw_string_literal)))
+
+==================
+Interpolated triple block
+==================
+
+let s = """
+  hello {name}
+  literal: {{name}}
+  """
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (triple_string_literal
+      (triple_string_content)
+      (string_interpolation
+        (identifier))
+      (triple_string_content)
+      (triple_brace_escape)
+      (triple_string_content))))
+
+==================
+Raw triple block
+==================
+
+let source = r#"""
+  let msg = "{name}"
+    |> print()
+  """#
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_triple_string_literal)))
