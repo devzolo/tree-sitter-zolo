@@ -42,6 +42,22 @@
 (for_expression
   binding: (identifier) @local.definition.var)
 
+(loop_expression
+  label: (loop_label
+    name: (identifier) @local.definition.label))
+
+(for_expression
+  label: (loop_label
+    name: (identifier) @local.definition.label))
+
+(while_expression
+  label: (loop_label
+    name: (identifier) @local.definition.label))
+
+(while_let_expression
+  label: (loop_label
+    name: (identifier) @local.definition.label))
+
 (function_item
   name: (identifier) @local.definition.function)
 
@@ -74,3 +90,11 @@
 
 ; -- References -------------------------------------------------------------
 (identifier) @local.reference
+
+(break_statement
+  label: (loop_label
+    name: (identifier) @local.reference))
+
+(continue_statement
+  label: (loop_label
+    name: (identifier) @local.reference))

@@ -183,3 +183,84 @@ if ready {
             (argument_list
               (call_argument
                 (identifier)))))))))
+
+==================
+Labelled loop exits and loop values
+==================
+
+let found = :search loop {
+    if ready {
+        break :search 7
+    }
+    break 0
+}
+:outer loop {
+    continue :outer
+}
+:each for item in items {
+    continue :each
+}
+:wait while ready {
+    break :wait
+}
+:retry while let item = next {
+    continue :retry
+}
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (loop_expression
+      label: (loop_label
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (if_expression
+            condition: (identifier)
+            consequence: (block
+              (break_statement
+                label: (loop_label
+                  name: (identifier))
+                value: (integer_literal)))))
+        (break_statement
+          value: (integer_literal)))))
+  (expression_statement
+    (loop_expression
+      label: (loop_label
+        name: (identifier))
+      body: (block
+        (continue_statement
+          label: (loop_label
+            name: (identifier))))))
+  (expression_statement
+    (for_expression
+      label: (loop_label
+        name: (identifier))
+      binding: (identifier)
+      iter: (identifier)
+      body: (block
+        (continue_statement
+          label: (loop_label
+            name: (identifier))))))
+  (expression_statement
+    (while_expression
+      label: (loop_label
+        name: (identifier))
+      condition: (identifier)
+      body: (block
+        (break_statement
+          label: (loop_label
+            name: (identifier))))))
+  (expression_statement
+    (while_let_expression
+      label: (loop_label
+        name: (identifier))
+      pattern: (identifier_pattern
+        (identifier))
+      value: (identifier)
+      body: (block
+        (continue_statement
+          label: (loop_label
+            name: (identifier)))))))

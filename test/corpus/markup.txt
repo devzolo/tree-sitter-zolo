@@ -489,7 +489,8 @@ Inline client mount and ref directives
 
 fn a() -> View {
     <button client:ref="action">
-        <script client:mount lang="ts">
+        <script client:mount lang="ts"
+        >
             const { root, refs } = $mount()
         </script>
     </button>

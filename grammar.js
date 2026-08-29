@@ -60,7 +60,7 @@ module.exports = grammar({
   // has to be one here: as a shared token the generator settles it with the
   // comparison operator's precedence, out of reach of `conflicts` and
   // `prec.dynamic`. See src/scanner.c.
-  // `$._error_sentinel` is a fourth external token that NO rule below ever
+  // `$._error_sentinel` is the final external token and NO rule below ever
   // references. That absence is the point: tree-sitter only asks the scanner
   // about a token when some reachable grammar state expects it, so in
   // ordinary parsing `valid_symbols[ERROR_SENTINEL]` is always false. During
@@ -70,7 +70,13 @@ module.exports = grammar({
   // mode and refuse to run `scan_raw_text` there. See scanner.c for the bug
   // this closes (a stray token turning the rest of the file into one
   // `markup_raw_text`).
-  externals: $ => [$._markup_lt, $._style_raw_text, $._script_raw_text, $._error_sentinel],
+  externals: $ => [
+    $._markup_lt,
+    $._style_raw_text,
+    $._script_raw_text,
+    $._loop_label_decl_colon,
+    $._error_sentinel,
+  ],
 
   conflicts: $ => [
     // `let x` — prefer plain identifier over identifier_pattern wrapper
@@ -832,13 +838,28 @@ module.exports = grammar({
       optional(';'),
     )),
 
+    loop_label_declaration: $ => seq(
+      alias($._loop_label_decl_colon, ':'),
+      field('name', $.identifier),
+    ),
+
+    loop_label_reference: $ => seq(
+      ':',
+      field('name', $.identifier),
+    ),
+
     break_statement: $ => prec.right(seq(
       'break',
-      optional($._expression),
+      optional(field('label', alias($.loop_label_reference, $.loop_label))),
+      optional(field('value', $._expression)),
       optional(';'),
     )),
 
-    continue_statement: _ => prec.right(seq('continue', optional(';'))),
+    continue_statement: $ => prec.right(seq(
+      'continue',
+      optional(field('label', alias($.loop_label_reference, $.loop_label))),
+      optional(';'),
+    )),
 
     defer_statement: $ => seq(
       choice('defer', 'defer_ok', 'defer_err'),
@@ -1816,6 +1837,7 @@ module.exports = grammar({
     )),
 
     for_expression: $ => seq(
+      optional(field('label', alias($.loop_label_declaration, $.loop_label))),
       'for',
       field('binding', choice(
         $.identifier,
@@ -1829,12 +1851,14 @@ module.exports = grammar({
     ),
 
     while_expression: $ => seq(
+      optional(field('label', alias($.loop_label_declaration, $.loop_label))),
       'while',
       field('condition', $._expression),
       field('body', $.block),
     ),
 
     while_let_expression: $ => seq(
+      optional(field('label', alias($.loop_label_declaration, $.loop_label))),
       'while', 'let',
       field('pattern', $._pattern),
       '=',
@@ -1842,7 +1866,11 @@ module.exports = grammar({
       field('body', $.block),
     ),
 
-    loop_expression: $ => seq('loop', field('body', $.block)),
+    loop_expression: $ => seq(
+      optional(field('label', alias($.loop_label_declaration, $.loop_label))),
+      'loop',
+      field('body', $.block),
+    ),
 
     // effect annotation on functions: fn f() with IO + Net -> T { ... }
     with_clause: $ => seq('with', sep1(choice($.generic_type, $.type_path), '+')),
@@ -2327,6 +2355,7 @@ module.exports = grammar({
       "'",
       choice(
         /[^'\\\n]/,
+        /\\u\{[0-9a-fA-F]{1,6}\}/,
         /\\(.|\n)/,
       ),
       "'",
@@ -2351,7 +2380,7 @@ module.exports = grammar({
       choice(
         /[abfnrtv0\\'"{}]/,
         /x[0-9a-fA-F]{2}/,
-        /u\{[0-9a-fA-F]+\}/,
+        /u\{[0-9a-fA-F]{1,6}\}/,
         /[0-9]{1,3}/,
       ),
     )),

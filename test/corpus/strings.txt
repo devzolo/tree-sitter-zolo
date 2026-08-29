@@ -109,3 +109,25 @@ let source = r#"""
   (let_declaration
     pattern: (identifier)
     value: (raw_triple_string_literal)))
+
+==================
+Unicode scalar escapes stay atomic
+==================
+
+let smile = "\u{1F600}"
+let letter = '\u{3BB}'
+let raw = r"\u{1F600}"
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal
+      (escape_sequence)))
+  (let_declaration
+    pattern: (identifier)
+    value: (char_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_string_literal)))

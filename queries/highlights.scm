@@ -344,6 +344,14 @@
       target: (identifier) @variable.builtin)))
   (#eq? @variable.builtin "field"))
 
+; Loop labels are contextual. These patterns intentionally come after the
+; generic identifier fallback because later patterns win in highlights.scm.
+; The contextual colon scanner exposes this node only before loop forms, so
+; type annotations, named arguments, and map entries remain untouched.
+(loop_label
+  ":" @punctuation.special
+  name: (identifier) @label)
+
 ; -- Markup (Verniz V4b) ----------------------------------------------------
 ; Last in the file on purpose: tag and attribute names are `identifier`
 ; nodes, and the `(identifier) @variable` fallback above would otherwise

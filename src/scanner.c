@@ -1,5 +1,5 @@
-// External scanner for Zolo — three tokens: `_markup_lt`, `_style_raw_text`,
-// `_script_raw_text`.
+// External scanner for Zolo markup/raw-text boundaries plus the contextual
+// colon that starts a loop-label declaration (`:name loop|while|for`).
 //
 // `_markup_lt` mirrors `markup_starts_here` in crates/zolo-lexer/src/lexer.rs,
 // which is where the real compiler answers the same question: does this `<`
@@ -61,6 +61,7 @@ enum TokenType {
   MARKUP_LT,
   STYLE_RAW_TEXT,
   SCRIPT_RAW_TEXT,
+  LOOP_LABEL_DECL_COLON,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -113,6 +114,66 @@ static inline bool opens_a_tag(int32_t c) {
 /// `u8::is_ascii_whitespace` (space, tab, LF, FF, CR).
 static inline bool is_ascii_ws(int32_t c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
+}
+
+static inline bool is_label_start(int32_t c) {
+  // Keep this identical to the compiler lexer and grammar.js identifier
+  // contract. Using the locale-sensitive wide-character predicates here
+  // made the external scanner accept a declaration prefix that the following
+  // `identifier` node could never consume.
+  return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+static inline bool is_label_continue(int32_t c) {
+  return is_label_start(c) || (c >= '0' && c <= '9');
+}
+
+static void skip_ascii_ws(TSLexer *lexer) {
+  while (is_ascii_ws(lexer->lookahead)) {
+    lexer->advance(lexer, true);
+  }
+}
+
+static bool scan_word(TSLexer *lexer, const char *word) {
+  for (const char *cursor = word; *cursor != '\0'; cursor++) {
+    if (lexer->lookahead != (int32_t)*cursor) {
+      return false;
+    }
+    lexer->advance(lexer, false);
+  }
+  return !is_label_continue(lexer->lookahead);
+}
+
+/// Scan only the `:` that starts a loop-label declaration, while validating
+/// the complete `:name loop|for|while` prefix through lookahead. The token's
+/// marked end remains after the colon, so the identifier is still a normal
+/// named syntax node and can participate in highlight/local queries. Looking
+/// for the following loop keyword distinguishes a new `:search loop`
+/// expression from a type annotation such as `let value: Type`.
+static bool scan_loop_label_decl_colon(TSLexer *lexer) {
+  if (lexer->lookahead != ':') {
+    return false;
+  }
+  lexer->advance(lexer, false);
+  lexer->mark_end(lexer);
+  if (!is_label_start(lexer->lookahead)) {
+    return false;
+  }
+  do {
+    lexer->advance(lexer, false);
+  } while (is_label_continue(lexer->lookahead));
+
+  skip_ascii_ws(lexer);
+  switch (lexer->lookahead) {
+  case 'l':
+    return scan_word(lexer, "loop");
+  case 'f':
+    return scan_word(lexer, "for");
+  case 'w':
+    return scan_word(lexer, "while");
+  default:
+    return false;
+  }
 }
 
 /// True when `lexer` sits right after a candidate close name (`/style`,
@@ -334,7 +395,9 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
-  if (!valid_symbols[MARKUP_LT]) {
+  const bool wants_label = valid_symbols[LOOP_LABEL_DECL_COLON];
+  const bool wants_markup = valid_symbols[MARKUP_LT];
+  if (!wants_label && !wants_markup) {
     return false;
   }
 
@@ -360,7 +423,18 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     lexer->advance(lexer, true);
   }
 
-  if (!saw_newline || lexer->lookahead != '<') {
+  // Labelled loops and markup expressions can both begin an expression. Test
+  // the first non-extra byte once, then dispatch without starving markup when
+  // the label token is also valid in the same parser state.
+  if (wants_label && lexer->lookahead == ':') {
+    if (scan_loop_label_decl_colon(lexer)) {
+      lexer->result_symbol = LOOP_LABEL_DECL_COLON;
+      return true;
+    }
+    return false;
+  }
+
+  if (!wants_markup || !saw_newline || lexer->lookahead != '<') {
     return false;
   }
 
