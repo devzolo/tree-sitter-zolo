@@ -1,0 +1,44 @@
+==================
+checked cast expression
+==================
+
+let port = value as? u16
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (cast_expression
+      value: (identifier)
+      type: (primitive_type))))
+
+==================
+total cast expression remains unchanged
+==================
+
+let ratio = count as f64
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (cast_expression
+      value: (identifier)
+      type: (primitive_type))))
+
+==================
+unsafe equal-width bitcast
+==================
+
+let bits = unsafe bitcast::<u32>(source)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (bitcast_expression
+      type: (primitive_type)
+      value: (identifier))))

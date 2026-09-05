@@ -113,6 +113,46 @@ fn page(item: Todo, active: bool, color: str) -> View {
               member: (identifier))))))))
 
 ==================
+Native custom element tags
+==================
+
+fn dialog() -> View {
+    <el-dialog data-state="open">
+        <el-dialog-panel placement="end">Menu</el-dialog-panel>
+    </el-dialog>
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (markup_element
+          open_tag: (markup_open_tag
+            name: (markup_custom_element_name)
+            attribute: (markup_attribute
+              name: (markup_attribute_name)
+              value: (string_literal
+                (string_content))))
+          (markup_element
+            open_tag: (markup_open_tag
+              name: (markup_custom_element_name)
+              attribute: (markup_attribute
+                name: (markup_attribute_name)
+                value: (string_literal
+                  (string_content))))
+            (markup_text)
+            close_tag: (markup_close_tag
+              name: (markup_custom_element_name)))
+          close_tag: (markup_close_tag
+            name: (markup_custom_element_name)))))))
+
+==================
 Self-closing tag
 ==================
 

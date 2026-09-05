@@ -308,7 +308,10 @@ module.exports = grammar({
       ),
       seq(
         repeat($.decorator),
-        field('name', $.identifier),
+        field('name', choice(
+          $.identifier,
+          alias($._contextual_type_identifier, $.identifier),
+        )),
         choice(
           // Optional declarator: `callback?: fn() -> View`. The shorthand
           // supplies nil itself, so an explicit default is intentionally not
@@ -324,7 +327,10 @@ module.exports = grammar({
 
     variadic_parameter: $ => seq(
       '...',
-      field('name', $.identifier),
+      field('name', choice(
+        $.identifier,
+        alias($._contextual_type_identifier, $.identifier),
+      )),
       optional(seq(':', field('type', $._type))),
     ),
 
@@ -878,6 +884,7 @@ module.exports = grammar({
     _expression: $ => choice(
       $._literal,
       $.identifier,
+      alias($._contextual_type_identifier, $.identifier),
       $.self_expression,
       $.path_expression,
       $.unary_expression,
@@ -896,6 +903,7 @@ module.exports = grammar({
       $.try_expression,
       $.iter_expression,
       $.cast_expression,
+      $.bitcast_expression,
       $.type_check_expression,
       $.parenthesized_expression,
       $.tuple_expression,
@@ -1253,9 +1261,16 @@ module.exports = grammar({
     // A tag name may be a keyword: `<title>`, `<main>`, `<for>` are all real
     // HTML and the parser reads it with `expect_ident_or_keyword`.
     _markup_tag_name: $ => choice(
+      $.markup_custom_element_name,
       $._method_name,
       $.markup_qualified_name,
     ),
+
+    // Browser custom elements have a mandatory hyphen, which makes their
+    // native DOM meaning unambiguous with Zolo's identifier/path component
+    // tags. One token is intentional: consumers should see the authored web
+    // component name, not a subtraction expression split across identifiers.
+    markup_custom_element_name: _ => token(prec(2, /[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+/)),
 
     markup_qualified_name: $ => prec(1, seq(
       field('module', $._method_name),
@@ -1530,7 +1545,10 @@ module.exports = grammar({
     call_argument: $ => choice(
       // Named argument: name: value
       seq(
-        field('name', $.identifier),
+        field('name', choice(
+          $.identifier,
+          alias($._contextual_type_identifier, $.identifier),
+        )),
         ':',
         field('value', $._expression),
       ),
@@ -1628,8 +1646,20 @@ module.exports = grammar({
 
     cast_expression: $ => prec.left(PREC.cast, seq(
       field('value', $._expression),
-      'as',
+      choice('as', 'as?'),
       field('type', $._type),
+    )),
+
+    bitcast_expression: $ => prec(PREC.call, seq(
+      'unsafe',
+      'bitcast',
+      '::',
+      '<',
+      field('type', $._type),
+      '>',
+      '(',
+      field('value', $._expression),
+      ')',
     )),
 
     type_check_expression: $ => prec.left(PREC.cast, seq(
@@ -2210,6 +2240,8 @@ module.exports = grammar({
       'any', 'void', 'never', 'bytes', 'bigint', 'decimal', 'bigdecimal',
       // Sized integer types — also valid as enum discriminant backing types.
       'u8', 'u16', 'u32', 'u64', 'i8', 'i16', 'i32', 'i64', 'usize', 'isize',
+      // Concrete IEEE floating-point types.
+      'f32', 'f64',
     ),
 
     type_path: $ => prec.left(seq(
@@ -2279,7 +2311,10 @@ module.exports = grammar({
     // tree-sitter keeps the recovery grammar permissive so partially typed
     // signatures still highlight while editing.
     function_type_parameter: $ => seq(
-      field('name', $.identifier),
+      field('name', choice(
+        $.identifier,
+        alias($._contextual_type_identifier, $.identifier),
+      )),
       ':',
       field('type', $._type),
     ),
@@ -2310,6 +2345,7 @@ module.exports = grammar({
       $.fenced_string_literal,
       $.bytes_literal,
       $.regex_literal,
+      $.tagged_triple_string_literal,
       $.tagged_string_literal,
       $.tagged_raw_string_literal,
       $.char_literal,
@@ -2320,14 +2356,51 @@ module.exports = grammar({
     bool_literal: _ => choice('true', 'false'),
     nil_literal: _ => 'nil',
 
-    integer_literal: _ => token(choice(
-      /0[xX][0-9a-fA-F](_?[0-9a-fA-F])*/,
-      /0[oO][0-7](_?[0-7])*/,
-      /0[bB][01](_?[01])*/,
-      /[0-9](_?[0-9])*/,
-    )),
+    // Numeric literals keep notation and type intent as named children so
+    // highlight consumers can render `0x`, the digits, and `u32` separately.
+    // Every continuation is immediate: whitespace would turn the pieces into
+    // separate expressions instead of silently accepting a split literal.
+    integer_literal: $ => choice(
+      seq(
+        alias(token(/0[xX]/), $.numeric_base_prefix),
+        $._hex_integer_digits,
+        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+      ),
+      seq(
+        alias(token(/0[oO]/), $.numeric_base_prefix),
+        $._octal_integer_digits,
+        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+      ),
+      seq(
+        alias(token(/0[bB]/), $.numeric_base_prefix),
+        $._binary_integer_digits,
+        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+      ),
+      seq(
+        $._decimal_integer_digits,
+        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+      ),
+    ),
 
-    float_literal: _ => token(choice(
+    float_literal: $ => choice(
+      // Sharing the integer-shaped magnitude with `integer_literal` lets the
+      // following `f*` token decide `1f32` without lexing it as `1` + `f32`.
+      seq(
+        $._decimal_integer_digits,
+        alias(token.immediate(/f32|f64|f/), $.numeric_type_suffix),
+      ),
+      // Fractional/exponent values remain valid with or without a type suffix.
+      seq(
+        $._float_magnitude,
+        optional(alias(token.immediate(/f32|f64|f/), $.numeric_type_suffix)),
+      ),
+    ),
+
+    _decimal_integer_digits: _ => token(/[0-9](_?[0-9])*/),
+    _hex_integer_digits: _ => token.immediate(/[0-9a-fA-F](_?[0-9a-fA-F])*/),
+    _octal_integer_digits: _ => token.immediate(/[0-7](_?[0-7])*/),
+    _binary_integer_digits: _ => token.immediate(/[01](_?[01])*/),
+    _float_magnitude: _ => token(choice(
       // 1.0  1.0e10  1.0e-10
       /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?/,
       // 1e10
@@ -2483,6 +2556,22 @@ module.exports = grammar({
       '"',
     ),
 
+    // Tagged triple strings, including the compiler's built-in
+    // `tw"""..."""` Tailwind literal. The compiler remains responsible for
+    // deciding which tags support the triple form; keeping this recovery node
+    // generic prevents an incomplete tag from corrupting the surrounding tree.
+    tagged_triple_string_literal: $ => prec(2, seq(
+      field('tag', $.identifier),
+      token.immediate(prec(2, '"""')),
+      repeat(choice(
+        $.triple_string_content,
+        $.escape_sequence,
+        $.triple_brace_escape,
+        $.string_interpolation,
+      )),
+      '"""',
+    )),
+
     // tag#"..."# — tagged RAW string (no interpolation; embedded quotes ok).
     // The whole `#"..."#` tail is one immediate token, so a plain identifier
     // elsewhere is untouched. e.g. `json#"{ "k": 1 }"#`, `sql#"... "x" ..."#`.
@@ -2508,6 +2597,10 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // Identifier
     // ---------------------------------------------------------------------
+    // Regex-backed so it is not extracted as another global `type` keyword.
+    // The ordinary string token keeps precedence in `type Name = ...`; this
+    // token is enabled only by value/parameter/named-argument parser states.
+    _contextual_type_identifier: _ => token(prec(-1, /type/)),
     identifier: _ => /[a-zA-Z_][a-zA-Z0-9_]*/,
   },
 });

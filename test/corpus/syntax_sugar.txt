@@ -103,6 +103,40 @@ use std::math::{abs as absolute, sign}
           (identifier))))))
 
 ==================
+source import roots
+==================
+
+use utils::{cn}
+use crate::components::utils::{cn}
+use super::super::utils::{cn}
+
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (use_declaration
+    (use_path
+      (identifier)
+      (identifier)
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (use_declaration
+    (use_path
+      (identifier)
+      (identifier)
+      (identifier)
+      (use_list
+        (use_item
+          (identifier))))))
+
+==================
 override with type
 ==================
 
@@ -157,3 +191,27 @@ fn t() {
                     (integer_literal))))))
           (identifier)
           (argument_list))))))
+
+==================
+Tailwind literals
+==================
+
+let compact = tw"rounded bg-primary px-4"
+let block = tw"""
+  inline-flex items-center
+  focus-visible:ring-2
+  """
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (tagged_string_literal
+      (identifier)
+      (string_content)))
+  (let_declaration
+    (identifier)
+(tagged_triple_string_literal
+      (identifier)
+      (triple_string_content))))

@@ -1,0 +1,67 @@
+==================
+typed numeric literal suffixes
+==================
+
+let explicit_float: f32 = 1.5f32
+let short_float = 1.5f
+let integer_float = 1f32
+let explicit_signed = 42i32
+let short_signed = 42i
+let short_unsigned = 42u
+let port = 8080u16
+let mask = 0xFF_FF_00_00u32
+let bits = 0b1010_0001u8
+let perms = 0o644u16
+let count = 1_000_000_000_000u64
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    type: (primitive_type)
+    value: (float_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (float_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (float_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_base_prefix)
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_base_prefix)
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_base_prefix)
+      (numeric_type_suffix)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal
+      (numeric_type_suffix))))

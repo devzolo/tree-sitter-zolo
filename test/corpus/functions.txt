@@ -136,3 +136,37 @@ fn render(row: fn(item: Todo, index: int) -> View) -> View {}
     return_type: (type_path
       (identifier))
     body: (block)))
+
+==================
+Contextual type parameter and named argument
+==================
+
+fn button(type: str = "button") -> str {
+  type
+}
+let rendered = button(type: "submit")
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)
+        default: (string_literal
+          (string_content))))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          name: (identifier)
+          value: (string_literal
+            (string_content)))))))

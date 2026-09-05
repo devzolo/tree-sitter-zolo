@@ -67,6 +67,29 @@ let f = |x, y| x + y
         right: (identifier)))))
 
 ==================
+Lambda with return annotation
+==================
+
+let positive = |value: int| -> bool { return value > 0 }
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (lambda_expression
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      return_type: (primitive_type)
+      body: (block_expression
+        (block
+          (return_statement
+            (binary_expression
+              left: (identifier)
+              right: (integer_literal))))))))
+
+==================
 If with bare identifier condition
 ==================
 

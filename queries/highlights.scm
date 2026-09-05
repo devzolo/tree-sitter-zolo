@@ -97,6 +97,9 @@
 
 [
   "as"
+  "as?"
+  "unsafe"
+  "bitcast"
   "is"
   ; `not` is an anonymous token only inside the two `is not` type-check
   ; rules (never a reserved word), so this is contextual by construction —
@@ -125,6 +128,8 @@
 (decimal_literal) @number.float
 (bigint_literal) @number
 (duration_literal) @number
+(numeric_base_prefix) @punctuation.special
+(numeric_type_suffix) @type.builtin
 (bool_literal) @boolean
 (nil_literal) @constant.builtin
 (char_literal) @character
@@ -144,6 +149,12 @@
 (tagged_string_literal) @string
 (tagged_string_literal
   tag: (identifier) @function.macro)
+(tagged_triple_string_literal) @string
+(tagged_triple_string_literal
+  tag: (identifier) @function.macro)
+((tagged_triple_string_literal
+  tag: (identifier) @function.builtin)
+ (#eq? @function.builtin "tw"))
 (tagged_raw_string_literal) @string
 (tagged_raw_string_literal
   tag: (identifier) @function.macro)
@@ -225,6 +236,19 @@
 (field_setter "set" @keyword.function)
 (field_accessor_visibility "pub" @keyword)
 (field_accessor_visibility ["crate" "super" "mod" "in"] @keyword)
+
+; Explicit source-module roots. `crate` is special only as the first segment;
+; every consecutive leading `super` segment walks one lexical parent.
+((use_declaration
+  path: (use_path
+    . (identifier) @keyword.import))
+  (#any-of? @keyword.import "crate" "super"))
+((use_declaration
+  path: (use_path
+    (identifier) @_previous-import-root
+    . (identifier) @keyword.import))
+  (#eq? @_previous-import-root "super")
+  (#eq? @keyword.import "super"))
 
 (type_parameter name: (identifier) @type.parameter)
 (const_item name: (identifier) @constant)
@@ -359,6 +383,9 @@
 (markup_open_tag name: (identifier) @tag)
 (markup_close_tag name: (identifier) @tag)
 (markup_self_closing_tag name: (identifier) @tag)
+(markup_open_tag name: (markup_custom_element_name) @tag)
+(markup_close_tag name: (markup_custom_element_name) @tag)
+(markup_self_closing_tag name: (markup_custom_element_name) @tag)
 (markup_qualified_name
   module: (identifier) @namespace
   member: (identifier) @tag)
