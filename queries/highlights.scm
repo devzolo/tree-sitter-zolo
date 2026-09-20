@@ -434,3 +434,18 @@
 ; `injections.scm` render this as the injected language instead; this scope
 ; is the fallback for the ones that don't.
 (markup_raw_text) @string
+
+; Typed decorator values reuse normal expressions; capitalize type spellings
+; without hardcoding any derive namespace or option name.
+((decorator_arguments
+  (call_argument value: (identifier) @type))
+  (#match? @type "^[A-Z]"))
+((decorator_arguments
+  (call_argument value: (field_expression object: (identifier) @type)))
+  (#match? @type "^[A-Z]"))
+(enum_shorthand_expression variant: (identifier) @constructor)
+
+; Keep attribute labels and referenced fields above the generic identifier fallback.
+(decorator_arguments (call_argument name: (identifier) @variable.parameter))
+(decorator_arguments
+  (call_argument value: (field_expression field: (identifier) @property)))

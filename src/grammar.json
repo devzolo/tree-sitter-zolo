@@ -4618,6 +4618,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "enum_shorthand_expression"
+        },
+        {
+          "type": "SYMBOL",
           "name": "unary_expression"
         },
         {
@@ -7326,6 +7330,27 @@
           {
             "type": "SYMBOL",
             "name": "_expression"
+          }
+        ]
+      }
+    },
+    "enum_shorthand_expression": {
+      "type": "PREC",
+      "value": -1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "."
+          },
+          {
+            "type": "FIELD",
+            "name": "variant",
+            "content": {
+              "type": "SYMBOL",
+              "name": "identifier"
+            }
           }
         ]
       }

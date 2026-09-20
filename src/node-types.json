@@ -48,6 +48,10 @@
         "named": true
       },
       {
+        "type": "enum_shorthand_expression",
+        "named": true
+      },
+      {
         "type": "every_expression",
         "named": true
       },
@@ -1637,6 +1641,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "enum_shorthand_expression",
+    "named": true,
+    "fields": {
+      "variant": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {

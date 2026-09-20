@@ -887,6 +887,7 @@ module.exports = grammar({
       alias($._contextual_type_identifier, $.identifier),
       $.self_expression,
       $.path_expression,
+      $.enum_shorthand_expression,
       $.unary_expression,
       $.binary_expression,
       $.approx_expression,
@@ -1488,6 +1489,14 @@ module.exports = grammar({
     )),
 
     spread_expression: $ => prec.right(seq('...', $._expression)),
+
+    // Contextual unit enum reference, including typed decorator options.
+    // Payload calls reuse call_expression: .Ok(value).
+    // A pipe's _method_name must win before its argument list is shifted.
+    enum_shorthand_expression: $ => prec(-1, seq(
+      '.',
+      field('variant', $.identifier),
+    )),
 
     // -- Call -------------------------------------------------------------
     // Trailing lambda (C3): `f(a) { |x| … }` attaches a pipe-led block as one

@@ -126,3 +126,87 @@ fn main() {
         value: (call_expression
           function: (identifier)
           arguments: (argument_list))))))
+
+==================
+Typed attribute type, field and action references
+==================
+
+@derive(Model)
+struct Member {
+  @model(belongs_to: Team, references: Team.code, on_delete: .Cascade, on_update: Action::Restrict)
+  team_code: str,
+}
+
+---
+
+(source_file
+  (struct_item
+    (decorator
+      (identifier)
+      (decorator_arguments
+        (call_argument
+          (identifier))))
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (decorator
+          (identifier)
+          (decorator_arguments
+            (call_argument
+              (identifier)
+              (identifier))
+            (call_argument
+              (identifier)
+              (field_expression
+                (identifier)
+                (identifier)))
+            (call_argument
+              (identifier)
+              (enum_shorthand_expression
+                (identifier)))
+            (call_argument
+              (identifier)
+              (path_expression
+                (identifier)
+                (identifier)))))
+        (identifier)
+        (primitive_type)))))
+
+==================
+Contextual enum calls preserve method pipes
+==================
+
+let result = .Ok(1)
+let mapped = values |> .map(|x| x + 1)
+let saved = result ?> .save()
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (call_expression
+      (enum_shorthand_expression
+        (identifier))
+      (argument_list
+        (call_argument
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (pipe_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (lambda_expression
+            (parameter
+              (identifier))
+            (binary_expression
+              (identifier)
+              (integer_literal)))))))
+  (let_declaration
+    (identifier)
+    (pipe_expression
+      (identifier)
+      (identifier)
+      (argument_list))))
