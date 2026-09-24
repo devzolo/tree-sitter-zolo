@@ -1,0 +1,98 @@
+==================
+sink parameter conventions
+==================
+
+fn commit(sink self) -> int { 0 }
+fn close(sink f: File, note: str) {}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (self_parameter
+        convention: (convention)))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (integer_literal))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        convention: (convention)
+        name: (identifier)
+        type: (type_path
+          (identifier)))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    body: (block)))
+
+==================
+sink markers on call arguments
+==================
+
+archive(sink f, label: sink note)
+
+---
+
+(source_file
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          convention: (convention)
+          (identifier))
+        (call_argument
+          name: (identifier)
+          convention: (convention)
+          value: (identifier))))))
+
+==================
+sink stays a name where no name follows it
+==================
+
+let sink = 3
+fn f(sink: Sink) { g(sink) }
+print(sink + 1)
+print(sink as int)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (identifier)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (cast_expression
+            value: (identifier)
+            type: (primitive_type)))))))

@@ -1,5 +1,7 @@
-// External scanner for Zolo markup/raw-text boundaries plus the contextual
-// colon that starts a loop-label declaration (`:name loop|while|for`).
+// External scanner for Zolo markup/raw-text boundaries plus two contextual
+// tokens: the colon that starts a loop-label declaration
+// (`:name loop|while|for`) and the `sink` convention before a parameter or
+// argument name (see `scan_convention`).
 //
 // `_markup_lt` mirrors `markup_starts_here` in crates/zolo-lexer/src/lexer.rs,
 // which is where the real compiler answers the same question: does this `<`
@@ -62,6 +64,7 @@ enum TokenType {
   STYLE_RAW_TEXT,
   SCRIPT_RAW_TEXT,
   LOOP_LABEL_DECL_COLON,
+  CONVENTION,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -174,6 +177,77 @@ static bool scan_loop_label_decl_colon(TSLexer *lexer) {
   default:
     return false;
   }
+}
+
+/// The words `lookup_keyword` in crates/zolo-lexer/src/keywords.rs turns into
+/// keyword tokens, minus `self`. Keep the two lists identical.
+static const char *const RESERVED_WORDS[] = {
+    "let",      "mut",      "var",       "const",   "const_assert", "override",
+    "enable",   "requires", "fn",        "return",  "if",           "else",
+    "for",      "while",    "loop",      "break",   "continue",     "match",
+    "enum",     "struct",   "impl",      "trait",   "mod",          "use",
+    "pub",      "in",       "as",        "is",      "where",        "nil",
+    "true",     "false",    "type",      "newtype", "comptime",     "async",
+    "await",    "yield",    "spawn",     "scope",   "select",       "every",
+    "after",    "timeout",  "sleep",     "try",     "catch",        "finally",
+    "defer",    "defer_ok", "defer_err", "guard",   "macro",        "on",
+    "schema",   "machine",  "effect",    "handle",  "perform",      "with",
+    "using",
+};
+
+static bool is_reserved_word(const char *word) {
+  for (size_t i = 0; i < sizeof(RESERVED_WORDS) / sizeof(RESERVED_WORDS[0]); i++) {
+    if (strcmp(word, RESERVED_WORDS[i]) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// `sink`, the parameter convention (specs/linear-affine-types-innovations.html
+/// §0.3), before a parameter name or `self` (`fn commit(sink self)`) or a call
+/// argument (`close(sink f)`). The rule is `eat_param_convention` in
+/// crates/zolo-parser/src/parser.rs: a keyword only when the NEXT token is an
+/// identifier or `self`, so `let sink = 3`, `fn f(sink: Sink)`, `f(sink)`,
+/// `f(sink + 1)` and `f(sink as int)` keep `sink` a name. A grammar keyword
+/// cannot do that: with `word: $ => $.identifier`, every state that accepts
+/// the keyword would lex `sink` as it. The token is `sink` alone — the name
+/// after it is a peek past `mark_end`, so it stays its own node.
+static bool scan_convention(TSLexer *lexer) {
+  if (!scan_word(lexer, "sink")) {
+    return false;
+  }
+  lexer->mark_end(lexer);
+  if (!is_ascii_ws(lexer->lookahead)) {
+    return false;
+  }
+  // Peek, not skip: `advance(_, true)` after the token's own bytes moves the
+  // token START past them, leaving a zero-width `convention` node.
+  while (is_ascii_ws(lexer->lookahead)) {
+    lexer->advance(lexer, false);
+  }
+  if (!is_label_start(lexer->lookahead)) {
+    return false;
+  }
+  char word[16];
+  size_t length = 0;
+  do {
+    if (length + 1 < sizeof(word)) {
+      word[length] = (char)lexer->lookahead;
+    }
+    length++;
+    lexer->advance(lexer, false);
+  } while (is_label_continue(lexer->lookahead));
+  // A string prefix (`f"…"`, `sh"…"`) is a literal, not a name.
+  if (lexer->lookahead == '"' || lexer->lookahead == '\'') {
+    return false;
+  }
+  if (length + 1 > sizeof(word)) {
+    // Longer than every reserved word: a name.
+    return true;
+  }
+  word[length] = '\0';
+  return strcmp(word, "self") == 0 || !is_reserved_word(word);
 }
 
 /// True when `lexer` sits right after a candidate close name (`/style`,
@@ -397,7 +471,8 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
 
   const bool wants_label = valid_symbols[LOOP_LABEL_DECL_COLON];
   const bool wants_markup = valid_symbols[MARKUP_LT];
-  if (!wants_label && !wants_markup) {
+  const bool wants_convention = valid_symbols[CONVENTION];
+  if (!wants_label && !wants_markup && !wants_convention) {
     return false;
   }
 
@@ -429,6 +504,14 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   if (wants_label && lexer->lookahead == ':') {
     if (scan_loop_label_decl_colon(lexer)) {
       lexer->result_symbol = LOOP_LABEL_DECL_COLON;
+      return true;
+    }
+    return false;
+  }
+
+  if (wants_convention && lexer->lookahead == 's') {
+    if (scan_convention(lexer)) {
+      lexer->result_symbol = CONVENTION;
       return true;
     }
     return false;

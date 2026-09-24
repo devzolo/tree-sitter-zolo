@@ -213,6 +213,8 @@
 (type_alias name: (identifier) @type)
 (newtype_item name: (identifier) @type)
 (storage_class (identifier) @keyword.modifier)
+; `sink` before a parameter or argument name (linear types).
+(convention) @keyword.modifier
 (override_declaration name: (identifier) @variable)
 (on_declaration hook: (identifier) @function.method)
 (effect_item name: (identifier) @type)
@@ -341,7 +343,7 @@
 ; -- Parameters / Variables -------------------------------------------------
 (parameter name: (identifier) @variable.parameter)
 (variadic_parameter name: (identifier) @variable.parameter)
-(self_parameter) @variable.builtin
+(self_parameter "self" @variable.builtin)
 
 (let_declaration
   pattern: (identifier) @variable)
@@ -449,3 +451,16 @@
 (decorator_arguments (call_argument name: (identifier) @variable.parameter))
 (decorator_arguments
   (call_argument value: (field_expression field: (identifier) @property)))
+
+; Typed references can occur at arbitrary collection depth. Match leaf shapes
+; rather than a fixed decorator -> map -> array path. As for direct decorator
+; values, capitalization is a syntax-only heuristic; semantic tokens refine it.
+((field_expression object: (identifier) @type)
+  (#match? @type "^[A-Z]"))
+(field_expression field: (identifier) @property)
+((array_expression (identifier) @type)
+  (#match? @type "^[A-Z]"))
+((map_entry value: (identifier) @type)
+  (#match? @type "^[A-Z]"))
+; Map labels remain data even when a label looks like a type.
+(map_entry key: (identifier) @property)

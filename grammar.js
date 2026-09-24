@@ -75,6 +75,8 @@ module.exports = grammar({
     $._style_raw_text,
     $._script_raw_text,
     $._loop_label_decl_colon,
+    // `sink` before a parameter or argument name (see src/scanner.c).
+    $.convention,
     $._error_sentinel,
   ],
 
@@ -297,7 +299,10 @@ module.exports = grammar({
       ')',
     ),
 
-    self_parameter: _ => 'self',
+    // `sink self` (specs/linear-affine-types-innovations.html §0.3). The
+    // convention is an external token: `sink` is a keyword only when a name
+    // or `self` follows, like `eat_param_convention` in the Rust parser.
+    self_parameter: $ => seq(optional(field('convention', $.convention)), 'self'),
 
     parameter: $ => choice(
       // Pattern parameter: `fn dist(Point { x, y })` / `fn f({ name }: User)`
@@ -308,6 +313,7 @@ module.exports = grammar({
       ),
       seq(
         repeat($.decorator),
+        optional(field('convention', $.convention)),
         field('name', choice(
           $.identifier,
           alias($._contextual_type_identifier, $.identifier),
@@ -1551,6 +1557,9 @@ module.exports = grammar({
       '}',
     )),
 
+    // The optional call-site `sink` marker (`close(sink f)`,
+    // `f(name: sink x)`) is the same external token as the parameter
+    // convention.
     call_argument: $ => choice(
       // Named argument: name: value
       seq(
@@ -1559,9 +1568,10 @@ module.exports = grammar({
           alias($._contextual_type_identifier, $.identifier),
         )),
         ':',
+        optional(field('convention', $.convention)),
         field('value', $._expression),
       ),
-      $._expression,
+      seq(optional(field('convention', $.convention)), $._expression),
     ),
 
     // Trailing lambda (C3): `recv.m(a) { |x| … }` extends the parenthesized

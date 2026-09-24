@@ -1091,6 +1091,16 @@
     "type": "call_argument",
     "named": true,
     "fields": {
+      "convention": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "convention",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": false,
@@ -4523,6 +4533,16 @@
     "type": "parameter",
     "named": true,
     "fields": {
+      "convention": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "convention",
+            "named": true
+          }
+        ]
+      },
       "default": {
         "multiple": false,
         "required": false,
@@ -5168,7 +5188,18 @@
   {
     "type": "self_parameter",
     "named": true,
-    "fields": {}
+    "fields": {
+      "convention": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "convention",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "sleep_expression",
@@ -6694,6 +6725,10 @@
   {
     "type": "continue",
     "named": false
+  },
+  {
+    "type": "convention",
+    "named": true
   },
   {
     "type": "crate",

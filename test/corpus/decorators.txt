@@ -210,3 +210,45 @@ let saved = result ?> .save()
       (identifier)
       (identifier)
       (argument_list))))
+
+==================
+Nested typed reference containers
+==================
+
+@index(indexes: #{by_name: [User.name, User.id]}, related: [#{target: Team}])
+struct User { id: int, name: str }
+
+---
+
+(source_file
+  (struct_item
+    (decorator
+      (identifier)
+      (decorator_arguments
+        (call_argument
+          (identifier)
+          (map_expression
+            (map_entry
+              (identifier)
+              (array_expression
+                (field_expression
+                  (identifier)
+                  (identifier))
+                (field_expression
+                  (identifier)
+                  (identifier))))))
+        (call_argument
+          (identifier)
+          (array_expression
+            (map_expression
+              (map_entry
+                (identifier)
+                (identifier)))))))
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type))
+      (field_declaration
+        (identifier)
+        (primitive_type)))))

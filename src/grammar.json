@@ -882,8 +882,29 @@
       ]
     },
     "self_parameter": {
-      "type": "STRING",
-      "value": "self"
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "convention",
+              "content": {
+                "type": "SYMBOL",
+                "name": "convention"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "self"
+        }
+      ]
     },
     "parameter": {
       "type": "CHOICE",
@@ -944,6 +965,22 @@
                 "type": "SYMBOL",
                 "name": "decorator"
               }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "convention",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "convention"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
             },
             {
               "type": "FIELD",
@@ -7633,6 +7670,22 @@
               "value": ":"
             },
             {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "convention",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "convention"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
               "type": "FIELD",
               "name": "value",
               "content": {
@@ -7643,8 +7696,29 @@
           ]
         },
         {
-          "type": "SYMBOL",
-          "name": "_expression"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "convention",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "convention"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "SYMBOL",
+              "name": "_expression"
+            }
+          ]
         }
       ]
     },
@@ -14087,6 +14161,10 @@
     {
       "type": "SYMBOL",
       "name": "_loop_label_decl_colon"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "convention"
     },
     {
       "type": "SYMBOL",
