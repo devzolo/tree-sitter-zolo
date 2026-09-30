@@ -1,7 +1,9 @@
 ; Injections for Zolo
 ;
 ; Providers are imported bindings, not reserved language names. Known default
-; spellings select editor parsers; arbitrary provider aliases remain opaque.
+; spellings select editor parsers. Python aliases retain their imported dialect.
+((python_foreign_content) @injection.content
+ (#set! injection.language "python"))
 ((extern_declaration
    provider: (identifier) @_provider
    (extern_function body: (extern_body content: (foreign_content) @injection.content)))
@@ -29,12 +31,22 @@
 ((extern_declaration
    provider: (identifier) @injection.language
    (extern_function body: (extern_body content: (foreign_content) @injection.content)))
- (#any-of? @injection.language "javascript" "typescript" "java" "python" "rust"))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
+
+((extern_declaration
+   provider: (identifier) @injection.language
+   (extern_module body: (extern_body content: (foreign_content) @injection.content)))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
+
+((extern_declaration
+   provider: (identifier) @injection.language
+   (extern_group (extern_function body: (extern_body content: (foreign_content) @injection.content))))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
 
 ((extern_expression
    provider: (identifier) @injection.language
    body: (extern_body content: (foreign_content) @injection.content))
- (#any-of? @injection.language "javascript" "typescript" "java" "python" "rust"))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
 ;
 ; String interpolation: the {expr} part inside a string literal is itself
 ; Zolo source. tree-sitter already exposes the inner expression through the

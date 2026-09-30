@@ -45,4 +45,5 @@
   (raw_string_literal)
   (string_literal)
   (foreign_content)
+  (python_foreign_content)
 ] @indent.ignore

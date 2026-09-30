@@ -1,0 +1,231 @@
+==================
+Python direct provider comments, strings and floor division
+==================
+use plugin python::{python}
+extern python fn text() -> str {
+    # Braces in this comment do not close Zolo: } {
+    single = r'''raw } {
+    still inside triple single quotes'''
+    double = f"""text } {
+    still inside triple double quotes"""
+    return single
+}
+extern python fn floor(a: int, b: int) -> int { return a // b }
+let following = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list)
+      (primitive_type)
+      (extern_body
+        (python_foreign_content))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type))
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (python_foreign_content))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Python single import before an async Zolo declaration
+==================
+use plugin python::python
+async fn local() -> int { return 42 }
+extern python fn floor(a: int) -> int { return a // 2 }
+let following = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (identifier)))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (return_statement
+        (integer_literal))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (python_foreign_content))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Python aliases work in modules, groups and expressions
+==================
+use plugin python::{python as snake}
+extern snake mod math {
+    # } { are comments
+    def floor(a, b):
+        return a // b
+}
+extern snake {
+    fn floor(a: int, b: int) -> int { return a // b }
+}
+let quotient: int = extern snake { return 42 // 2 }
+let following = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)
+          (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_module
+      (identifier)
+      (extern_body
+        (python_foreign_content))))
+  (extern_declaration
+    (identifier)
+    (extern_group
+      (extern_function
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (primitive_type))
+          (parameter
+            (identifier)
+            (primitive_type)))
+        (primitive_type)
+        (extern_body
+          (python_foreign_content)))))
+  (let_declaration
+    (identifier)
+    (primitive_type)
+    (extern_expression
+      (identifier)
+      (extern_body
+        (python_foreign_content))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Qualified provider aliases and lexical module shadowing
+==================
+use plugin python::python as snake
+mod nested {
+    use plugin javascript::{javascript as snake}
+    extern snake fn run() -> int { class Secret { #value = 42; } return 42; }
+}
+extern snake fn floor(a: int) -> int {
+    # } does not close this body after the nested alias goes away
+    return a // 2
+}
+let following = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (identifier))
+    (identifier))
+  (mod_declaration
+    (mod_path
+      (identifier))
+    (mod_body
+      (use_declaration
+        (use_path
+          (identifier)
+          (use_list
+            (use_item
+              (identifier)
+              (identifier)))))
+      (extern_declaration
+        (identifier)
+        (extern_function
+          (identifier)
+          (parameter_list)
+          (primitive_type)
+          (extern_body
+            (foreign_content))))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (python_foreign_content))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Non-Python hash syntax remains foreign code
+==================
+use plugin javascript::{javascript}
+extern javascript fn run() -> int { class Secret { #value = 42; } return 42; }
+extern rust fn run() -> int { #[allow(unused)] { 42 } }
+let following = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list)
+      (primitive_type)
+      (extern_body
+        (foreign_content))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list)
+      (primitive_type)
+      (extern_body
+        (foreign_content))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))

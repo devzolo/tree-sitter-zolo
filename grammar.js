@@ -79,6 +79,11 @@ module.exports = grammar({
     $.convention,
     $._foreign_body,
     $._foreign_group_open,
+    $._python_foreign_body,
+    $._foreign_provider,
+    $._foreign_import,
+    $._foreign_scope_open,
+    $._foreign_scope_close,
     $._error_sentinel,
   ],
 
@@ -246,7 +251,7 @@ module.exports = grammar({
     extern_declaration: $ => seq(
       optional('pub'),
       'extern',
-      field('provider', $.identifier),
+      field('provider', alias($._foreign_provider, $.identifier)),
       optional(seq('from', field('source', $.string_literal))),
       choice($.extern_function, $.extern_module, $.extern_use, $.extern_group),
     ),
@@ -268,8 +273,11 @@ module.exports = grammar({
     extern_module: $ => seq('mod', field('name', $.identifier), field('body', $.extern_body)),
     extern_use: $ => seq('use', field('path', choice($.use_path, $.use_list)), optional(';')),
     extern_group: $ => seq(alias($._foreign_group_open, '{'), repeat1($.extern_function), '}'),
-    extern_body: $ => seq('{', optional(field('content', alias($._foreign_body, $.foreign_content))), '}'),
-    extern_expression: $ => seq('extern', field('provider', $.identifier), field('body', $.extern_body)),
+    extern_body: $ => seq('{', optional(field('content', choice(
+      alias($._foreign_body, $.foreign_content),
+      alias($._python_foreign_body, $.python_foreign_content),
+    ))), '}'),
+    extern_expression: $ => seq('extern', field('provider', alias($._foreign_provider, $.identifier)), field('body', $.extern_body)),
 
     function_item: $ => seq(
       repeat($.decorator),
@@ -660,9 +668,11 @@ module.exports = grammar({
     // -- Use & Mod --------------------------------------------------------
     use_declaration: $ => seq(
       optional('pub'),
+      optional($._foreign_import),
       'use',
       optional($._use_plugin_kw),
       field('path', $.use_path),
+      optional(seq('as', field('alias', $.identifier))),
       optional(';'),
     ),
 
@@ -696,7 +706,9 @@ module.exports = grammar({
       optional(choice(';', field('body', $.mod_body))),
     )),
 
-    mod_body: $ => seq('{', repeat($._item), '}'),
+    // These remain ordinary brace nodes; the scanner restores provider aliases
+    // when a nested Zolo module closes.
+    mod_body: $ => seq(alias($._foreign_scope_open, '{'), repeat($._item), alias($._foreign_scope_close, '}')),
 
     mod_path: $ => sep1($.identifier, '::'),
 

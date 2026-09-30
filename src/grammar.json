@@ -477,8 +477,13 @@
           "type": "FIELD",
           "name": "provider",
           "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_foreign_provider"
+            },
+            "named": true,
+            "value": "identifier"
           }
         },
         {
@@ -789,13 +794,27 @@
               "type": "FIELD",
               "name": "content",
               "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "_foreign_body"
-                },
-                "named": true,
-                "value": "foreign_content"
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_foreign_body"
+                    },
+                    "named": true,
+                    "value": "foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_python_foreign_body"
+                    },
+                    "named": true,
+                    "value": "python_foreign_content"
+                  }
+                ]
               }
             },
             {
@@ -820,8 +839,13 @@
           "type": "FIELD",
           "name": "provider",
           "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_foreign_provider"
+            },
+            "named": true,
+            "value": "identifier"
           }
         },
         {
@@ -3328,6 +3352,18 @@
           ]
         },
         {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_foreign_import"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
           "type": "STRING",
           "value": "use"
         },
@@ -3350,6 +3386,31 @@
             "type": "SYMBOL",
             "name": "use_path"
           }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "as"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "alias",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "identifier"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "CHOICE",
@@ -3581,7 +3642,12 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "STRING",
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_foreign_scope_open"
+          },
+          "named": false,
           "value": "{"
         },
         {
@@ -3592,7 +3658,12 @@
           }
         },
         {
-          "type": "STRING",
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_foreign_scope_close"
+          },
+          "named": false,
           "value": "}"
         }
       ]
@@ -14690,6 +14761,26 @@
     {
       "type": "SYMBOL",
       "name": "_foreign_group_open"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_python_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_foreign_provider"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_foreign_import"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_foreign_scope_open"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_foreign_scope_close"
     },
     {
       "type": "SYMBOL",

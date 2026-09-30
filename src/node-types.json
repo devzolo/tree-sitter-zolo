@@ -1820,6 +1820,10 @@
           {
             "type": "foreign_content",
             "named": true
+          },
+          {
+            "type": "python_foreign_content",
+            "named": true
           }
         ]
       }
@@ -6375,6 +6379,16 @@
     "type": "use_declaration",
     "named": true,
     "fields": {
+      "alias": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "path": {
         "multiple": false,
         "required": true,
@@ -7300,6 +7314,10 @@
   {
     "type": "pub",
     "named": false
+  },
+  {
+    "type": "python_foreign_content",
+    "named": true
   },
   {
     "type": "quote",

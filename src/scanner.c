@@ -57,6 +57,7 @@
 #include "tree_sitter/parser.h"
 
 #include <string.h>
+#include <stdlib.h>
 #include <wctype.h>
 
 enum TokenType {
@@ -67,6 +68,11 @@ enum TokenType {
   CONVENTION,
   FOREIGN_BODY,
   FOREIGN_GROUP_OPEN,
+  PYTHON_FOREIGN_BODY,
+  FOREIGN_PROVIDER,
+  FOREIGN_IMPORT,
+  FOREIGN_SCOPE_OPEN,
+  FOREIGN_SCOPE_CLOSE,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -83,23 +89,71 @@ enum TokenType {
   ERROR_SENTINEL,
 };
 
-void *tree_sitter_zolo_external_scanner_create(void) { return NULL; }
+// Imported provider names stay ordinary identifiers. Track only their lexical
+// dialect; loading a native plugin is neither needed nor allowed by a parser.
+// The bounded table fits tree-sitter's 1024-byte scanner-state buffer.
+#define MAX_FOREIGN_BINDINGS 90
+typedef struct {
+  uint64_t name;
+  uint16_t scope;
+  bool python;
+} ForeignBinding;
+typedef struct {
+  ForeignBinding bindings[MAX_FOREIGN_BINDINGS];
+  uint8_t count;
+  uint16_t scope;
+  bool python;
+} Scanner;
 
-void tree_sitter_zolo_external_scanner_destroy(void *payload) { (void)payload; }
+void *tree_sitter_zolo_external_scanner_create(void) {
+  return calloc(1, sizeof(Scanner));
+}
+
+void tree_sitter_zolo_external_scanner_destroy(void *payload) { free(payload); }
 
 unsigned tree_sitter_zolo_external_scanner_serialize(void *payload,
                                                      char *buffer) {
-  (void)payload;
-  (void)buffer;
-  return 0;
+  Scanner *scanner = payload;
+  unsigned length = 0;
+  buffer[length++] = scanner->scope & 0xff;
+  buffer[length++] = scanner->scope >> 8;
+  buffer[length++] = scanner->python;
+  buffer[length++] = scanner->count;
+  for (unsigned i = 0; i < scanner->count; i++) {
+    ForeignBinding *binding = &scanner->bindings[i];
+    buffer[length++] = binding->scope & 0xff;
+    buffer[length++] = binding->scope >> 8;
+    buffer[length++] = binding->python;
+    for (unsigned byte = 0; byte < 8; byte++) {
+      buffer[length++] = (binding->name >> (byte * 8)) & 0xff;
+    }
+  }
+  return length;
 }
 
 void tree_sitter_zolo_external_scanner_deserialize(void *payload,
                                                    const char *buffer,
                                                    unsigned length) {
-  (void)payload;
-  (void)buffer;
-  (void)length;
+  Scanner *scanner = payload;
+  memset(scanner, 0, sizeof(Scanner));
+  if (length < 4) return;
+  unsigned offset = 0;
+  scanner->scope = (uint8_t)buffer[offset++];
+  scanner->scope |= (uint16_t)(uint8_t)buffer[offset++] << 8;
+  scanner->python = buffer[offset++];
+  unsigned count = (uint8_t)buffer[offset++];
+  if (count > MAX_FOREIGN_BINDINGS) return;
+  for (unsigned i = 0; i < count; i++) {
+    if (offset + 11 > length) return;
+    ForeignBinding *binding = &scanner->bindings[i];
+    binding->scope = (uint8_t)buffer[offset++];
+    binding->scope |= (uint16_t)(uint8_t)buffer[offset++] << 8;
+    binding->python = buffer[offset++];
+    for (unsigned byte = 0; byte < 8; byte++) {
+      binding->name |= (uint64_t)(uint8_t)buffer[offset++] << (byte * 8);
+    }
+    scanner->count++;
+  }
 }
 
 /// True for the characters that can follow the `<` of an OPENING tag: a tag
@@ -452,7 +506,7 @@ static bool scan_style_raw_text(TSLexer *lexer, const char *close) {
 // Foreign source uses balanced braces, but braces inside comments and strings
 // do not delimit the Zolo construct. Match the compiler's opaque-body scanner;
 // no C#/Java/JS tokens are ever handed to the surrounding Zolo grammar.
-static bool scan_foreign_body(TSLexer *lexer) {
+static bool scan_foreign_body(TSLexer *lexer, bool python) {
   unsigned depth = 0;
   bool any = false;
   while (!lexer->eof(lexer)) {
@@ -467,7 +521,11 @@ static bool scan_foreign_body(TSLexer *lexer) {
       depth++;
     } else if (c == '}') {
       depth--;
-    } else if (c == '/') {
+    } else if (c == '#' && python) {
+      while (!lexer->eof(lexer) && lexer->lookahead != '\n') {
+        lexer->advance(lexer, false);
+      }
+    } else if (c == '/' && !python) {
       if (lexer->lookahead == '/') {
         while (!lexer->eof(lexer) && lexer->lookahead != '\n') {
           lexer->advance(lexer, false);
@@ -488,15 +546,15 @@ static bool scan_foreign_body(TSLexer *lexer) {
         }
       }
     } else {
-      bool verbatim = c == '@' && lexer->lookahead == '"';
+      bool verbatim = !python && c == '@' && lexer->lookahead == '"';
       if (verbatim) {
         c = lexer->lookahead;
         lexer->advance(lexer, false);
       }
       if (c == '"' || c == '\'' || c == '`') {
         unsigned quotes = 1;
-        if (c == '"' && !verbatim) {
-          while (lexer->lookahead == '"') {
+        if ((c == '"' || (c == '\'' && python)) && !verbatim) {
+          while (lexer->lookahead == c && (!python || quotes < 3)) {
             quotes++;
             lexer->advance(lexer, false);
           }
@@ -508,7 +566,7 @@ static bool scan_foreign_body(TSLexer *lexer) {
           while (!lexer->eof(lexer)) {
             int32_t character = lexer->lookahead;
             lexer->advance(lexer, false);
-            if (character == '\\' && quotes == 1 && !verbatim) {
+            if (character == '\\' && (quotes == 1 || python) && !verbatim) {
               if (!lexer->eof(lexer)) lexer->advance(lexer, false);
               continue;
             }
@@ -562,9 +620,110 @@ static bool skip_foreign_group_trivia(TSLexer *lexer) {
   }
 }
 
+static uint64_t foreign_name_hash(const char *name) {
+  uint64_t hash = UINT64_C(14695981039346656037);
+  while (*name) hash = (hash ^ (unsigned char)*name++) * UINT64_C(1099511628211);
+  return hash;
+}
+
+static bool read_foreign_name(TSLexer *lexer, uint64_t *name) {
+  uint64_t hash = UINT64_C(14695981039346656037);
+  if (!(lexer->lookahead == '_' ||
+        (lexer->lookahead >= 'a' && lexer->lookahead <= 'z') ||
+        (lexer->lookahead >= 'A' && lexer->lookahead <= 'Z'))) return false;
+  do {
+    hash = (hash ^ (unsigned char)lexer->lookahead) * UINT64_C(1099511628211);
+    lexer->advance(lexer, false);
+  } while (lexer->lookahead == '_' ||
+           (lexer->lookahead >= 'a' && lexer->lookahead <= 'z') ||
+           (lexer->lookahead >= 'A' && lexer->lookahead <= 'Z') ||
+           (lexer->lookahead >= '0' && lexer->lookahead <= '9'));
+  *name = hash;
+  return true;
+}
+
+static void register_foreign_binding(Scanner *scanner, uint64_t plugin,
+                                    uint64_t export, uint64_t name) {
+  // Same built-in lexical contract as foreign_provider_dialect(plugin, export)
+  // in zolo-lexer. No guessed aliases and no universal Python comment rule.
+  bool python = plugin == foreign_name_hash("python") && export == foreign_name_hash("python");
+  bool shadows_python = false;
+  for (unsigned i = scanner->count; i > 0; i--) {
+    ForeignBinding *binding = &scanner->bindings[i - 1];
+    if (binding->name == name) {
+      shadows_python = true;
+      if (binding->scope == scanner->scope) {
+        binding->python = python;
+        return;
+      }
+    }
+  }
+  // Other plugin exports need no entry unless they shadow a Python binding.
+  if ((!python && !shadows_python) || scanner->count == MAX_FOREIGN_BINDINGS) return;
+  ForeignBinding *binding = &scanner->bindings[scanner->count++];
+  binding->name = name;
+  binding->scope = scanner->scope;
+  binding->python = python;
+}
+
+// This hidden token consumes no authored bytes. Its grammar position is before
+// a `use` declaration; lookahead records provider imports while the ordinary
+// grammar still parses every import/path/list node with its original spans.
+static bool scan_foreign_import(Scanner *scanner, TSLexer *lexer) {
+  skip_ascii_ws(lexer);
+  lexer->mark_end(lexer);
+  if (!scan_word(lexer, "use") || !skip_foreign_group_trivia(lexer) ||
+      !scan_word(lexer, "plugin") || !skip_foreign_group_trivia(lexer)) return false;
+  uint64_t plugin;
+  if (!read_foreign_name(lexer, &plugin)) return false;
+  Scanner next = *scanner;
+  uint64_t export = plugin;
+  if (!skip_foreign_group_trivia(lexer)) return false;
+  while (lexer->lookahead == ':') {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead != ':') return false;
+    lexer->advance(lexer, false);
+    if (!skip_foreign_group_trivia(lexer)) return false;
+    if (lexer->lookahead == '*') return false; // explicit binding required
+    if (lexer->lookahead == '{') {
+      lexer->advance(lexer, false);
+      for (;;) {
+        if (!skip_foreign_group_trivia(lexer)) return false;
+        if (lexer->lookahead == '}') break;
+        uint64_t name;
+        if (!read_foreign_name(lexer, &export)) return false;
+        name = export;
+        if (!skip_foreign_group_trivia(lexer)) return false;
+        if (lexer->lookahead == 'a') {
+          if (!scan_word(lexer, "as") || !skip_foreign_group_trivia(lexer) ||
+              !read_foreign_name(lexer, &name)) return false;
+        }
+        register_foreign_binding(&next, plugin, export, name);
+        if (!skip_foreign_group_trivia(lexer)) return false;
+        if (lexer->lookahead == '}') break;
+        if (lexer->lookahead != ',') return false;
+        lexer->advance(lexer, false);
+      }
+      *scanner = next;
+      return true;
+    }
+    if (!read_foreign_name(lexer, &export) || !skip_foreign_group_trivia(lexer)) return false;
+  }
+  uint64_t name = export;
+  if (lexer->lookahead == 'a') {
+    // A following `async` declaration is not an alias clause. The lookahead
+    // marker still leaves that authored text to the ordinary grammar.
+    if (scan_word(lexer, "as") &&
+        (!skip_foreign_group_trivia(lexer) || !read_foreign_name(lexer, &name))) return false;
+  }
+  register_foreign_binding(&next, plugin, export, name);
+  *scanner = next;
+  return true;
+}
+
 bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
                                             const bool *valid_symbols) {
-  (void)payload;
+  Scanner *scanner = payload;
 
   // See the comment on `ERROR_SENTINEL`: this is true ONLY while tree-sitter
   // is in error recovery, probing every external token regardless of
@@ -572,6 +731,47 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   // raw-text scan is the fix — without it, `scan_raw_text` ran at any error
   // position and consumed to the next `</style`/`</script` or EOF.
   if (valid_symbols[ERROR_SENTINEL]) {
+    return false;
+  }
+
+  if (valid_symbols[FOREIGN_IMPORT] && scan_foreign_import(scanner, lexer)) {
+    lexer->result_symbol = FOREIGN_IMPORT;
+    return true;
+  }
+
+  if (valid_symbols[FOREIGN_PROVIDER]) {
+    skip_ascii_ws(lexer);
+    uint64_t provider;
+    if (!read_foreign_name(lexer, &provider)) return false;
+    scanner->python = false;
+    for (unsigned i = scanner->count; i > 0; i--) {
+      if (scanner->bindings[i - 1].name == provider) {
+        scanner->python = scanner->bindings[i - 1].python;
+        break;
+      }
+    }
+    lexer->mark_end(lexer);
+    lexer->result_symbol = FOREIGN_PROVIDER;
+    return true;
+  }
+
+  if (valid_symbols[FOREIGN_SCOPE_OPEN] || valid_symbols[FOREIGN_SCOPE_CLOSE]) {
+    skip_ascii_ws(lexer);
+    if (valid_symbols[FOREIGN_SCOPE_OPEN] && lexer->lookahead == '{') {
+      lexer->advance(lexer, false);
+      if (scanner->scope != UINT16_MAX) scanner->scope++;
+      lexer->mark_end(lexer);
+      lexer->result_symbol = FOREIGN_SCOPE_OPEN;
+      return true;
+    }
+    if (valid_symbols[FOREIGN_SCOPE_CLOSE] && lexer->lookahead == '}') {
+      lexer->advance(lexer, false);
+      while (scanner->count && scanner->bindings[scanner->count - 1].scope == scanner->scope) scanner->count--;
+      if (scanner->scope) scanner->scope--;
+      lexer->mark_end(lexer);
+      lexer->result_symbol = FOREIGN_SCOPE_CLOSE;
+      return true;
+    }
     return false;
   }
 
@@ -590,8 +790,9 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
-  if (valid_symbols[FOREIGN_BODY] && scan_foreign_body(lexer)) {
-    lexer->result_symbol = FOREIGN_BODY;
+  if ((valid_symbols[FOREIGN_BODY] || valid_symbols[PYTHON_FOREIGN_BODY]) &&
+      scan_foreign_body(lexer, scanner->python)) {
+    lexer->result_symbol = scanner->python ? PYTHON_FOREIGN_BODY : FOREIGN_BODY;
     return true;
   }
 
