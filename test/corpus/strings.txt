@@ -131,3 +131,32 @@ let raw = r"\u{1F600}"
   (let_declaration
     pattern: (identifier)
     value: (raw_string_literal)))
+
+==================
+Self-documenting interpolation
+==================
+
+let a = "{count=}"
+let b = "{x = :.2f} {n == 1}"
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal
+      (string_interpolation
+        (identifier)
+        (self_documenting))))
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal
+      (string_interpolation
+        (identifier)
+        (self_documenting)
+        (format_spec))
+      (string_content)
+      (string_interpolation
+        (binary_expression
+          left: (identifier)
+          right: (integer_literal))))))

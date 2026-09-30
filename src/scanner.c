@@ -65,6 +65,8 @@ enum TokenType {
   SCRIPT_RAW_TEXT,
   LOOP_LABEL_DECL_COLON,
   CONVENTION,
+  FOREIGN_BODY,
+  FOREIGN_GROUP_OPEN,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -192,7 +194,7 @@ static const char *const RESERVED_WORDS[] = {
     "after",    "timeout",  "sleep",     "try",     "catch",        "finally",
     "defer",    "defer_ok", "defer_err", "guard",   "macro",        "on",
     "schema",   "machine",  "effect",    "handle",  "perform",      "with",
-    "using",
+    "using",    "extern",
 };
 
 static bool is_reserved_word(const char *word) {
@@ -447,6 +449,119 @@ static bool scan_style_raw_text(TSLexer *lexer, const char *close) {
   return any;
 }
 
+// Foreign source uses balanced braces, but braces inside comments and strings
+// do not delimit the Zolo construct. Match the compiler's opaque-body scanner;
+// no C#/Java/JS tokens are ever handed to the surrounding Zolo grammar.
+static bool scan_foreign_body(TSLexer *lexer) {
+  unsigned depth = 0;
+  bool any = false;
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '}' && depth == 0) {
+      lexer->mark_end(lexer);
+      return any;
+    }
+    lexer->advance(lexer, false);
+    any = true;
+    if (c == '{') {
+      depth++;
+    } else if (c == '}') {
+      depth--;
+    } else if (c == '/') {
+      if (lexer->lookahead == '/') {
+        while (!lexer->eof(lexer) && lexer->lookahead != '\n') {
+          lexer->advance(lexer, false);
+        }
+      } else if (lexer->lookahead == '*') {
+        lexer->advance(lexer, false);
+        unsigned comments = 1;
+        while (comments && !lexer->eof(lexer)) {
+          int32_t comment = lexer->lookahead;
+          lexer->advance(lexer, false);
+          if (comment == '/' && lexer->lookahead == '*') {
+            lexer->advance(lexer, false);
+            comments++;
+          } else if (comment == '*' && lexer->lookahead == '/') {
+            lexer->advance(lexer, false);
+            comments--;
+          }
+        }
+      }
+    } else {
+      bool verbatim = c == '@' && lexer->lookahead == '"';
+      if (verbatim) {
+        c = lexer->lookahead;
+        lexer->advance(lexer, false);
+      }
+      if (c == '"' || c == '\'' || c == '`') {
+        unsigned quotes = 1;
+        if (c == '"' && !verbatim) {
+          while (lexer->lookahead == '"') {
+            quotes++;
+            lexer->advance(lexer, false);
+          }
+        }
+        // Two opening quotes form an empty ordinary string. Three or more
+        // are a C#/Java/Python raw string delimiter with an exact quote run.
+        if (quotes != 2) {
+          unsigned closing = 0;
+          while (!lexer->eof(lexer)) {
+            int32_t character = lexer->lookahead;
+            lexer->advance(lexer, false);
+            if (character == '\\' && quotes == 1 && !verbatim) {
+              if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+              continue;
+            }
+            if (character == c) {
+              if (verbatim && lexer->lookahead == c) {
+                lexer->advance(lexer, false);
+                continue;
+              }
+              if (++closing == quotes) break;
+            } else {
+              closing = 0;
+            }
+          }
+        }
+      }
+    }
+    lexer->mark_end(lexer);
+  }
+  return any;
+}
+
+// Group headers are Zolo declarations, so comments before the first `fn`
+// must not make the group look like one opaque foreign expression.
+static bool skip_foreign_group_trivia(TSLexer *lexer) {
+  for (;;) {
+    while (is_ascii_ws(lexer->lookahead)) lexer->advance(lexer, false);
+    if (lexer->lookahead != '/') return true;
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '/') {
+      while (!lexer->eof(lexer) && lexer->lookahead != '\n') {
+        lexer->advance(lexer, false);
+      }
+    } else if (lexer->lookahead == '*') {
+      lexer->advance(lexer, false);
+      unsigned depth = 1;
+      while (depth && !lexer->eof(lexer)) {
+        int32_t c = lexer->lookahead;
+        lexer->advance(lexer, false);
+        if (c == '/' && lexer->lookahead == '*') {
+          lexer->advance(lexer, false);
+          depth++;
+        } else if (c == '*' && lexer->lookahead == '/') {
+          lexer->advance(lexer, false);
+          depth--;
+        }
+      }
+      if (depth) return false;
+    } else {
+      return false;
+    }
+  }
+}
+
 bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
                                             const bool *valid_symbols) {
   (void)payload;
@@ -458,6 +573,26 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   // position and consumed to the next `</style`/`</script` or EOF.
   if (valid_symbols[ERROR_SENTINEL]) {
     return false;
+  }
+
+  if (valid_symbols[FOREIGN_GROUP_OPEN]) {
+    skip_ascii_ws(lexer);
+    if (lexer->lookahead != '{') return false;
+    lexer->advance(lexer, false);
+    lexer->mark_end(lexer);
+    if (!skip_foreign_group_trivia(lexer)) return false;
+    if (lexer->lookahead == 'a') {
+      if (!scan_word(lexer, "async")) return false;
+      if (!skip_foreign_group_trivia(lexer)) return false;
+    }
+    if (!scan_word(lexer, "fn")) return false;
+    lexer->result_symbol = FOREIGN_GROUP_OPEN;
+    return true;
+  }
+
+  if (valid_symbols[FOREIGN_BODY] && scan_foreign_body(lexer)) {
+    lexer->result_symbol = FOREIGN_BODY;
+    return true;
   }
 
   if (valid_symbols[STYLE_RAW_TEXT] && scan_style_raw_text(lexer, "/style")) {

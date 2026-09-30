@@ -34,7 +34,7 @@ const PREC = {
   shift: 21,         // << >>
   additive: 23,      // + -
   multiplicative: 25,// * / %
-  unary: 27,         // -x !x ~x
+  unary: 27,         // -x !x ~x ^x
   power: 28,         // ** (right-assoc)
   cast: 29,          // as / is
   try: 30,           // postfix ?
@@ -77,6 +77,8 @@ module.exports = grammar({
     $._loop_label_decl_colon,
     // `sink` before a parameter or argument name (see src/scanner.c).
     $.convention,
+    $._foreign_body,
+    $._foreign_group_open,
     $._error_sentinel,
   ],
 
@@ -178,6 +180,7 @@ module.exports = grammar({
     // Items
     // ---------------------------------------------------------------------
     _item: $ => choice(
+      $.extern_declaration,
       $.function_item,
       $.struct_item,
       $.enum_item,
@@ -238,6 +241,36 @@ module.exports = grammar({
     ),
 
     // -- Function ---------------------------------------------------------
+    // Provider names are ordinary imported bindings. Only `extern` and the
+    // Zolo signature belong to this grammar; the balanced body is opaque.
+    extern_declaration: $ => seq(
+      optional('pub'),
+      'extern',
+      field('provider', $.identifier),
+      optional(seq('from', field('source', $.string_literal))),
+      choice($.extern_function, $.extern_module, $.extern_use, $.extern_group),
+    ),
+
+    extern_function: $ => seq(
+      optional('async'),
+      'fn',
+      field('name', $.identifier),
+      optional(field('type_parameters', $.type_parameters)),
+      field('parameters', $.parameter_list),
+      optional(seq('->', field('return_type', $._type))),
+      choice(
+        field('body', $.extern_body),
+        seq('=', field('binding', $.extern_binding), optional(';')),
+      ),
+    ),
+
+    extern_binding: $ => prec.right(seq($.identifier, repeat(seq(choice('.', '::'), $.identifier)))),
+    extern_module: $ => seq('mod', field('name', $.identifier), field('body', $.extern_body)),
+    extern_use: $ => seq('use', field('path', choice($.use_path, $.use_list)), optional(';')),
+    extern_group: $ => seq(alias($._foreign_group_open, '{'), repeat1($.extern_function), '}'),
+    extern_body: $ => seq('{', optional(field('content', alias($._foreign_body, $.foreign_content))), '}'),
+    extern_expression: $ => seq('extern', field('provider', $.identifier), field('body', $.extern_body)),
+
     function_item: $ => seq(
       repeat($.decorator),
       optional('pub'),
@@ -306,9 +339,10 @@ module.exports = grammar({
 
     parameter: $ => choice(
       // Pattern parameter: `fn dist(Point { x, y })` / `fn f({ name }: User)`
+      // / `fn sum((a, b): (int, int))` / `|(k, v)| …`
       // — specs/2026-07-03-pattern-binding-positions-design.md (D3).
       seq(
-        field('pattern', choice($.struct_pattern, $.anon_struct_pattern)),
+        field('pattern', choice($.struct_pattern, $.anon_struct_pattern, $.tuple_pattern)),
         optional(seq(':', field('type', $._type))),
       ),
       seq(
@@ -383,7 +417,8 @@ module.exports = grammar({
         // inference `id = 0` (parser.rs gates the optional type on `=`).
         seq(
           optional('using'),
-          field('name', $.identifier),
+          // `using: int` names a field `using` (a `:` follows, not a name).
+          field('name', choice($.identifier, alias('using', $.identifier))),
           choice(
             seq(
               ':',
@@ -888,9 +923,11 @@ module.exports = grammar({
     // Expressions
     // ---------------------------------------------------------------------
     _expression: $ => choice(
+      $.extern_expression,
       $._literal,
       $.identifier,
       alias($._contextual_type_identifier, $.identifier),
+      $._contextual_keyword,
       $.self_expression,
       $.path_expression,
       $.enum_shorthand_expression,
@@ -1419,8 +1456,10 @@ module.exports = grammar({
     )),
 
     // -- Unary ------------------------------------------------------------
+    // `^k` (from the end: `xs[^1]`, `s[..^1]`) is a prefix operator like
+    // `-`; binary `^` (xor) lives in binary_expression.
     unary_expression: $ => prec(PREC.unary, seq(
-      field('operator', choice('-', '!', '~')),
+      field('operator', choice('-', '!', '~', '^')),
       field('operand', $._expression),
     )),
 
@@ -1461,12 +1500,14 @@ module.exports = grammar({
     },
 
     // -- Range ------------------------------------------------------------
-    range_expression: $ => prec.left(PREC.range, choice(
-      seq($._expression, choice('..', '..='), $._expression),
-      seq($._expression, choice('..', '..=')),
-      seq(choice('..', '..='), $._expression),
-      '..',
-    )),
+    // The end is optional (`a..`, `..`), but like the real parser (see
+    // `can_start_expr`) a token that can start an expression begins it:
+    // `a..^1` is `a..(^1)`, never `(a..) ^ 1`. Right associativity makes
+    // the parser shift into the end instead of closing an open range.
+    range_expression: $ => choice(
+      prec.right(PREC.range, seq($._expression, choice('..', '..='), optional($._expression))),
+      prec.right(PREC.range, seq(choice('..', '..='), optional($._expression))),
+    ),
 
     // approximate equality: a ~= b  /  a ~= b within 0.001  /  a !~= b ulps 4
     approx_expression: $ => prec.left(PREC.equality, seq(
@@ -1561,11 +1602,13 @@ module.exports = grammar({
     // `f(name: sink x)`) is the same external token as the parameter
     // convention.
     call_argument: $ => choice(
-      // Named argument: name: value
+      // Named argument: name: value. A declaration keyword is also a
+      // value here, so the lexer hands the name over as that keyword.
       seq(
         field('name', choice(
           $.identifier,
           alias($._contextual_type_identifier, $.identifier),
+          $._contextual_keyword,
         )),
         ':',
         optional(field('convention', $.convention)),
@@ -1717,6 +1760,9 @@ module.exports = grammar({
         field('key', choice(
           $.string_literal,
           $.integer_literal,
+          $.float_literal,
+          // `-1: "z"` — a negative numeric key, as the parser reads it.
+          seq('-', choice($.integer_literal, $.float_literal)),
           $.identifier,
           seq('[', $._expression, ']'),
         )),
@@ -2480,6 +2526,8 @@ module.exports = grammar({
     string_interpolation: $ => seq(
       token.immediate('{'),
       $._expression,
+      // `{expr=}` prints the expression's own text before its value.
+      optional(alias('=', $.self_documenting)),
       optional(seq(':', $.format_spec)),
       '}',
     ),
@@ -2620,6 +2668,16 @@ module.exports = grammar({
     // The ordinary string token keeps precedence in `type Name = ...`; this
     // token is enabled only by value/parameter/named-argument parser states.
     _contextual_type_identifier: _ => token(prec(-1, /type/)),
+    // A declaration keyword outside its declaration is an ordinary name
+    // (TokenKind::contextual_keyword_name): `let on = true`, `on = false`,
+    // `effect(f)`, `impl + 1`. Where the declaration may also start — a
+    // top-level statement — the parser opens it only when its name (or
+    // `impl`'s `<`) follows (`opens_declaration`); the negative precedence
+    // makes the generator settle the same shift/reduce choice that way.
+    _contextual_keyword: $ => prec(-1, alias(choice(
+      'type', 'newtype', 'impl', 'trait', 'mod', 'where', 'on', 'using',
+      'schema', 'machine', 'effect', 'macro',
+    ), $.identifier)),
     identifier: _ => /[a-zA-Z_][a-zA-Z0-9_]*/,
   },
 });

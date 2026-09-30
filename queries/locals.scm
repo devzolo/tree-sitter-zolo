@@ -3,6 +3,7 @@
 ; -- Scopes -----------------------------------------------------------------
 (source_file) @local.scope
 (function_item) @local.scope
+(extern_function) @local.scope
 (trait_method) @local.scope
 (lambda_expression) @local.scope
 (trailing_lambda) @local.scope
@@ -60,6 +61,12 @@
 
 (function_item
   name: (identifier) @local.definition.function)
+
+(extern_function
+  name: (identifier) @local.definition.function)
+
+(extern_module
+  name: (identifier) @local.definition.import)
 
 (macro_item
   name: (identifier) @local.definition.macro)

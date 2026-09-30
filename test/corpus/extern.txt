@@ -1,0 +1,221 @@
+==================
+Typed provider functions and opaque nested bodies
+==================
+use plugin dotnet::{csharp}
+extern csharp fn add(a: int, b: int) -> int {
+    if (a > 0) { var text = "}"; /* } */ return a + b; }
+    return 0;
+}
+extern csharp async fn twice(value: int) -> int {
+    await System.Threading.Tasks.Task.Delay(10);
+    return value * 2;
+}
+print(add(20, 22))
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type))
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (foreign_content))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (foreign_content))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (integer_literal))
+              (call_argument
+                (integer_literal)))))))))
+
+==================
+Module, imports, bindings and expression captures
+==================
+extern csharp mod counters {
+    public class Counter {
+        public long Next() => 42;
+    }
+}
+extern csharp from "./Counter.cs" use {Counter}
+extern csharp from "./Legacy.dll" use Acme::Tools::{Formatter}
+extern csharp use System::Text::{StringBuilder}
+extern csharp from "./Legacy.dll" fn add(a: int, b: int) -> int = Acme.Math.Add
+let clean: str = extern csharp { return original.Trim(); }
+---
+
+(source_file
+  (extern_declaration
+    (identifier)
+    (extern_module
+      (identifier)
+      (extern_body
+        (foreign_content))))
+  (extern_declaration
+    (identifier)
+    (string_literal
+      (string_content))
+    (extern_use
+      (use_list
+        (use_item
+          (identifier)))))
+  (extern_declaration
+    (identifier)
+    (string_literal
+      (string_content))
+    (extern_use
+      (use_path
+        (identifier)
+        (identifier)
+        (use_list
+          (use_item
+            (identifier))))))
+  (extern_declaration
+    (identifier)
+    (extern_use
+      (use_path
+        (identifier)
+        (identifier)
+        (use_list
+          (use_item
+            (identifier))))))
+  (extern_declaration
+    (identifier)
+    (string_literal
+      (string_content))
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type))
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_binding
+        (identifier)
+        (identifier)
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (primitive_type)
+    (extern_expression
+      (identifier)
+      (extern_body
+        (foreign_content)))))
+
+==================
+Grouped signatures and arbitrary provider binding
+==================
+extern csharp {
+    // Typed declarations keep their Zolo headers.
+    /* A comment before the first function. */
+    fn upper(text: str) -> str { return text.ToUpperInvariant(); }
+    async fn later(value: int) -> int { return await Task.FromResult(value); }
+}
+extern javascript fn lower(text: str) -> str { return text.trim().toLowerCase(); }
+extern custom fn identity(value: int) -> int { custom return value; }
+---
+
+(source_file
+  (extern_declaration
+    (identifier)
+    (extern_group
+      (line_comment)
+      (block_comment)
+      (extern_function
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (primitive_type)))
+        (primitive_type)
+        (extern_body
+          (foreign_content)))
+      (extern_function
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (primitive_type)))
+        (primitive_type)
+        (extern_body
+          (foreign_content)))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (foreign_content))))
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type)))
+      (primitive_type)
+      (extern_body
+        (foreign_content)))))
+
+==================
+Raw and verbatim strings do not terminate foreign bodies
+==================
+extern csharp fn text() -> str {
+    var first = @"a""}b";
+    var raw = """ } { "text" """;
+    var character = '}';
+    // } {
+    return first;
+}
+let after = 42
+---
+
+(source_file
+  (extern_declaration
+    (identifier)
+    (extern_function
+      (identifier)
+      (parameter_list)
+      (primitive_type)
+      (extern_body
+        (foreign_content))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))

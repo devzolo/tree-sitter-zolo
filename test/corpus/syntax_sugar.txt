@@ -215,3 +215,44 @@ let block = tw"""
 (tagged_triple_string_literal
       (identifier)
       (triple_string_content))))
+
+==================
+From-end index
+==================
+
+let a = xs[^1]
+let b = s[1..^1]
+let c = xs.get(^2)
+let d = x ^ y
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (index_expression
+      object: (identifier)
+      index: (unary_expression
+        operand: (integer_literal))))
+  (let_declaration
+    pattern: (identifier)
+    value: (index_expression
+      object: (identifier)
+      index: (range_expression
+        (integer_literal)
+        (unary_expression
+          operand: (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (method_call_expression
+      receiver: (identifier)
+      method: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (unary_expression
+            operand: (integer_literal))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (binary_expression
+      left: (identifier)
+      right: (identifier))))

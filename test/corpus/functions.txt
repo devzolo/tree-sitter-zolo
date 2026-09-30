@@ -170,3 +170,54 @@ let rendered = button(type: "submit")
           name: (identifier)
           value: (string_literal
             (string_content)))))))
+
+================================================================================
+Tuple pattern parameters
+================================================================================
+
+fn sum((a, b): (int, int)) -> int { a + b }
+let total = pairs.map(|((a, b), c)| a + b + c)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (tuple_pattern
+          (identifier_pattern
+            (identifier))
+          (identifier_pattern
+            (identifier)))
+        (tuple_type
+          (primitive_type)
+          (primitive_type))))
+    (primitive_type)
+    (block
+      (expression_statement
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (lambda_expression
+            (parameter
+              (tuple_pattern
+                (tuple_pattern
+                  (identifier_pattern
+                    (identifier))
+                  (identifier_pattern
+                    (identifier)))
+                (identifier_pattern
+                  (identifier))))
+            (binary_expression
+              (binary_expression
+                (identifier)
+                (identifier))
+              (identifier))))))))

@@ -6,6 +6,8 @@
 ; -- Containers that open an indentation level ------------------------------
 [
   (block)
+  (extern_body)
+  (extern_group)
   (trailing_lambda)
   (declaration_body)
   (field_declaration_list)
@@ -42,4 +44,5 @@
   (triple_string_literal)
   (raw_string_literal)
   (string_literal)
+  (foreign_content)
 ] @indent.ignore

@@ -1,0 +1,63 @@
+==================
+Declaration keywords are names outside their declarations
+==================
+
+let trait = 1
+on = true
+on shutdown { }
+impl + trait
+impl Dog { }
+effect(trait)
+mod m { }
+struct P { using base: Entity, using: int }
+fn f(where: int) -> int { where }
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (assignment_statement
+    target: (identifier)
+    value: (bool_literal))
+  (on_declaration
+    body: (block))
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier)))
+  (impl_item
+    type: (type_path
+      (identifier))
+    body: (impl_body))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier)))))
+  (mod_declaration
+    path: (mod_path
+      (identifier))
+    body: (mod_body))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (type_path
+          (identifier)))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (identifier)))))

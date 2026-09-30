@@ -45,6 +45,37 @@ fn t() {
             (integer_literal)))))))
 
 ==================
+map literal numeric keys
+==================
+
+fn t() {
+  let m = #{1: "a", -2: "b", 0.5: "c"}
+}
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (map_expression
+          (map_entry
+            (integer_literal)
+            (string_literal
+              (string_content)))
+          (map_entry
+            (integer_literal)
+            (string_literal
+              (string_content)))
+          (map_entry
+            (float_literal)
+            (string_literal
+              (string_content))))))))
+
+==================
 storage classes
 ==================
 

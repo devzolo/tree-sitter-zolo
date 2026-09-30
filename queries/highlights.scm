@@ -29,7 +29,14 @@
   "comptime"
   "enable"
   "requires"
+  "extern"
+  "from"
 ] @keyword
+
+(extern_declaration provider: (identifier) @module)
+(extern_expression provider: (identifier) @module)
+(extern_function name: (identifier) @function)
+(extern_module name: (identifier) @module)
 
 [
   "fn"
@@ -190,6 +197,9 @@
   "~=" "!~=" ":=" "<-"
   "~/" "~/="
 ] @operator
+
+; `{expr=}`: the `=` of a self-documenting interpolation.
+(self_documenting) @operator
 
 ; -- Punctuation ------------------------------------------------------------
 [ "(" ")" "[" "]" "{" "}" "#{" ] @punctuation.bracket
