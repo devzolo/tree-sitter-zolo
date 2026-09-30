@@ -84,6 +84,8 @@ module.exports = grammar({
     $._foreign_import,
     $._foreign_scope_open,
     $._foreign_scope_close,
+    $._javascript_foreign_body,
+    $._typescript_foreign_body,
     $._error_sentinel,
   ],
 
@@ -253,7 +255,7 @@ module.exports = grammar({
       'extern',
       field('provider', alias($._foreign_provider, $.identifier)),
       optional(seq('from', field('source', $.string_literal))),
-      choice($.extern_function, $.extern_module, $.extern_use, $.extern_group),
+      choice($.extern_function, $.extern_module, $.extern_use, $.extern_group, $.extern_dependencies),
     ),
 
     extern_function: $ => seq(
@@ -273,9 +275,22 @@ module.exports = grammar({
     extern_module: $ => seq('mod', field('name', $.identifier), field('body', $.extern_body)),
     extern_use: $ => seq('use', field('path', choice($.use_path, $.use_list)), optional(';')),
     extern_group: $ => seq(alias($._foreign_group_open, '{'), repeat1($.extern_function), '}'),
+    extern_dependencies: $ => seq('deps', '{', repeat(seq($.extern_dependency, optional(choice(',', ';')))), '}'),
+    extern_dependency: $ => seq(
+      field('package', choice($.identifier, $.string_literal)), '=',
+      field('specification', choice($.string_literal, $.extern_dependency_options)),
+    ),
+    extern_dependency_options: $ => seq('{', repeat1(seq(
+      choice(
+        seq(field('option', choice('version', 'requirement')), '=', $.string_literal),
+        seq(field('option', 'extras'), '=', '[', optional(commaSep1($.string_literal)), optional(','), ']'),
+      ), optional(choice(',', ';')),
+    )), '}'),
     extern_body: $ => seq('{', optional(field('content', choice(
       alias($._foreign_body, $.foreign_content),
       alias($._python_foreign_body, $.python_foreign_content),
+      alias($._javascript_foreign_body, $.javascript_foreign_content),
+      alias($._typescript_foreign_body, $.typescript_foreign_content),
     ))), '}'),
     extern_expression: $ => seq('extern', field('provider', alias($._foreign_provider, $.identifier)), field('body', $.extern_body)),
 

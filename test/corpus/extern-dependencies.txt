@@ -1,0 +1,30 @@
+==================
+Declarative dependencies preserve quoted coordinates and language aliases
+==================
+use plugin node::{typescript as ts}
+extern ts deps {
+  "@scope/package" = "1.2.3"
+  tool = { requirement = ">=2,<3" }
+}
+use plugin python::{python as py}
+extern py deps {
+  // } a common Zolo comment
+  httpx = { version = "0.28.1", extras = ["http2"] }
+}
+let deps = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_dependencies
+      (extern_dependency (string_literal (string_content)) (string_literal (string_content)))
+      (extern_dependency (identifier) (extern_dependency_options (string_literal (string_content))))))
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_dependencies
+      (line_comment)
+      (extern_dependency (identifier) (extern_dependency_options
+        (string_literal (string_content)) (string_literal (string_content))))))
+  (let_declaration (identifier) (integer_literal)))

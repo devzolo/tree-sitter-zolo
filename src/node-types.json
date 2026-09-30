@@ -1822,7 +1822,15 @@
             "named": true
           },
           {
+            "type": "javascript_foreign_content",
+            "named": true
+          },
+          {
             "type": "python_foreign_content",
+            "named": true
+          },
+          {
+            "type": "typescript_foreign_content",
             "named": true
           }
         ]
@@ -1859,6 +1867,10 @@
       "required": true,
       "types": [
         {
+          "type": "extern_dependencies",
+          "named": true
+        },
+        {
           "type": "extern_function",
           "named": true
         },
@@ -1872,6 +1884,89 @@
         },
         {
           "type": "extern_use",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "extern_dependencies",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "extern_dependency",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "extern_dependency",
+    "named": true,
+    "fields": {
+      "package": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      },
+      "specification": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "extern_dependency_options",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "extern_dependency_options",
+    "named": true,
+    "fields": {
+      "option": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "extras",
+            "named": false
+          },
+          {
+            "type": "requirement",
+            "named": false
+          },
+          {
+            "type": "version",
+            "named": false
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string_literal",
           "named": true
         }
       ]
@@ -7033,6 +7128,10 @@
     "named": false
   },
   {
+    "type": "deps",
+    "named": false
+  },
+  {
     "type": "doc_comment",
     "named": true,
     "extra": true
@@ -7071,6 +7170,10 @@
   },
   {
     "type": "extern",
+    "named": false
+  },
+  {
+    "type": "extras",
     "named": false
   },
   {
@@ -7188,6 +7291,10 @@
   {
     "type": "items",
     "named": false
+  },
+  {
+    "type": "javascript_foreign_content",
+    "named": true
   },
   {
     "type": "let",
@@ -7340,6 +7447,10 @@
     "named": false
   },
   {
+    "type": "requirement",
+    "named": false
+  },
+  {
     "type": "requires",
     "named": false
   },
@@ -7448,6 +7559,10 @@
     "named": false
   },
   {
+    "type": "typescript_foreign_content",
+    "named": true
+  },
+  {
     "type": "u16",
     "named": false
   },
@@ -7485,6 +7600,10 @@
   },
   {
     "type": "var",
+    "named": false
+  },
+  {
+    "type": "version",
     "named": false
   },
   {

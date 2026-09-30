@@ -4,6 +4,7 @@
   (function_item)
   (extern_body)
   (extern_group)
+  (extern_dependencies)
   (struct_item)
   (enum_item)
   (trait_item)

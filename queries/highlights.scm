@@ -37,6 +37,9 @@
 (extern_expression provider: (identifier) @module)
 (extern_function name: (identifier) @function)
 (extern_module name: (identifier) @module)
+(extern_dependencies "deps" @keyword)
+(extern_dependency package: (identifier) @property)
+(extern_dependency_options option: _ @property)
 
 [
   "fn"

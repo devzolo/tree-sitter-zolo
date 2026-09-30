@@ -73,6 +73,8 @@ enum TokenType {
   FOREIGN_IMPORT,
   FOREIGN_SCOPE_OPEN,
   FOREIGN_SCOPE_CLOSE,
+  JAVASCRIPT_FOREIGN_BODY,
+  TYPESCRIPT_FOREIGN_BODY,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -93,16 +95,17 @@ enum TokenType {
 // dialect; loading a native plugin is neither needed nor allowed by a parser.
 // The bounded table fits tree-sitter's 1024-byte scanner-state buffer.
 #define MAX_FOREIGN_BINDINGS 90
+enum ForeignDialect { FOREIGN_BRACED, FOREIGN_PYTHON, FOREIGN_JAVASCRIPT, FOREIGN_TYPESCRIPT };
 typedef struct {
   uint64_t name;
   uint16_t scope;
-  bool python;
+  uint8_t dialect;
 } ForeignBinding;
 typedef struct {
   ForeignBinding bindings[MAX_FOREIGN_BINDINGS];
   uint8_t count;
   uint16_t scope;
-  bool python;
+  uint8_t dialect;
 } Scanner;
 
 void *tree_sitter_zolo_external_scanner_create(void) {
@@ -117,13 +120,13 @@ unsigned tree_sitter_zolo_external_scanner_serialize(void *payload,
   unsigned length = 0;
   buffer[length++] = scanner->scope & 0xff;
   buffer[length++] = scanner->scope >> 8;
-  buffer[length++] = scanner->python;
+  buffer[length++] = scanner->dialect;
   buffer[length++] = scanner->count;
   for (unsigned i = 0; i < scanner->count; i++) {
     ForeignBinding *binding = &scanner->bindings[i];
     buffer[length++] = binding->scope & 0xff;
     buffer[length++] = binding->scope >> 8;
-    buffer[length++] = binding->python;
+    buffer[length++] = binding->dialect;
     for (unsigned byte = 0; byte < 8; byte++) {
       buffer[length++] = (binding->name >> (byte * 8)) & 0xff;
     }
@@ -140,7 +143,7 @@ void tree_sitter_zolo_external_scanner_deserialize(void *payload,
   unsigned offset = 0;
   scanner->scope = (uint8_t)buffer[offset++];
   scanner->scope |= (uint16_t)(uint8_t)buffer[offset++] << 8;
-  scanner->python = buffer[offset++];
+  scanner->dialect = buffer[offset++];
   unsigned count = (uint8_t)buffer[offset++];
   if (count > MAX_FOREIGN_BINDINGS) return;
   for (unsigned i = 0; i < count; i++) {
@@ -148,7 +151,7 @@ void tree_sitter_zolo_external_scanner_deserialize(void *payload,
     ForeignBinding *binding = &scanner->bindings[i];
     binding->scope = (uint8_t)buffer[offset++];
     binding->scope |= (uint16_t)(uint8_t)buffer[offset++] << 8;
-    binding->python = buffer[offset++];
+    binding->dialect = buffer[offset++];
     for (unsigned byte = 0; byte < 8; byte++) {
       binding->name |= (uint64_t)(uint8_t)buffer[offset++] << (byte * 8);
     }
@@ -506,6 +509,180 @@ static bool scan_style_raw_text(TSLexer *lexer, const char *close) {
 // Foreign source uses balanced braces, but braces inside comments and strings
 // do not delimit the Zolo construct. Match the compiler's opaque-body scanner;
 // no C#/Java/JS tokens are ever handed to the surrounding Zolo grammar.
+// Mirror zolo-lexer::foreign::scan_ecmascript's structural context. Native
+// providers validate syntax; this scanner only keeps authored literals opaque.
+enum EcmaBrace { ECMA_BLOCK, ECMA_OBJECT, ECMA_CALLABLE_DECL, ECMA_CALLABLE_EXPR, ECMA_CLASS_DECL, ECMA_CLASS_EXPR };
+enum EcmaParen { ECMA_NORMAL, ECMA_CONTROL, ECMA_FUNCTION_DECL, ECMA_FUNCTION_EXPR };
+#define MAX_ECMA_DEPTH 256
+static bool scan_ecma_code(TSLexer *lexer, bool interpolation, bool statement, unsigned recursion);
+
+static bool ecma_identifier_start(int32_t c) {
+  return is_label_start(c) || c == '$' || c >= 128;
+}
+static bool ecma_identifier_part(int32_t c) {
+  return ecma_identifier_start(c) || (c >= '0' && c <= '9');
+}
+static void scan_ecma_regex(TSLexer *lexer) {
+  bool character_class = false;
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '\n' || c == '\r') return;
+    lexer->advance(lexer, false);
+    if (c == '\\') {
+      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+    } else if (c == '[') {
+      character_class = true;
+    } else if (c == ']') {
+      character_class = false;
+    } else if (c == '/' && !character_class) {
+      while (ecma_identifier_part(lexer->lookahead)) lexer->advance(lexer, false);
+      return;
+    }
+  }
+}
+static void scan_ecma_string(TSLexer *lexer, int32_t quote, unsigned recursion) {
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    lexer->advance(lexer, false);
+    if (c == '\\') {
+      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+    } else if (c == quote) {
+      return;
+    } else if (quote == '`' && c == '$' && lexer->lookahead == '{') {
+      lexer->advance(lexer, false);
+      scan_ecma_code(lexer, true, false, recursion + 1);
+    }
+  }
+}
+static bool scan_ecma_code(TSLexer *lexer, bool interpolation, bool statement, unsigned recursion) {
+  if (recursion > 64) return false;
+  bool expression_expected = true, block_expected = statement, control_pending = false;
+  bool member_pending = false, arrow_pending = false, any = false;
+  // Pending function/class/callable: 0 none, 1 declaration, 2 expression.
+  uint8_t function_pending = 0, class_pending = 0, callable_pending = 0;
+  unsigned class_braces = 0, class_parens = 0, brace_count = 0, paren_count = 0;
+  uint8_t braces[MAX_ECMA_DEPTH], parentheses[MAX_ECMA_DEPTH];
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '}' && !brace_count) {
+      if (interpolation) lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+      return any;
+    }
+    lexer->advance(lexer, false); any = true;
+    if (is_ascii_ws(c)) { lexer->mark_end(lexer); continue; }
+    if (c == '/' && lexer->lookahead == '/') {
+      while (!lexer->eof(lexer) && lexer->lookahead != '\n' && lexer->lookahead != '\r') lexer->advance(lexer, false);
+      lexer->mark_end(lexer); continue;
+    }
+    if (c == '/' && lexer->lookahead == '*') {
+      lexer->advance(lexer, false);
+      while (!lexer->eof(lexer)) {
+        int32_t comment = lexer->lookahead; lexer->advance(lexer, false);
+        if (comment == '*' && lexer->lookahead == '/') { lexer->advance(lexer, false); break; }
+      }
+      lexer->mark_end(lexer); continue;
+    }
+    if (c != '{' && arrow_pending) { callable_pending = 0; arrow_pending = false; }
+    if (c == '\'' || c == '"' || c == '`') {
+      scan_ecma_string(lexer, c, recursion);
+      expression_expected = block_expected = member_pending = false;
+      lexer->mark_end(lexer); continue;
+    }
+    if (c == '/') {
+      if (expression_expected) { scan_ecma_regex(lexer); expression_expected = false; }
+      else { if (lexer->lookahead == '=') lexer->advance(lexer, false); expression_expected = true; }
+      block_expected = member_pending = false;
+      lexer->mark_end(lexer); continue;
+    }
+    if (ecma_identifier_start(c)) {
+      char word[48]; unsigned length = 0; word[length++] = c < 128 ? c : '?';
+      while (ecma_identifier_part(lexer->lookahead)) {
+        if (length < sizeof(word) - 1) word[length++] = lexer->lookahead < 128 ? lexer->lookahead : '?';
+        lexer->advance(lexer, false);
+      }
+      word[length] = 0;
+      while (is_ascii_ws(lexer->lookahead)) lexer->advance(lexer, false);
+      bool property_key = brace_count && (braces[brace_count - 1] == ECMA_OBJECT ||
+        braces[brace_count - 1] == ECMA_CLASS_DECL || braces[brace_count - 1] == ECMA_CLASS_EXPR) && lexer->lookahead == ':';
+      if (member_pending || property_key) expression_expected = block_expected = false;
+      else if (!strcmp(word, "function")) {
+        function_pending = block_expected ? 1 : 2; expression_expected = true; block_expected = false;
+      } else if (!strcmp(word, "class")) {
+        class_pending = block_expected ? 1 : 2; class_braces = brace_count; class_parens = paren_count;
+        expression_expected = true; block_expected = false;
+      } else if (block_expected && (!strcmp(word, "async") || !strcmp(word, "export") || !strcmp(word, "default"))) {
+        expression_expected = true;
+      } else if (!strcmp(word, "if") || !strcmp(word, "while") || !strcmp(word, "for") || !strcmp(word, "with") || !strcmp(word, "switch") || !strcmp(word, "catch")) {
+        control_pending = true; expression_expected = true; block_expected = !strcmp(word, "catch");
+      } else if (!strcmp(word, "else") || !strcmp(word, "do") || !strcmp(word, "try") || !strcmp(word, "finally")) {
+        expression_expected = block_expected = true;
+      } else if (!strcmp(word, "return") || !strcmp(word, "throw") || !strcmp(word, "case") || !strcmp(word, "delete") || !strcmp(word, "void") || !strcmp(word, "typeof") || !strcmp(word, "new") || !strcmp(word, "in") || !strcmp(word, "instanceof") || !strcmp(word, "of") || !strcmp(word, "yield") || !strcmp(word, "await")) {
+        expression_expected = true; block_expected = false;
+      } else expression_expected = block_expected = false;
+      member_pending = false; lexer->mark_end(lexer); continue;
+    }
+    if (c >= '0' && c <= '9') {
+      while (ecma_identifier_part(lexer->lookahead) || lexer->lookahead == '.') lexer->advance(lexer, false);
+      expression_expected = block_expected = member_pending = false;
+      lexer->mark_end(lexer); continue;
+    }
+    switch (c) {
+    case '(':
+      if (paren_count == MAX_ECMA_DEPTH) return false;
+      parentheses[paren_count++] = control_pending ? ECMA_CONTROL : function_pending == 1 ? ECMA_FUNCTION_DECL : function_pending == 2 ? ECMA_FUNCTION_EXPR : ECMA_NORMAL;
+      if (!control_pending) function_pending = 0;
+      control_pending = false; expression_expected = true; block_expected = false;
+      break;
+    case ')': {
+      uint8_t parenthesis = paren_count ? parentheses[--paren_count] : ECMA_NORMAL;
+      expression_expected = parenthesis == ECMA_CONTROL;
+      if (parenthesis == ECMA_FUNCTION_DECL || parenthesis == ECMA_FUNCTION_EXPR) callable_pending = parenthesis == ECMA_FUNCTION_DECL ? 1 : 2;
+      block_expected = true; break;
+    }
+    case '{': {
+      if (brace_count == MAX_ECMA_DEPTH) return false;
+      uint8_t brace;
+      if (callable_pending) { brace = callable_pending == 1 ? ECMA_CALLABLE_DECL : ECMA_CALLABLE_EXPR; callable_pending = 0; arrow_pending = false; }
+      else if (class_pending && class_braces == brace_count && class_parens == paren_count) { brace = class_pending == 1 ? ECMA_CLASS_DECL : ECMA_CLASS_EXPR; class_pending = 0; }
+      else brace = block_expected || !expression_expected ? ECMA_BLOCK : ECMA_OBJECT;
+      braces[brace_count++] = brace; expression_expected = block_expected = true; break;
+    }
+    case '}': {
+      uint8_t brace = braces[--brace_count];
+      expression_expected = brace == ECMA_BLOCK || brace == ECMA_CALLABLE_DECL || brace == ECMA_CLASS_DECL;
+      block_expected = expression_expected; break;
+    }
+    case ']': expression_expected = block_expected = false; break;
+    case ';':
+      expression_expected = block_expected = true; control_pending = false;
+      function_pending = class_pending = callable_pending = 0; arrow_pending = false; break;
+    case '.':
+      if (lexer->lookahead == '.') {
+        lexer->advance(lexer, false);
+        if (lexer->lookahead == '.') lexer->advance(lexer, false);
+        expression_expected = true; member_pending = false;
+      } else { expression_expected = false; member_pending = true; }
+      block_expected = false; lexer->mark_end(lexer); continue;
+    case '#': member_pending = true; expression_expected = block_expected = false; lexer->mark_end(lexer); continue;
+    case '+': case '-':
+      if (lexer->lookahead == c) { lexer->advance(lexer, false); block_expected = member_pending = false; lexer->mark_end(lexer); continue; }
+      expression_expected = true; block_expected = false; break;
+    case '!':
+      if (lexer->lookahead == '=') expression_expected = true;
+      block_expected = false; break;
+    case '=':
+      expression_expected = true;
+      if (lexer->lookahead == '>') { lexer->advance(lexer, false); block_expected = true; callable_pending = 2; arrow_pending = true; }
+      else block_expected = false;
+      break;
+    default: expression_expected = true; block_expected = false;
+    }
+    member_pending = false; lexer->mark_end(lexer);
+  }
+  return any;
+}
+
 static bool scan_foreign_body(TSLexer *lexer, bool python) {
   unsigned depth = 0;
   bool any = false;
@@ -646,24 +823,27 @@ static void register_foreign_binding(Scanner *scanner, uint64_t plugin,
                                     uint64_t export, uint64_t name) {
   // Same built-in lexical contract as foreign_provider_dialect(plugin, export)
   // in zolo-lexer. No guessed aliases and no universal Python comment rule.
-  bool python = plugin == foreign_name_hash("python") && export == foreign_name_hash("python");
-  bool shadows_python = false;
+  uint8_t dialect = FOREIGN_BRACED;
+  if (plugin == foreign_name_hash("python") && export == foreign_name_hash("python")) dialect = FOREIGN_PYTHON;
+  if (plugin == foreign_name_hash("node") && export == foreign_name_hash("javascript")) dialect = FOREIGN_JAVASCRIPT;
+  if (plugin == foreign_name_hash("node") && export == foreign_name_hash("typescript")) dialect = FOREIGN_TYPESCRIPT;
+  bool shadows_provider = false;
   for (unsigned i = scanner->count; i > 0; i--) {
     ForeignBinding *binding = &scanner->bindings[i - 1];
     if (binding->name == name) {
-      shadows_python = true;
+      shadows_provider = true;
       if (binding->scope == scanner->scope) {
-        binding->python = python;
+        binding->dialect = dialect;
         return;
       }
     }
   }
-  // Other plugin exports need no entry unless they shadow a Python binding.
-  if ((!python && !shadows_python) || scanner->count == MAX_FOREIGN_BINDINGS) return;
+  // Other plugin exports need no entry unless they shadow a known binding.
+  if ((!dialect && !shadows_provider) || scanner->count == MAX_FOREIGN_BINDINGS) return;
   ForeignBinding *binding = &scanner->bindings[scanner->count++];
   binding->name = name;
   binding->scope = scanner->scope;
-  binding->python = python;
+  binding->dialect = dialect;
 }
 
 // This hidden token consumes no authored bytes. Its grammar position is before
@@ -743,10 +923,10 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     skip_ascii_ws(lexer);
     uint64_t provider;
     if (!read_foreign_name(lexer, &provider)) return false;
-    scanner->python = false;
+    scanner->dialect = FOREIGN_BRACED;
     for (unsigned i = scanner->count; i > 0; i--) {
       if (scanner->bindings[i - 1].name == provider) {
-        scanner->python = scanner->bindings[i - 1].python;
+        scanner->dialect = scanner->bindings[i - 1].dialect;
         break;
       }
     }
@@ -790,9 +970,13 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
-  if ((valid_symbols[FOREIGN_BODY] || valid_symbols[PYTHON_FOREIGN_BODY]) &&
-      scan_foreign_body(lexer, scanner->python)) {
-    lexer->result_symbol = scanner->python ? PYTHON_FOREIGN_BODY : FOREIGN_BODY;
+  if ((valid_symbols[FOREIGN_BODY] || valid_symbols[PYTHON_FOREIGN_BODY] ||
+       valid_symbols[JAVASCRIPT_FOREIGN_BODY] || valid_symbols[TYPESCRIPT_FOREIGN_BODY]) &&
+      (scanner->dialect >= FOREIGN_JAVASCRIPT ? scan_ecma_code(lexer, false, true, 0) :
+       scan_foreign_body(lexer, scanner->dialect == FOREIGN_PYTHON))) {
+    lexer->result_symbol = scanner->dialect == FOREIGN_PYTHON ? PYTHON_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_JAVASCRIPT ? JAVASCRIPT_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_TYPESCRIPT ? TYPESCRIPT_FOREIGN_BODY : FOREIGN_BODY;
     return true;
   }
 

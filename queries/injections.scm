@@ -1,9 +1,13 @@
 ; Injections for Zolo
 ;
 ; Providers are imported bindings, not reserved language names. Known default
-; spellings select editor parsers. Python aliases retain their imported dialect.
+; spellings select editor parsers. Imported Python/Node aliases retain dialects.
 ((python_foreign_content) @injection.content
  (#set! injection.language "python"))
+((javascript_foreign_content) @injection.content
+ (#set! injection.language "javascript"))
+((typescript_foreign_content) @injection.content
+ (#set! injection.language "typescript"))
 ((extern_declaration
    provider: (identifier) @_provider
    (extern_function body: (extern_body content: (foreign_content) @injection.content)))
