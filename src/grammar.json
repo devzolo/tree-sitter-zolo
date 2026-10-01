@@ -1075,6 +1075,15 @@
                     },
                     "named": true,
                     "value": "typescript_foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_java_foreign_body"
+                    },
+                    "named": true,
+                    "value": "java_foreign_content"
                   }
                 ]
               }
@@ -15051,6 +15060,10 @@
     {
       "type": "SYMBOL",
       "name": "_typescript_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_java_foreign_body"
     },
     {
       "type": "SYMBOL",

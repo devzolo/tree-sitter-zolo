@@ -1822,6 +1822,10 @@
             "named": true
           },
           {
+            "type": "java_foreign_content",
+            "named": true
+          },
+          {
             "type": "javascript_foreign_content",
             "named": true
           },
@@ -7291,6 +7295,10 @@
   {
     "type": "items",
     "named": false
+  },
+  {
+    "type": "java_foreign_content",
+    "named": true
   },
   {
     "type": "javascript_foreign_content",

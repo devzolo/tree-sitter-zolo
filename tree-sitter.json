@@ -1,0 +1,40 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "zolo",
+      "camelcase": "Zolo",
+      "scope": "source.zolo",
+      "path": ".",
+      "file-types": [
+        "zolo"
+      ],
+      "highlights": "queries/highlights.scm",
+      "locals": "queries/locals.scm",
+      "folds": "queries/folds.scm",
+      "indents": "queries/indents.scm",
+      "injections": "queries/injections.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Zolo grammar for tree-sitter",
+    "authors": [
+      {
+        "name": "Zolo Lang authors"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/devzolo/zolo-lang"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": true,
+    "node": true,
+    "python": true,
+    "rust": true,
+    "swift": true
+  }
+}

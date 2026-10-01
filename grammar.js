@@ -86,6 +86,7 @@ module.exports = grammar({
     $._foreign_scope_close,
     $._javascript_foreign_body,
     $._typescript_foreign_body,
+    $._java_foreign_body,
     $._error_sentinel,
   ],
 
@@ -291,6 +292,7 @@ module.exports = grammar({
       alias($._python_foreign_body, $.python_foreign_content),
       alias($._javascript_foreign_body, $.javascript_foreign_content),
       alias($._typescript_foreign_body, $.typescript_foreign_content),
+      alias($._java_foreign_body, $.java_foreign_content),
     ))), '}'),
     extern_expression: $ => seq('extern', field('provider', alias($._foreign_provider, $.identifier)), field('body', $.extern_body)),
 

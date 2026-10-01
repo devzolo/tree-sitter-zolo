@@ -75,6 +75,7 @@ enum TokenType {
   FOREIGN_SCOPE_CLOSE,
   JAVASCRIPT_FOREIGN_BODY,
   TYPESCRIPT_FOREIGN_BODY,
+  JAVA_FOREIGN_BODY,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -95,7 +96,7 @@ enum TokenType {
 // dialect; loading a native plugin is neither needed nor allowed by a parser.
 // The bounded table fits tree-sitter's 1024-byte scanner-state buffer.
 #define MAX_FOREIGN_BINDINGS 90
-enum ForeignDialect { FOREIGN_BRACED, FOREIGN_PYTHON, FOREIGN_JAVASCRIPT, FOREIGN_TYPESCRIPT };
+enum ForeignDialect { FOREIGN_BRACED, FOREIGN_PYTHON, FOREIGN_JAVASCRIPT, FOREIGN_TYPESCRIPT, FOREIGN_JAVA };
 typedef struct {
   uint64_t name;
   uint16_t scope;
@@ -765,6 +766,93 @@ static bool scan_foreign_body(TSLexer *lexer, bool python) {
   return any;
 }
 
+// Mirror zolo-lexer's Java Unicode translation while preserving authored bytes.
+// mark_end is only advanced after a unit belongs to the body, so a raw outer
+// closing brace remains the grammar's delimiter even after lookahead consumes it.
+static int java_hex(int32_t c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+static int32_t java_unit(TSLexer *lexer, unsigned *slashes, bool *escaped) {
+  int32_t c = lexer->lookahead;
+  lexer->advance(lexer, false);
+  *escaped = false;
+  if (c == '\\' && *slashes % 2 == 0 && lexer->lookahead == 'u') {
+    while (lexer->lookahead == 'u') lexer->advance(lexer, false);
+    int32_t value = 0;
+    for (unsigned i = 0; i < 4; i++) {
+      int digit = java_hex(lexer->lookahead);
+      if (digit < 0) { *slashes = 0; return '\\'; }
+      value = value * 16 + digit;
+      lexer->advance(lexer, false);
+    }
+    *escaped = true;
+    *slashes = 0;
+    return value;
+  }
+  *slashes = c == '\\' ? *slashes + 1 : 0;
+  return c;
+}
+
+static bool scan_java_body(TSLexer *lexer) {
+  enum { CODE, SLASH, LINE, BLOCK, OPEN_STRING, STRING, CHARACTER, TEXT } state = CODE;
+  unsigned depth = 0, slashes = 0, quotes = 0;
+  bool any = false, escape = false, star = false;
+  lexer->mark_end(lexer);
+  while (!lexer->eof(lexer)) {
+    bool translated;
+    int32_t c = java_unit(lexer, &slashes, &translated);
+    bool again = true;
+    while (again) {
+      again = false;
+      switch (state) {
+      case CODE:
+        if (c == '}' && depth == 0 && !translated) return any;
+        if (c == '{') depth++;
+        else if (c == '}' && depth) depth--;
+        else if (c == '/') state = SLASH;
+        else if (c == '"') { state = OPEN_STRING; quotes = 1; }
+        else if (c == '\'') { state = CHARACTER; escape = false; }
+        break;
+      case SLASH:
+        if (c == '/') state = LINE;
+        else if (c == '*') { state = BLOCK; star = false; }
+        else { state = CODE; again = true; }
+        break;
+      case LINE:
+        if (c == '\r' || c == '\n') state = CODE;
+        break;
+      case BLOCK:
+        if (star && c == '/') state = CODE;
+        star = c == '*';
+        break;
+      case OPEN_STRING:
+        if (c == '"') {
+          if (++quotes == 3) { state = TEXT; quotes = 0; escape = false; }
+        } else { state = quotes == 2 ? CODE : STRING; escape = false; again = true; }
+        break;
+      case STRING: case CHARACTER:
+        if (escape) escape = false;
+        else if (c == '\\') escape = true;
+        else if (c == (state == STRING ? '"' : '\'')) state = CODE;
+        break;
+      case TEXT:
+        if (escape) { escape = false; quotes = 0; }
+        else if (c == '\\') { escape = true; quotes = 0; }
+        else if (c == '"') { if (++quotes == 3) state = CODE; }
+        else quotes = 0;
+        break;
+      }
+    }
+    any = true;
+    lexer->mark_end(lexer);
+  }
+  return any;
+}
+
 // Group headers are Zolo declarations, so comments before the first `fn`
 // must not make the group look like one opaque foreign expression.
 static bool skip_foreign_group_trivia(TSLexer *lexer) {
@@ -827,6 +915,7 @@ static void register_foreign_binding(Scanner *scanner, uint64_t plugin,
   if (plugin == foreign_name_hash("python") && export == foreign_name_hash("python")) dialect = FOREIGN_PYTHON;
   if (plugin == foreign_name_hash("node") && export == foreign_name_hash("javascript")) dialect = FOREIGN_JAVASCRIPT;
   if (plugin == foreign_name_hash("node") && export == foreign_name_hash("typescript")) dialect = FOREIGN_TYPESCRIPT;
+  if (plugin == foreign_name_hash("jvm") && export == foreign_name_hash("java")) dialect = FOREIGN_JAVA;
   bool shadows_provider = false;
   for (unsigned i = scanner->count; i > 0; i--) {
     ForeignBinding *binding = &scanner->bindings[i - 1];
@@ -971,12 +1060,14 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   if ((valid_symbols[FOREIGN_BODY] || valid_symbols[PYTHON_FOREIGN_BODY] ||
-       valid_symbols[JAVASCRIPT_FOREIGN_BODY] || valid_symbols[TYPESCRIPT_FOREIGN_BODY]) &&
-      (scanner->dialect >= FOREIGN_JAVASCRIPT ? scan_ecma_code(lexer, false, true, 0) :
+       valid_symbols[JAVASCRIPT_FOREIGN_BODY] || valid_symbols[TYPESCRIPT_FOREIGN_BODY] || valid_symbols[JAVA_FOREIGN_BODY]) &&
+      (scanner->dialect == FOREIGN_JAVA ? scan_java_body(lexer) :
+       scanner->dialect >= FOREIGN_JAVASCRIPT ? scan_ecma_code(lexer, false, true, 0) :
        scan_foreign_body(lexer, scanner->dialect == FOREIGN_PYTHON))) {
     lexer->result_symbol = scanner->dialect == FOREIGN_PYTHON ? PYTHON_FOREIGN_BODY :
       scanner->dialect == FOREIGN_JAVASCRIPT ? JAVASCRIPT_FOREIGN_BODY :
-      scanner->dialect == FOREIGN_TYPESCRIPT ? TYPESCRIPT_FOREIGN_BODY : FOREIGN_BODY;
+      scanner->dialect == FOREIGN_TYPESCRIPT ? TYPESCRIPT_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_JAVA ? JAVA_FOREIGN_BODY : FOREIGN_BODY;
     return true;
   }
 

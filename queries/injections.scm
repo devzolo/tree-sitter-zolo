@@ -4,6 +4,8 @@
 ; spellings select editor parsers. Imported Python/Node aliases retain dialects.
 ((python_foreign_content) @injection.content
  (#set! injection.language "python"))
+((java_foreign_content) @injection.content
+ (#set! injection.language "java"))
 ((javascript_foreign_content) @injection.content
  (#set! injection.language "javascript"))
 ((typescript_foreign_content) @injection.content
