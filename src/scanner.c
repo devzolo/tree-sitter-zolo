@@ -76,6 +76,11 @@ enum TokenType {
   JAVASCRIPT_FOREIGN_BODY,
   TYPESCRIPT_FOREIGN_BODY,
   JAVA_FOREIGN_BODY,
+  KOTLIN_FOREIGN_BODY,
+  C_FOREIGN_BODY,
+  CPP_FOREIGN_BODY,
+  RUST_FOREIGN_BODY,
+  GO_FOREIGN_BODY,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -96,7 +101,7 @@ enum TokenType {
 // dialect; loading a native plugin is neither needed nor allowed by a parser.
 // The bounded table fits tree-sitter's 1024-byte scanner-state buffer.
 #define MAX_FOREIGN_BINDINGS 90
-enum ForeignDialect { FOREIGN_BRACED, FOREIGN_PYTHON, FOREIGN_JAVASCRIPT, FOREIGN_TYPESCRIPT, FOREIGN_JAVA };
+enum ForeignDialect { FOREIGN_BRACED, FOREIGN_PYTHON, FOREIGN_JAVASCRIPT, FOREIGN_TYPESCRIPT, FOREIGN_JAVA, FOREIGN_KOTLIN, FOREIGN_C, FOREIGN_CPP, FOREIGN_RUST, FOREIGN_GO };
 typedef struct {
   uint64_t name;
   uint16_t scope;
@@ -853,6 +858,146 @@ static bool scan_java_body(TSLexer *lexer) {
   return any;
 }
 
+// Matches scan_native/native_literal_end in the compiler lexer. Prefixes and
+// comments are language-specific; an imported alias retains the same dialect.
+static bool scan_native_code(TSLexer *, uint8_t, bool, unsigned);
+static bool native_name_start(int32_t c) {return is_label_start(c) || c >= 0x80;}
+static bool native_name_continue(int32_t c) {return native_name_start(c) || (c >= '0' && c <= '9');}
+static void scan_native_string(TSLexer *lexer, uint8_t dialect,
+                               int32_t quote, unsigned dollars, unsigned nesting) {
+  lexer->advance(lexer, false); // opening quote
+  unsigned width = 1;
+  if (dialect == FOREIGN_KOTLIN && quote == '"' && lexer->lookahead == '"') {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead != '"') return; // empty string
+    lexer->advance(lexer, false);
+    width = 3;
+  }
+  unsigned quotes = 0;
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == quote) {
+      lexer->advance(lexer, false);
+      if (++quotes == width) return;
+      continue;
+    }
+    quotes = 0;
+    if (c == '\\' && width == 1 && quote != '`') {
+      lexer->advance(lexer, false);
+      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+    } else if (c == '$' && dialect == FOREIGN_KOTLIN && quote == '"') {
+      unsigned count = 0;
+      do { lexer->advance(lexer, false); count++; } while (lexer->lookahead == '$');
+      if (count >= (dollars ? dollars : 1) && lexer->lookahead == '{' && nesting < 64) {
+        lexer->advance(lexer, false);
+        scan_native_code(lexer, dialect, true, nesting + 1);
+      }
+    } else lexer->advance(lexer, false);
+  }
+}
+static void scan_rust_raw(TSLexer *lexer, unsigned hashes) {
+  lexer->advance(lexer, false); // quote after r###
+  while (!lexer->eof(lexer)) {
+    if (lexer->lookahead == '"') {
+      lexer->advance(lexer, false);
+      unsigned count = 0;
+      while (count < hashes && lexer->lookahead == '#') {lexer->advance(lexer, false);count++;}
+      if (count == hashes) return;
+    } else lexer->advance(lexer, false);
+  }
+}
+static void scan_cpp_raw(TSLexer *lexer) {
+  char delimiter[17];unsigned size = 0;
+  lexer->advance(lexer, false); // quote after R
+  while (!lexer->eof(lexer) && lexer->lookahead != '(') {
+    if (size == 16 || lexer->lookahead == ')' || lexer->lookahead == '\\' || is_ascii_ws(lexer->lookahead)) return;
+    delimiter[size++] = (char)lexer->lookahead;
+    lexer->advance(lexer, false);
+  }
+  if (lexer->lookahead != '(') return;
+  lexer->advance(lexer, false);
+  while (!lexer->eof(lexer)) {
+    if (lexer->lookahead == ')') {
+      lexer->advance(lexer, false);unsigned i = 0;
+      while (i < size && lexer->lookahead == delimiter[i]) {lexer->advance(lexer, false);i++;}
+      if (i == size && lexer->lookahead == '"') {lexer->advance(lexer, false);return;}
+    } else lexer->advance(lexer, false);
+  }
+}
+static bool scan_native_code(TSLexer *lexer, uint8_t dialect,
+                             bool consume_close, unsigned nesting) {
+  unsigned depth = 0;bool any = false;bool line_start = true;
+  const bool cpp = dialect == FOREIGN_C || dialect == FOREIGN_CPP;
+  lexer->mark_end(lexer);
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '}' && depth == 0) {
+      if (consume_close) lexer->advance(lexer, false);
+      return any;
+    }
+    if (c == '\n' || c == '\r') {line_start = true;lexer->advance(lexer, false);}
+    else if (line_start && (c == ' ' || c == '\t')) lexer->advance(lexer, false);
+    else if (cpp && line_start && c == '#') {
+      // Macro braces belong to the directive, including continued lines.
+      while (!lexer->eof(lexer)) {
+        c = lexer->lookahead;lexer->advance(lexer, false);
+        if (c == '\\' && (lexer->lookahead == '\r' || lexer->lookahead == '\n')) {
+          if (lexer->lookahead == '\r') lexer->advance(lexer, false);
+          if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+        } else if (c == '\n' || c == '\r') break;
+      }
+      line_start = true;
+    } else if (c == '/') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '/') {
+        while (!lexer->eof(lexer) && lexer->lookahead != '\n' && lexer->lookahead != '\r') {
+          c = lexer->lookahead;lexer->advance(lexer, false);
+          if (cpp && c == '\\' && (lexer->lookahead == '\r' || lexer->lookahead == '\n')) {
+            if (lexer->lookahead == '\r') lexer->advance(lexer, false);
+            if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+          }
+        }
+      } else if (lexer->lookahead == '*') {
+        lexer->advance(lexer, false);unsigned comments = 1;
+        while (comments && !lexer->eof(lexer)) {
+          c = lexer->lookahead;lexer->advance(lexer, false);
+          if (c == '*' && lexer->lookahead == '/') {lexer->advance(lexer, false);comments--;}
+          else if ((dialect == FOREIGN_RUST || dialect == FOREIGN_KOTLIN) && c == '/' && lexer->lookahead == '*') {lexer->advance(lexer, false);comments++;}
+        }
+      }
+    } else if (dialect == FOREIGN_RUST && c == '\'') {
+      lexer->advance(lexer, false);
+      if (native_name_start(lexer->lookahead)) {
+        // A lifetime or label ends at the identifier, a character at its quote.
+        while (native_name_continue(lexer->lookahead)) lexer->advance(lexer, false);
+        if (lexer->lookahead == '\'') lexer->advance(lexer, false);
+      } else {
+        while (!lexer->eof(lexer)) {c=lexer->lookahead;lexer->advance(lexer,false);if(c=='\\'&&!lexer->eof(lexer))lexer->advance(lexer,false);else if(c=='\'')break;}
+      }
+      line_start = false;
+    } else if (native_name_start(c)) {
+      char prefix[8];unsigned length = 0;
+      while (native_name_continue(lexer->lookahead)) {if(length<sizeof(prefix)-1)prefix[length]=(char)lexer->lookahead;length++;lexer->advance(lexer,false);}
+      prefix[length<sizeof(prefix)-1?length:sizeof(prefix)-1] = 0;
+      if (dialect == FOREIGN_RUST && (!strcmp(prefix,"r") || !strcmp(prefix,"br") || !strcmp(prefix,"cr"))) {
+        unsigned hashes = 0;while(lexer->lookahead=='#'){hashes++;lexer->advance(lexer,false);}
+        if(lexer->lookahead=='"')scan_rust_raw(lexer,hashes);
+      } else if (dialect == FOREIGN_CPP && (!strcmp(prefix,"R") || !strcmp(prefix,"u8R") || !strcmp(prefix,"uR") || !strcmp(prefix,"UR") || !strcmp(prefix,"LR")) && lexer->lookahead == '"') scan_cpp_raw(lexer);
+      line_start = false;
+    } else if (dialect == FOREIGN_KOTLIN && c == '$') {
+      unsigned dollars = 0;while(lexer->lookahead=='$'){dollars++;lexer->advance(lexer,false);}
+      if(lexer->lookahead=='"')scan_native_string(lexer,dialect,'"',dollars,nesting);
+      line_start = false;
+    } else if (c == '"' || c == '\'' || (c == '`' && (dialect == FOREIGN_GO || dialect == FOREIGN_KOTLIN))) {
+      scan_native_string(lexer,dialect,c,1,nesting);line_start=false;
+    } else {
+      lexer->advance(lexer,false);if(c=='{')depth++;else if(c=='}')depth--;line_start=false;
+    }
+    any = true;lexer->mark_end(lexer);
+  }
+  return any;
+}
+
 // Group headers are Zolo declarations, so comments before the first `fn`
 // must not make the group look like one opaque foreign expression.
 static bool skip_foreign_group_trivia(TSLexer *lexer) {
@@ -916,6 +1061,11 @@ static void register_foreign_binding(Scanner *scanner, uint64_t plugin,
   if (plugin == foreign_name_hash("node") && export == foreign_name_hash("javascript")) dialect = FOREIGN_JAVASCRIPT;
   if (plugin == foreign_name_hash("node") && export == foreign_name_hash("typescript")) dialect = FOREIGN_TYPESCRIPT;
   if (plugin == foreign_name_hash("jvm") && export == foreign_name_hash("java")) dialect = FOREIGN_JAVA;
+  if (plugin == foreign_name_hash("jvm") && export == foreign_name_hash("kotlin")) dialect = FOREIGN_KOTLIN;
+  if (plugin == foreign_name_hash("native") && export == foreign_name_hash("c")) dialect = FOREIGN_C;
+  if (plugin == foreign_name_hash("native") && export == foreign_name_hash("cpp")) dialect = FOREIGN_CPP;
+  if (plugin == foreign_name_hash("rust") && export == foreign_name_hash("rust")) dialect = FOREIGN_RUST;
+  if (plugin == foreign_name_hash("go") && export == foreign_name_hash("go")) dialect = FOREIGN_GO;
   bool shadows_provider = false;
   for (unsigned i = scanner->count; i > 0; i--) {
     ForeignBinding *binding = &scanner->bindings[i - 1];
@@ -1060,14 +1210,21 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   if ((valid_symbols[FOREIGN_BODY] || valid_symbols[PYTHON_FOREIGN_BODY] ||
-       valid_symbols[JAVASCRIPT_FOREIGN_BODY] || valid_symbols[TYPESCRIPT_FOREIGN_BODY] || valid_symbols[JAVA_FOREIGN_BODY]) &&
+       valid_symbols[JAVASCRIPT_FOREIGN_BODY] || valid_symbols[TYPESCRIPT_FOREIGN_BODY] || valid_symbols[JAVA_FOREIGN_BODY] ||
+       valid_symbols[KOTLIN_FOREIGN_BODY] || valid_symbols[C_FOREIGN_BODY] || valid_symbols[CPP_FOREIGN_BODY] || valid_symbols[RUST_FOREIGN_BODY] || valid_symbols[GO_FOREIGN_BODY]) &&
       (scanner->dialect == FOREIGN_JAVA ? scan_java_body(lexer) :
-       scanner->dialect >= FOREIGN_JAVASCRIPT ? scan_ecma_code(lexer, false, true, 0) :
+       scanner->dialect == FOREIGN_JAVASCRIPT || scanner->dialect == FOREIGN_TYPESCRIPT ? scan_ecma_code(lexer, false, true, 0) :
+       scanner->dialect >= FOREIGN_KOTLIN ? scan_native_code(lexer, scanner->dialect, false, 0) :
        scan_foreign_body(lexer, scanner->dialect == FOREIGN_PYTHON))) {
     lexer->result_symbol = scanner->dialect == FOREIGN_PYTHON ? PYTHON_FOREIGN_BODY :
       scanner->dialect == FOREIGN_JAVASCRIPT ? JAVASCRIPT_FOREIGN_BODY :
       scanner->dialect == FOREIGN_TYPESCRIPT ? TYPESCRIPT_FOREIGN_BODY :
-      scanner->dialect == FOREIGN_JAVA ? JAVA_FOREIGN_BODY : FOREIGN_BODY;
+      scanner->dialect == FOREIGN_JAVA ? JAVA_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_KOTLIN ? KOTLIN_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_C ? C_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_CPP ? CPP_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_RUST ? RUST_FOREIGN_BODY :
+      scanner->dialect == FOREIGN_GO ? GO_FOREIGN_BODY : FOREIGN_BODY;
     return true;
   }
 

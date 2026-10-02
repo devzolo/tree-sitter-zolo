@@ -1,0 +1,90 @@
+==================
+Kotlin aliases preserve nested templates and multi-dollar raw strings
+==================
+use plugin jvm::{kotlin as kt}
+extern kt fn answer() -> int {
+  val a = "${run { "}" }}"; /* { /* } */ } */
+  val b = $$""" } ${literal} $${run { "}" }} """;
+  return 42
+}
+let following = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration (identifier) (extern_function (identifier) (parameter_list) (primitive_type) (extern_body (kotlin_foreign_content))))
+  (let_declaration (identifier) (integer_literal)))
+
+==================
+C aliases keep preprocessing logical lines outside brace balancing
+==================
+use plugin native::{c as plain}
+extern plain fn answer() -> int {
+#define CLOSE } \
+ { }
+  return 42;
+}
+let following = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration (identifier) (extern_function (identifier) (parameter_list) (primitive_type) (extern_body (c_foreign_content))))
+  (let_declaration (identifier) (integer_literal)))
+
+==================
+C++ custom delimiters and continued comments preserve outer closing braces
+==================
+use plugin native::{cpp as cc}
+extern cc fn answer() -> int {
+  auto text = u8R"tag( } " )other )tag";
+  // continued \
+  } {
+  return 42;
+}
+let following = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration (identifier) (extern_function (identifier) (parameter_list) (primitive_type) (extern_body (cpp_foreign_content))))
+  (let_declaration (identifier) (integer_literal)))
+
+==================
+Rust raw hashes nested comments lifetimes and labels keep source boundaries
+==================
+use plugin rust::{rust as rs}
+extern rs fn answer() -> int {
+  let text = br###" } "## still } "###;
+  /* { /* } */ } */ let value: &'a str = "}";
+  'outer: loop { break 'outer; } let ch = '}';
+  42
+}
+let following = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration (identifier) (extern_function (identifier) (parameter_list) (primitive_type) (extern_body (rust_foreign_content))))
+  (let_declaration (identifier) (integer_literal)))
+
+==================
+Go aliases preserve raw backticks without backslash escaping
+==================
+use plugin go::{go as golang}
+extern golang fn answer() -> int { text := `${ } \`; ch := '}'; return 42 }
+let following = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration (identifier) (extern_function (identifier) (parameter_list) (primitive_type) (extern_body (go_foreign_content))))
+  (let_declaration (identifier) (integer_literal)))
+
+==================
+Package feature flags remain ordinary declarative options
+==================
+use plugin rust::{rust as rs}
+extern rs deps { serde = {version="1.0.228", features=["derive"], default_features=false} }
+let features = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (extern_declaration (identifier) (extern_dependencies
+    (extern_dependency (identifier) (extern_dependency_options (string_literal (string_content)) (string_literal (string_content)) (bool_literal)))))
+  (let_declaration (identifier) (integer_literal)))

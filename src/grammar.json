@@ -929,8 +929,17 @@
                         "type": "FIELD",
                         "name": "option",
                         "content": {
-                          "type": "STRING",
-                          "value": "extras"
+                          "type": "CHOICE",
+                          "members": [
+                            {
+                              "type": "STRING",
+                              "value": "extras"
+                            },
+                            {
+                              "type": "STRING",
+                              "value": "features"
+                            }
+                          ]
                         }
                       },
                       {
@@ -989,6 +998,27 @@
                       {
                         "type": "STRING",
                         "value": "]"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "FIELD",
+                        "name": "option",
+                        "content": {
+                          "type": "STRING",
+                          "value": "default_features"
+                        }
+                      },
+                      {
+                        "type": "STRING",
+                        "value": "="
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "bool_literal"
                       }
                     ]
                   }
@@ -1084,6 +1114,51 @@
                     },
                     "named": true,
                     "value": "java_foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_kotlin_foreign_body"
+                    },
+                    "named": true,
+                    "value": "kotlin_foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_c_foreign_body"
+                    },
+                    "named": true,
+                    "value": "c_foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_cpp_foreign_body"
+                    },
+                    "named": true,
+                    "value": "cpp_foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_rust_foreign_body"
+                    },
+                    "named": true,
+                    "value": "rust_foreign_content"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_go_foreign_body"
+                    },
+                    "named": true,
+                    "value": "go_foreign_content"
                   }
                 ]
               }
@@ -15064,6 +15139,26 @@
     {
       "type": "SYMBOL",
       "name": "_java_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_kotlin_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_c_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_cpp_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_rust_foreign_body"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_go_foreign_body"
     },
     {
       "type": "SYMBOL",

@@ -1818,7 +1818,19 @@
         "required": false,
         "types": [
           {
+            "type": "c_foreign_content",
+            "named": true
+          },
+          {
+            "type": "cpp_foreign_content",
+            "named": true
+          },
+          {
             "type": "foreign_content",
+            "named": true
+          },
+          {
+            "type": "go_foreign_content",
             "named": true
           },
           {
@@ -1830,7 +1842,15 @@
             "named": true
           },
           {
+            "type": "kotlin_foreign_content",
+            "named": true
+          },
+          {
             "type": "python_foreign_content",
+            "named": true
+          },
+          {
+            "type": "rust_foreign_content",
             "named": true
           },
           {
@@ -1951,7 +1971,15 @@
         "required": true,
         "types": [
           {
+            "type": "default_features",
+            "named": false
+          },
+          {
             "type": "extras",
+            "named": false
+          },
+          {
+            "type": "features",
             "named": false
           },
           {
@@ -1969,6 +1997,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "bool_literal",
+          "named": true
+        },
         {
           "type": "string_literal",
           "named": true
@@ -7072,6 +7104,10 @@
     "named": false
   },
   {
+    "type": "c_foreign_content",
+    "named": true
+  },
+  {
     "type": "catch",
     "named": false
   },
@@ -7104,6 +7140,10 @@
     "named": true
   },
   {
+    "type": "cpp_foreign_content",
+    "named": true
+  },
+  {
     "type": "crate",
     "named": false
   },
@@ -7117,6 +7157,10 @@
   },
   {
     "type": "default",
+    "named": false
+  },
+  {
+    "type": "default_features",
     "named": false
   },
   {
@@ -7193,6 +7237,10 @@
     "named": false
   },
   {
+    "type": "features",
+    "named": false
+  },
+  {
     "type": "fenced_string_literal",
     "named": true
   },
@@ -7227,6 +7275,10 @@
   {
     "type": "get",
     "named": false
+  },
+  {
+    "type": "go_foreign_content",
+    "named": true
   },
   {
     "type": "guard",
@@ -7302,6 +7354,10 @@
   },
   {
     "type": "javascript_foreign_content",
+    "named": true
+  },
+  {
+    "type": "kotlin_foreign_content",
     "named": true
   },
   {
@@ -7465,6 +7521,10 @@
   {
     "type": "return",
     "named": false
+  },
+  {
+    "type": "rust_foreign_content",
+    "named": true
   },
   {
     "type": "schema",

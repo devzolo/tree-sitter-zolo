@@ -48,4 +48,10 @@
   (python_foreign_content)
   (javascript_foreign_content)
   (typescript_foreign_content)
+  (java_foreign_content)
+  (kotlin_foreign_content)
+  (c_foreign_content)
+  (cpp_foreign_content)
+  (rust_foreign_content)
+  (go_foreign_content)
 ] @indent.ignore

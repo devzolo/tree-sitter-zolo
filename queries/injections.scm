@@ -5,7 +5,17 @@
 ((python_foreign_content) @injection.content
  (#set! injection.language "python"))
 ((java_foreign_content) @injection.content
- (#set! injection.language "java"))
+  (#set! injection.language "java"))
+((kotlin_foreign_content) @injection.content
+  (#set! injection.language "kotlin"))
+((c_foreign_content) @injection.content
+  (#set! injection.language "c"))
+((cpp_foreign_content) @injection.content
+  (#set! injection.language "cpp"))
+((rust_foreign_content) @injection.content
+  (#set! injection.language "rust"))
+((go_foreign_content) @injection.content
+  (#set! injection.language "go"))
 ((javascript_foreign_content) @injection.content
  (#set! injection.language "javascript"))
 ((typescript_foreign_content) @injection.content

@@ -87,6 +87,11 @@ module.exports = grammar({
     $._javascript_foreign_body,
     $._typescript_foreign_body,
     $._java_foreign_body,
+    $._kotlin_foreign_body,
+    $._c_foreign_body,
+    $._cpp_foreign_body,
+    $._rust_foreign_body,
+    $._go_foreign_body,
     $._error_sentinel,
   ],
 
@@ -284,7 +289,8 @@ module.exports = grammar({
     extern_dependency_options: $ => seq('{', repeat1(seq(
       choice(
         seq(field('option', choice('version', 'requirement')), '=', $.string_literal),
-        seq(field('option', 'extras'), '=', '[', optional(commaSep1($.string_literal)), optional(','), ']'),
+        seq(field('option', choice('extras', 'features')), '=', '[', optional(commaSep1($.string_literal)), optional(','), ']'),
+        seq(field('option', 'default_features'), '=', $.bool_literal),
       ), optional(choice(',', ';')),
     )), '}'),
     extern_body: $ => seq('{', optional(field('content', choice(
@@ -293,6 +299,11 @@ module.exports = grammar({
       alias($._javascript_foreign_body, $.javascript_foreign_content),
       alias($._typescript_foreign_body, $.typescript_foreign_content),
       alias($._java_foreign_body, $.java_foreign_content),
+      alias($._kotlin_foreign_body, $.kotlin_foreign_content),
+      alias($._c_foreign_body, $.c_foreign_content),
+      alias($._cpp_foreign_body, $.cpp_foreign_content),
+      alias($._rust_foreign_body, $.rust_foreign_content),
+      alias($._go_foreign_body, $.go_foreign_content),
     ))), '}'),
     extern_expression: $ => seq('extern', field('provider', alias($._foreign_provider, $.identifier)), field('body', $.extern_body)),
 
