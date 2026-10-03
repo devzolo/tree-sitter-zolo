@@ -1,0 +1,568 @@
+==================
+Qualified dependency block shares package options across imported aliases
+==================
+use plugin rust::{rust}
+use plugin native::{cpp}
+use plugin jvm::{kotlin as kt}
+deps {
+  // } remains a dependency comment
+  rust::serde_json = "1.0.145"
+  cpp::fmt = { version = "11.0.2", default_features = true };
+  kt::"com.google.guava:guava" = "33.4.0-jre",
+  py::httpx = { requirement = ">=0.28,<1", extras = ["http2"] }
+}
+let after = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)))))
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)
+          (identifier)))))
+  (dependencies_declaration
+    (line_comment)
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content))))
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal
+            (string_content))
+          (bool_literal))))
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (string_literal
+          (string_content))
+        (string_literal
+          (string_content))))
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal
+            (string_content))
+          (string_literal
+            (string_content))))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Dependency declaration looks through comments before its qualified first key
+==================
+deps /* header */ { ; ,
+  /* first entry */ alias /* namespace */ :: "@scope/package" = "1.2.3" ; ,
+  rust::serde = {
+    version = "1.0.228"
+    features = ["derive",]
+    default_features = false
+  }
+};
+---
+
+(source_file
+  (dependencies_declaration
+    (block_comment)
+    (block_comment)
+    (qualified_dependency
+      (identifier)
+      (block_comment)
+      (extern_dependency
+        (string_literal
+          (string_content))
+        (string_literal
+          (string_content))))
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal
+            (string_content))
+          (string_literal
+            (string_content))
+          (bool_literal))))))
+
+==================
+The name deps preserves variables calls and empty and multiline constructors
+==================
+let deps = 42
+fn deps() -> int { 42 }
+deps()
+deps {}
+deps { field: 1 }
+deps {
+  // not a package key
+  field: 2,
+}
+let qualified = alias::deps { field: 3 }
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (expression_statement
+        (integer_literal))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body)))
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (integer_literal)))))
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (line_comment)
+        (struct_expression_field
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (path_expression
+        (identifier)
+        (identifier))
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (integer_literal))))))
+
+==================
+Provider alias named deps works with both declaration spellings
+==================
+use plugin rust::{rust as deps}
+extern deps deps { serde_json = "1.0.145" }
+deps { deps::serde_json = "1.0.145" }
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)
+          (identifier)))))
+  (extern_declaration
+    (identifier)
+    (extern_dependencies
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content)))))
+  (dependencies_declaration
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content))))))
+
+==================
+Compact dependency declaration is unavailable inside function bodies
+==================
+fn nested() {
+  deps { rust::serde_json = "1.0.145" }
+}
+let after = 42
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (block_expression
+          (block
+            (assignment_statement
+              (path_expression
+                (identifier)
+                (identifier))
+              (string_literal
+                (string_content))))))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Grouped providers are compact dependency declarations
+==================
+deps { rust { serde_json = "1.0.145" } }
+let after = 42
+---
+
+(source_file
+  (dependencies_declaration
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content)))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Provider groups mix with qualified entries and options
+==================
+use plugin rust::{rust as rs}
+deps {
+  rs {
+    serde_json = "1.0.145"
+    serde = { version = "1.0.228", features = ["derive",], default_features = false }
+  }
+  cpp::fmt = { version = "11.0.2", default_features = true }
+  kt { "com.google.guava:guava" = "33.4.0-jre" }
+  node::"@scope/package" = "1.2.3"
+}
+let after = 42
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)
+          (identifier)))))
+  (dependencies_declaration
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content)))
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal
+            (string_content))
+          (string_literal
+            (string_content))
+          (bool_literal))))
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal
+            (string_content))
+          (bool_literal))))
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (string_literal
+          (string_content))
+        (string_literal
+          (string_content))))
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (string_literal
+          (string_content))
+        (string_literal
+          (string_content)))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Provider groups may be empty repeated and named deps
+==================
+use plugin rust::{rust as deps}
+deps { ; , deps {} deps { serde_json = "1.0.145"; } deps {} }
+deps { cpp::fmt = "11.0.2" cpp {} cpp { fmt = "11.0.2" } }
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_item
+          (identifier)
+          (identifier)))))
+  (dependencies_declaration
+    (dependency_group
+      (identifier))
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content))))
+    (dependency_group
+      (identifier)))
+  (dependencies_declaration
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content))))
+    (dependency_group
+      (identifier))
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content))))))
+
+==================
+Group headers look through Zolo comments and newlines
+==================
+deps /* header */ { ; ,
+  // first group } remains trivia
+  rs /* provider */
+  {
+    /* package } */ serde_json = "1.0.145"; ,
+    serde = { version = "1.0.228" /* } */ features = ["derive"] }
+  },;
+  kt
+  // delayed brace }
+  { "g:a" = "1" }
+}
+---
+
+(source_file
+  (dependencies_declaration
+    (block_comment)
+    (line_comment)
+    (dependency_group
+      (identifier)
+      (block_comment)
+      (block_comment)
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content)))
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal
+            (string_content))
+          (block_comment)
+          (string_literal
+            (string_content)))))
+    (dependency_group
+      (identifier)
+      (line_comment)
+      (extern_dependency
+        (string_literal
+          (string_content))
+        (string_literal
+          (string_content))))))
+
+==================
+Field colon deps constructors keep nested values and calls ordinary
+==================
+struct deps { field: int }
+let ordinary = deps { field: rust { value: 1 } }
+deps {
+  field: rust { value: 2 },
+}
+fn deps() -> int { 42 }
+deps()
+let deps = 42
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type))))
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (struct_expression
+            (identifier)
+            (struct_expression_body
+              (struct_expression_field
+                (identifier)
+                (integer_literal))))))))
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (struct_expression
+            (identifier)
+            (struct_expression_body
+              (struct_expression_field
+                (identifier)
+                (integer_literal))))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (expression_statement
+        (integer_literal))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Provider groups stay out of nested function bodies
+==================
+fn nested() {
+  deps { rust { serde_json = "1.0.145" } }
+}
+let after = 42
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (block_expression
+          (block
+            (expression_statement
+              (identifier))
+            (expression_statement
+              (block_expression
+                (block
+                  (assignment_statement
+                    (identifier)
+                    (string_literal
+                      (string_content)))))))))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Nested dependency groups are rejected
+==================
+deps { rust { nested { serde_json = "1.0.145" } } }
+let after = 42
+---
+
+(source_file
+  (dependencies_declaration
+    (dependency_group
+      (identifier)
+      (ERROR
+        (identifier))
+      (extern_dependency
+        (identifier)
+        (string_literal
+          (string_content))))
+    (ERROR))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Qualified entries cannot override their enclosing provider group
+==================
+deps { rust { cpp::fmt = "11.0.2" } }
+let after = 42
+---
+
+(source_file
+  (dependencies_declaration
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (ERROR
+          (markup_attribute_name))
+        (string_literal
+          (string_content)))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Shorthand fields in multiline deps constructors stay ordinary values
+==================
+let field = 42
+deps {
+  field
+}
+deps {
+  field // ordinary field }
+}
+let after = 42
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)))))
+  (expression_statement
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier))
+        (line_comment))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))

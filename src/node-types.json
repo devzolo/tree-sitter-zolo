@@ -1405,6 +1405,51 @@
     }
   },
   {
+    "type": "dependencies_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "dependency_group",
+          "named": true
+        },
+        {
+          "type": "qualified_dependency",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dependency_group",
+    "named": true,
+    "fields": {
+      "provider": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "extern_dependency",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "directive_name",
     "named": true,
     "fields": {},
@@ -5147,6 +5192,32 @@
     "fields": {}
   },
   {
+    "type": "qualified_dependency",
+    "named": true,
+    "fields": {
+      "dependency": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "extern_dependency",
+            "named": true
+          }
+        ]
+      },
+      "provider": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "quote_body",
     "named": true,
     "fields": {},
@@ -5618,6 +5689,10 @@
         },
         {
           "type": "_statement",
+          "named": true
+        },
+        {
+          "type": "dependencies_declaration",
           "named": true
         },
         {

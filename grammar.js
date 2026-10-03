@@ -92,6 +92,7 @@ module.exports = grammar({
     $._cpp_foreign_body,
     $._rust_foreign_body,
     $._go_foreign_body,
+    $._dependencies_keyword,
     $._error_sentinel,
   ],
 
@@ -177,6 +178,7 @@ module.exports = grammar({
     shebang: _ => token(seq('#!', /[^\r\n]*/)),
 
     _top_level_item: $ => choice(
+      $.dependencies_declaration,
       $._item,
       $._statement,
     ),
@@ -282,6 +284,26 @@ module.exports = grammar({
     extern_use: $ => seq('use', field('path', choice($.use_path, $.use_list)), optional(';')),
     extern_group: $ => seq(alias($._foreign_group_open, '{'), repeat1($.extern_function), '}'),
     extern_dependencies: $ => seq('deps', '{', repeat(seq($.extern_dependency, optional(choice(',', ';')))), '}'),
+    // `deps` remains an ordinary name, including `deps {}` constructors.
+    // The scanner exposes the keyword only before a qualified first key or
+    // a provider group; empty blocks and field-colon constructors stay values.
+    // this declaration is intentionally absent from nested item/statement sets.
+    dependencies_declaration: $ => seq(
+      alias($._dependencies_keyword, 'deps'), '{',
+      repeat(choice(',', ';')),
+      repeat1(seq(choice($.qualified_dependency, $.dependency_group), repeat(choice(',', ';')))),
+      '}', optional(';'),
+    ),
+    dependency_group: $ => seq(
+      field('provider', $.identifier), '{',
+      repeat(choice(',', ';')),
+      repeat(seq($.extern_dependency, repeat(choice(',', ';')))),
+      '}',
+    ),
+    qualified_dependency: $ => seq(
+      field('provider', $.identifier), '::',
+      field('dependency', $.extern_dependency),
+    ),
     extern_dependency: $ => seq(
       field('package', choice($.identifier, $.string_literal)), '=',
       field('specification', choice($.string_literal, $.extern_dependency_options)),

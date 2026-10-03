@@ -477,3 +477,12 @@
   (#match? @type "^[A-Z]"))
 ; Map labels remain data even when a label looks like a type.
 (map_entry key: (identifier) @property)
+
+; Provider-qualified dependency entries override the generic identifier
+; fallback. Ordinary variables/functions/constructors named `deps` keep it.
+(dependencies_declaration "deps" @keyword)
+(qualified_dependency provider: (identifier) @module)
+(dependency_group provider: (identifier) @module)
+(qualified_dependency dependency: (extern_dependency package: (identifier) @property))
+(dependency_group (extern_dependency package: (identifier) @property))
+(extern_dependency_options option: _ @property)

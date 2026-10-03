@@ -81,6 +81,7 @@ enum TokenType {
   CPP_FOREIGN_BODY,
   RUST_FOREIGN_BODY,
   GO_FOREIGN_BODY,
+  DEPENDENCIES_KEYWORD,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -1030,6 +1031,31 @@ static bool skip_foreign_group_trivia(TSLexer *lexer) {
   }
 }
 
+// A file-scoped dependency declaration starts only when the first entry is
+// provider-qualified or opens a provider group. Mark only `deps`: braces,
+// comments, providers and packages remain ordinary grammar nodes.
+// `deps()`, `deps {}`, and multiline constructors with unqualified fields.
+static bool scan_dependencies_keyword(TSLexer *lexer) {
+  if (!scan_word(lexer, "deps")) return false;
+  lexer->mark_end(lexer);
+  if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '{') return false;
+  lexer->advance(lexer, false);
+  if (!skip_foreign_group_trivia(lexer)) return false;
+  while (lexer->lookahead == ',' || lexer->lookahead == ';') {
+    lexer->advance(lexer, false);
+    if (!skip_foreign_group_trivia(lexer)) return false;
+  }
+  if (!is_label_start(lexer->lookahead)) return false;
+  do {
+    lexer->advance(lexer, false);
+  } while (is_label_continue(lexer->lookahead));
+  if (!skip_foreign_group_trivia(lexer)) return false;
+  if (lexer->lookahead == '{') return true;
+  if (lexer->lookahead != ':') return false;
+  lexer->advance(lexer, false);
+  return lexer->lookahead == ':';
+}
+
 static uint64_t foreign_name_hash(const char *name) {
   uint64_t hash = UINT64_C(14695981039346656037);
   while (*name) hash = (hash ^ (unsigned char)*name++) * UINT64_C(1099511628211);
@@ -1240,7 +1266,8 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   const bool wants_label = valid_symbols[LOOP_LABEL_DECL_COLON];
   const bool wants_markup = valid_symbols[MARKUP_LT];
   const bool wants_convention = valid_symbols[CONVENTION];
-  if (!wants_label && !wants_markup && !wants_convention) {
+  const bool wants_dependencies = valid_symbols[DEPENDENCIES_KEYWORD];
+  if (!wants_label && !wants_markup && !wants_convention && !wants_dependencies) {
     return false;
   }
 
@@ -1269,6 +1296,14 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   // Labelled loops and markup expressions can both begin an expression. Test
   // the first non-extra byte once, then dispatch without starving markup when
   // the label token is also valid in the same parser state.
+  if (wants_dependencies && lexer->lookahead == 'd') {
+    if (scan_dependencies_keyword(lexer)) {
+      lexer->result_symbol = DEPENDENCIES_KEYWORD;
+      return true;
+    }
+    return false;
+  }
+
   if (wants_label && lexer->lookahead == ':') {
     if (scan_loop_label_decl_colon(lexer)) {
       lexer->result_symbol = LOOP_LABEL_DECL_COLON;
