@@ -1663,6 +1663,10 @@ module.exports = grammar({
     // The optional call-site `sink` marker (`close(sink f)`,
     // `f(name: sink x)`) is the same external token as the parameter
     // convention.
+    // Short lambdas such as `_.active && _.age >= 18` reuse normal
+    // expressions here. Their implicit-parameter boundary is assigned by
+    // the compiler at the direct call argument, not by a new parse node;
+    // repeated projections and nested explicit lambdas retain their trees.
     call_argument: $ => choice(
       // Named argument: name: value. A declaration keyword is also a
       // value here, so the lexer hands the name over as that keyword.

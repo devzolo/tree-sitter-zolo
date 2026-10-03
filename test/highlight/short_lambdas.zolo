@@ -1,0 +1,25 @@
+users.filter(_.active && _.age >= 18)
+//           ^ variable.parameter
+//             ^ property
+//                       ^ variable.parameter
+//                         ^ property
+
+items.map(_.price * _.quantity)
+//        ^ variable.parameter
+//          ^ property
+//                  ^ variable.parameter
+//                    ^ property
+
+users.filter(_.is_active())
+//           ^ variable.parameter
+
+groups.map(_.items.map(|item| item.price))
+//         ^ variable.parameter
+//           ^ property
+
+let _ = work()
+
+match value { _ => 0 }
+
+items.map(_value.price)
+//        ^ variable

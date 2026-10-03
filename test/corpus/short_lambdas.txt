@@ -1,0 +1,213 @@
+==================
+compound short lambda predicate
+==================
+
+users.filter(_.active && _.age >= 18)
+
+---
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (binary_expression
+            (field_expression
+              (identifier)
+              (identifier))
+            (binary_expression
+              (field_expression
+                (identifier)
+                (identifier))
+              (integer_literal))))))))
+
+==================
+compound short lambda arithmetic and grouping
+==================
+
+items.map((_.price + _.shipping) * _.quantity)
+
+---
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (binary_expression
+            (parenthesized_expression
+              (binary_expression
+                (field_expression
+                  (identifier)
+                  (identifier))
+                (field_expression
+                  (identifier)
+                  (identifier))))
+            (field_expression
+              (identifier)
+              (identifier))))))))
+
+==================
+short lambda with method call and keyword fields
+==================
+
+items.map(_.type + _.match)
+users.filter(_.is_active() && _.age >= 18)
+
+---
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (binary_expression
+            (field_expression
+              (identifier)
+              (identifier))
+            (field_expression
+              (identifier)
+              (identifier)))))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (binary_expression
+            (method_call_expression
+              (identifier)
+              (identifier)
+              (argument_list))
+            (binary_expression
+              (field_expression
+                (identifier)
+                (identifier))
+              (integer_literal))))))))
+
+==================
+nested short and explicit lambdas
+==================
+
+groups.map(_.items.map(|item| item.price))
+groups.map(_.items.filter(_.active))
+groups.map(|group| group.items.map(_.price * _.quantity))
+
+---
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (method_call_expression
+            (field_expression
+              (identifier)
+              (identifier))
+            (identifier)
+            (argument_list
+              (call_argument
+                (lambda_expression
+                  (parameter
+                    (identifier))
+                  (field_expression
+                    (identifier)
+                    (identifier))))))))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (method_call_expression
+            (field_expression
+              (identifier)
+              (identifier))
+            (identifier)
+            (argument_list
+              (call_argument
+                (field_expression
+                  (identifier)
+                  (identifier)))))))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (lambda_expression
+            (parameter
+              (identifier))
+            (method_call_expression
+              (field_expression
+                (identifier)
+                (identifier))
+              (identifier)
+              (argument_list
+                (call_argument
+                  (binary_expression
+                    (field_expression
+                      (identifier)
+                      (identifier))
+                    (field_expression
+                      (identifier)
+                      (identifier))))))))))))
+
+==================
+standalone wildcard discard and underscore names
+==================
+
+let _ = work()
+match value { _ => 0 }
+items.map(|_| 0)
+items.map(_value.price)
+let x = obj._.field
+
+---
+
+(source_file
+  (let_declaration
+    (wildcard_pattern)
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (wildcard_pattern)
+        (integer_literal))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (lambda_expression
+            (parameter
+              (identifier))
+            (integer_literal))))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (field_expression
+            (identifier)
+            (identifier))))))
+  (let_declaration
+    (identifier)
+    (field_expression
+      (field_expression
+        (identifier)
+        (identifier))
+      (identifier))))

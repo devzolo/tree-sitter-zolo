@@ -367,6 +367,15 @@
 ; -- Identifiers (fallback) -------------------------------------------------
 (identifier) @variable
 
+; The `_` receiver in a short-lambda projection is the implicit parameter.
+; Keep these contextual captures after the generic fallback: a standalone
+; wildcard/discard and underscore-prefixed names remain ordinary identifiers.
+; Fields/methods keep their existing property/call captures.
+((field_expression object: (identifier) @variable.parameter)
+  (#eq? @variable.parameter "_"))
+((method_call_expression receiver: (identifier) @variable.parameter)
+  (#eq? @variable.parameter "_"))
+
 ; Stored accessor identifiers are contextual and must override the generic
 ; identifier fallback above (later query patterns win). These shapes cover the
 ; canonical getter/setter bodies; deeper expressions remain normal variables
