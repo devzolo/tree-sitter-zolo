@@ -1,0 +1,6 @@
+fn double(x: int) -> int = x * 2
+// ^^^^^^ function
+//                       ^ operator
+fn one() = 1
+// ^^^ function
+//       ^ operator

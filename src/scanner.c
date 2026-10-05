@@ -82,6 +82,11 @@ enum TokenType {
   RUST_FOREIGN_BODY,
   GO_FOREIGN_BODY,
   DEPENDENCIES_KEYWORD,
+  RECORD_UPDATE_WITH,
+  HANDLE_SEPARATOR,
+  NAMED_CALLBACK_START,
+  TRAILING_CALLBACK_PIPE,
+  CALLBACK_END,
   // MUST stay last. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
@@ -1056,6 +1061,66 @@ static bool scan_dependencies_keyword(TSLexer *lexer) {
   return lexer->lookahead == ':';
 }
 
+// Declaration keywords still have keyword TokenKinds, so the compiler's
+// named callback lookahead accepts only actual identifiers. Keep this list
+// aligned with zolo-lexer/src/keywords.rs, not contextual member-name rules.
+static bool callback_keyword(const char *word) {
+  static const char *const keywords[] = {"let", "mut", "var", "const", "const_assert", "override", "enable", "requires", "fn", "return", "if", "else", "for", "while", "loop", "break", "continue", "match", "enum", "struct", "impl", "trait", "mod", "use", "pub", "in", "as", "is", "where", "nil", "true", "false", "self", "type", "newtype", "comptime", "async", "await", "yield", "spawn", "scope", "select", "every", "after", "timeout", "sleep", "try", "catch", "finally", "defer", "defer_ok", "defer_err", "guard", "macro", "on", "schema", "machine", "effect", "handle", "perform", "with", "using"};
+  for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
+    if (!strcmp(word, keywords[i])) return true;
+  }
+  return false;
+}
+
+// Leading comments must stay on the closer's line. This is peek-only: the
+// zero-width token leaves comments to ordinary extras and their own nodes.
+static bool skip_callback_trivia(TSLexer *lexer) {
+  for (;;) {
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t' || lexer->lookahead == '\r' || lexer->lookahead == '\f') lexer->advance(lexer, false);
+    if (lexer->lookahead != '/') return lexer->lookahead != '\n';
+    lexer->advance(lexer, false);
+    if (lexer->lookahead != '*') return false;
+    lexer->advance(lexer, false);
+    unsigned depth = 1;
+    while (depth && !lexer->eof(lexer)) {
+      int32_t c = lexer->lookahead;
+      if (c == '\n') return false;
+      lexer->advance(lexer, false);
+      if (c == '/' && lexer->lookahead == '*') { lexer->advance(lexer, false); depth++; }
+      else if (c == '*' && lexer->lookahead == '/') { lexer->advance(lexer, false); depth--; }
+    }
+    if (depth) return false;
+  }
+}
+
+// Called before any external whitespace scan. The accepted marker consumes
+// zero bytes at the authored closer: names, comments, braces and whitespace
+// remain normal syntax. A negative marker commits the call's end, so extras
+// cannot discard a newline and then retry attaching a next-line constructor.
+static bool scan_callback_boundary(TSLexer *lexer, bool named, bool pipe) {
+  lexer->mark_end(lexer);
+  if (!skip_callback_trivia(lexer)) return false;
+  if (pipe && lexer->lookahead == '{') {
+    lexer->advance(lexer, false);
+    if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '|') return false;
+    lexer->result_symbol = TRAILING_CALLBACK_PIPE;
+    return true;
+  }
+  if (!named || !is_label_start(lexer->lookahead)) return false;
+  char word[80];
+  unsigned length = 0;
+  do {
+    if (length < sizeof(word) - 1) word[length] = (char)lexer->lookahead;
+    length++;
+    lexer->advance(lexer, false);
+  } while (is_label_continue(lexer->lookahead));
+  word[length < sizeof(word) - 1 ? length : sizeof(word) - 1] = 0;
+  if (length < sizeof(word) && callback_keyword(word)) return false;
+  if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '{') return false;
+  lexer->result_symbol = NAMED_CALLBACK_START;
+  return true;
+}
+
 static uint64_t foreign_name_hash(const char *name) {
   uint64_t hash = UINT64_C(14695981039346656037);
   while (*name) hash = (hash ^ (unsigned char)*name++) * UINT64_C(1099511628211);
@@ -1179,6 +1244,15 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
+  if (valid_symbols[NAMED_CALLBACK_START] || valid_symbols[TRAILING_CALLBACK_PIPE] || valid_symbols[CALLBACK_END]) {
+    if (scan_callback_boundary(lexer, valid_symbols[NAMED_CALLBACK_START], valid_symbols[TRAILING_CALLBACK_PIPE])) return true;
+    if (valid_symbols[CALLBACK_END]) {
+      lexer->result_symbol = CALLBACK_END;
+      return true;
+    }
+    return false;
+  }
+
   if (valid_symbols[FOREIGN_IMPORT] && scan_foreign_import(scanner, lexer)) {
     lexer->result_symbol = FOREIGN_IMPORT;
     return true;
@@ -1267,7 +1341,9 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   const bool wants_markup = valid_symbols[MARKUP_LT];
   const bool wants_convention = valid_symbols[CONVENTION];
   const bool wants_dependencies = valid_symbols[DEPENDENCIES_KEYWORD];
-  if (!wants_label && !wants_markup && !wants_convention && !wants_dependencies) {
+  const bool wants_update = valid_symbols[RECORD_UPDATE_WITH];
+  const bool wants_handle = valid_symbols[HANDLE_SEPARATOR];
+  if (!wants_label && !wants_markup && !wants_convention && !wants_dependencies && !wants_update && !wants_handle) {
     return false;
   }
 
@@ -1318,6 +1394,19 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
       return true;
     }
     return false;
+  }
+
+  // A legacy handle operand closes above the BP0 update operation.
+  if ((wants_update || wants_handle) && lexer->lookahead == 'w') {
+    if (!scan_word(lexer, "with")) return false;
+    lexer->mark_end(lexer);
+    if (wants_handle) {
+      lexer->result_symbol = HANDLE_SEPARATOR;
+      return true;
+    }
+    if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '{') return false;
+    lexer->result_symbol = RECORD_UPDATE_WITH;
+    return true;
   }
 
   if (!wants_markup || !saw_newline || lexer->lookahead != '<') {

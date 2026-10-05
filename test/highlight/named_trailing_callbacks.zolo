@@ -1,0 +1,5 @@
+dialog() content { 1 } confirm { true }
+//       ^^^^^^^ variable.parameter
+//                     ^^^^^^^ variable.parameter
+jobs.run(3) next { |value| value }
+//          ^^^^ variable.parameter

@@ -1,0 +1,9 @@
+let out = attempt { read()? }
+//        ^ keyword.control
+
+let attempt = 2
+//  ^ variable
+
+attempt::run(3)
+// <- namespace
+//       ^^^ function.call

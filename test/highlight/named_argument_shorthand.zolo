@@ -1,0 +1,28 @@
+create_user(name:, email:, active: true)
+//          ^ variable
+//                 ^ variable
+//                         ^ variable.parameter
+
+client.create(name:)
+//            ^ variable
+
+users::create(email:)
+//            ^ variable
+
+callback?.(value:)
+//         ^ variable
+
+value |> .create(name:)
+//               ^ variable
+
+let result = .Some(value:)
+//                 ^ variable
+
+@cached(ttl: 60s, key: compute(name:))
+//      ^ variable.parameter
+//                             ^ variable
+fn work(name: str) -> str { return name }
+
+create(name: user.name)
+//     ^ variable.parameter
+//           ^ variable

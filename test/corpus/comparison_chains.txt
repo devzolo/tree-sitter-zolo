@@ -1,0 +1,21 @@
+==================
+Relational chain retains compatible source nodes
+==================
+let valid = 0 <= age < 150
+---
+(source_file
+  (let_declaration (identifier)
+    (binary_expression
+      (binary_expression (integer_literal) (identifier))
+      (integer_literal))))
+
+==================
+Parentheses remain explicit
+==================
+let grouped = (a < b) < c
+---
+(source_file
+  (let_declaration (identifier)
+    (binary_expression
+      (parenthesized_expression (binary_expression (identifier) (identifier)))
+      (identifier))))

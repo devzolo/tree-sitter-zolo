@@ -1,0 +1,42 @@
+==================
+Mixed ordinary conditional and comprehension entries
+==================
+let menu = ["Home", if admin => "Admin", for page in pages => page.title]
+---
+(source_file
+  (let_declaration (identifier)
+    (array_expression
+      (string_literal (string_content))
+      (array_if_entry (identifier) (string_literal (string_content)))
+      (array_for_entry (identifier) (identifier) (field_expression (identifier) (identifier))))))
+
+==================
+Nested array entry loops and filters
+==================
+let flat = [0, for row in rows => for cell in row => if cell.active => cell.value, 9]
+---
+(source_file
+  (let_declaration (identifier)
+    (array_expression
+      (integer_literal)
+      (array_for_entry (identifier) (identifier)
+        (array_for_entry (identifier) (identifier)
+          (array_if_entry
+            (field_expression (identifier) (identifier))
+            (field_expression (identifier) (identifier)))))
+      (integer_literal))))
+
+==================
+Condition binders and position element bindings
+==================
+let values = [if let value = read(), value > 0 => value, for index, item in items => index + item]
+---
+(source_file
+  (let_declaration (identifier)
+    (array_expression
+      (array_if_entry
+        (let_condition (identifier_pattern (identifier)) (call_expression (identifier) (argument_list)))
+        (binary_expression (identifier) (integer_literal))
+        (identifier))
+      (array_for_entry (identifier) (identifier) (identifier)
+        (binary_expression (identifier) (identifier))))))

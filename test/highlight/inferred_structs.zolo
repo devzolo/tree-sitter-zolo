@@ -1,0 +1,4 @@
+let p = .{ x: 1, y, child: .{} }
+//         ^ property
+//               ^ variable
+//                  ^^^^^ property

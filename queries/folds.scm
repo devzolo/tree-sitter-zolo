@@ -38,3 +38,6 @@
   (timeout_expression)
   (block_comment)
 ] @fold
+
+; Ordinary callback bodies own their parameters and braces.
+(trailing_callback_body) @fold

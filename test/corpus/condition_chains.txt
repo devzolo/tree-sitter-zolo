@@ -1,0 +1,55 @@
+==================
+if chain preserves clauses and success/failure bodies
+==================
+
+if ready, let value = read(), value > 0 { value } else { 0 }
+
+---
+
+(source_file
+  (expression_statement
+    (if_chain_expression
+      (condition_chain
+        (identifier)
+        (let_condition
+          (identifier_pattern (identifier))
+          (call_expression (identifier) (argument_list)))
+        (binary_expression (identifier) (integer_literal)))
+      (block (expression_statement (identifier)))
+      (block (expression_statement (integer_literal))))))
+
+==================
+while chain keeps the authored loop label
+==================
+
+:scan while let item = next(), item.active { continue :scan }
+
+---
+
+(source_file
+  (expression_statement
+    (while_chain_expression
+      (loop_label (identifier))
+      (condition_chain
+        (let_condition
+          (identifier_pattern (identifier))
+          (call_expression (identifier) (argument_list)))
+        (field_expression (identifier) (identifier)))
+      (block (continue_statement (loop_label (identifier)))))))
+
+==================
+guard patterns and filters share the authored guard statement
+==================
+
+guard let value = fetch(), value > 0 else { return }
+
+---
+
+(source_file
+  (guard_statement
+    (condition_chain
+      (let_condition
+        (identifier_pattern (identifier))
+        (call_expression (identifier) (argument_list)))
+      (binary_expression (identifier) (integer_literal)))
+    (block (return_statement))))

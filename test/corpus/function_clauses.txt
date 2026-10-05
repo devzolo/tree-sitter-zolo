@@ -1,0 +1,32 @@
+==================
+Literal clause, guarded binder and fallback
+==================
+fn classify(0: int) -> int = 0
+fn classify(n: int) if n > 0 -> int = n
+fn classify(n: int) -> int = -n
+---
+(source_file
+  (function_item (identifier)
+    (parameter_list (function_clause_parameter (literal_pattern (integer_literal)) (primitive_type)))
+    (primitive_type) (function_expression_body (integer_literal)))
+  (function_item (identifier)
+    (parameter_list (parameter (identifier) (primitive_type)))
+    (binary_expression (identifier) (integer_literal))
+    (primitive_type) (function_expression_body (identifier)))
+  (function_item (identifier)
+    (parameter_list (parameter (identifier) (primitive_type)))
+    (primitive_type) (function_expression_body (unary_expression (identifier)))))
+
+==================
+Shared explicit public label across literal and binder clauses
+==================
+fn pick(value 0: int) -> int = 1
+fn pick(value n: int) -> int = n
+---
+(source_file
+  (function_item (identifier)
+    (parameter_list (function_clause_parameter (identifier) (literal_pattern (integer_literal)) (primitive_type)))
+    (primitive_type) (function_expression_body (integer_literal)))
+  (function_item (identifier)
+    (parameter_list (external_parameter (identifier) (identifier) (primitive_type)))
+    (primitive_type) (function_expression_body (identifier))))

@@ -59,3 +59,6 @@
   (rust_foreign_content)
   (go_foreign_content)
 ] @indent.ignore
+
+; Ordinary callback bodies own their parameters and braces.
+(trailing_callback_body) @indent.begin

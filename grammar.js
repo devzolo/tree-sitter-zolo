@@ -93,10 +93,21 @@ module.exports = grammar({
     $._rust_foreign_body,
     $._go_foreign_body,
     $._dependencies_keyword,
+    $._record_update_with,
+    $._handle_separator,
+    $._named_callback_start,
+    $._trailing_callback_pipe,
+    $._callback_end,
     $._error_sentinel,
   ],
 
   conflicts: $ => [
+    [$.expression_statement, $.lambda_expression],
+    [$.condition_chain],
+    [$._expression, $.struct_expression_field],
+    [$.struct_expression_body, $.block],
+    [$._array_for_binding, $.for_expression],
+    [$._match_scrutinee, $.attempt_expression],
     // `let x` — prefer plain identifier over identifier_pattern wrapper
     [$.let_declaration, $.identifier_pattern],
     // `let Foo(` — decide between bare path and enum_pattern with args
@@ -113,6 +124,7 @@ module.exports = grammar({
     [$.field_expression, $.method_call_expression],
     // `type X = T | U` — extend union_type vs end of type_alias
     [$.type_alias, $.union_type],
+    [$._field_path_type_root],
     // `let x: T |` — extend annotated type with union vs end of let
     [$.let_declaration, $.union_type],
     // `let x: impl A + B = ...` — trait-bound `+` must remain distinct from
@@ -131,9 +143,11 @@ module.exports = grammar({
     // `Name { ... }` struct literal vs a control-flow head followed by a block
     // (`match x { ... }`, `if x { ... }`); GLR keeps both and prunes the invalid.
     [$._expression, $.struct_expression],
+    [$.attempt_expression, $.struct_expression],
     // Struct-free scrutinee postfix: field access vs method call (mirrors the
     // `[field_expression, method_call_expression]` conflict above).
     [$._scrutinee_field, $._scrutinee_method_call],
+    [$._handler_field, $._handler_method_call],
     // C3 trailing lambda: `f(a) {` — attach `trailing_lambda` to THIS call
     // vs. reduce now and let `{` start a new statement/block elsewhere. Only
     // a genuine tie when the block is pipe-led (the only shape
@@ -242,11 +256,11 @@ module.exports = grammar({
     )),
 
     // -- Decorators -------------------------------------------------------
-    decorator: $ => seq(
+    decorator: $ => prec.right(seq(
       '@',
       field('name', $.identifier),
       optional(field('arguments', $.decorator_arguments)),
-    ),
+    )),
 
     decorator_arguments: $ => seq(
       '(',
@@ -346,15 +360,25 @@ module.exports = grammar({
       optional(field('generator', '*')),
       field('name', $.identifier),
       optional(field('type_parameters', $.type_parameters)),
-      field('parameters', $.parameter_list),
+      field('parameters', alias($.function_parameter_list, $.parameter_list)),
+      optional(seq('if', field('guard', $._expression))),
       optional(field('with_clause', $.with_clause)),
       optional(seq('->', field('return_type', $._type))),
       optional(field('where_clause', $.where_clause)),
       choice(
         field('body', $.block),
+        field('body', $.function_expression_body),
         ';',
       ),
     ),
+
+    // The optional separator terminates the declaration, never its tail value.
+    // Keep extern_function's target binding grammar separate.
+    function_expression_body: $ => prec.right(seq(
+      '=',
+      field('value', $._expression),
+      optional(';'),
+    )),
 
     type_parameters: $ => seq(
       '<',
@@ -381,10 +405,34 @@ module.exports = grammar({
       field('bounds', $._type_bound),
     ),
 
+    // Refutable clause parameters belong only to declarations. Lambdas,
+    // foreign bindings and effect signatures retain their ordinary grammar.
+    function_parameter_list: $ => seq(
+      '(',
+      optional(seq(
+        commaSep1(choice($.parameter, $.external_parameter, $.self_parameter, $.variadic_parameter, $.function_clause_parameter)),
+        optional(','),
+      )),
+      ')',
+    ),
+
+    function_clause_parameter: $ => prec(1, seq(
+      repeat($.decorator),
+      optional(field('convention', $.convention)),
+      choice(
+        field('pattern', choice($.literal_pattern, $.wildcard_pattern, $.array_pattern, $.enum_pattern, $.range_pattern, $.or_pattern, $.binding_pattern)),
+        seq(
+          field('label', choice($.identifier, alias($._contextual_type_identifier, $.identifier))),
+          field('pattern', choice($.literal_pattern, $.wildcard_pattern, $.array_pattern, $.enum_pattern, $.range_pattern, $.or_pattern, $.binding_pattern, $.struct_pattern, $.anon_struct_pattern, $.tuple_pattern)),
+        ),
+      ),
+      optional(seq(':', field('type', $._type))),
+    )),
+
     parameter_list: $ => seq(
       '(',
       optional(seq(
-        commaSep1(choice($.parameter, $.self_parameter, $.variadic_parameter)),
+        commaSep1(choice($.parameter, $.external_parameter, $.self_parameter, $.variadic_parameter)),
         optional(','),
       )),
       ')',
@@ -420,6 +468,20 @@ module.exports = grammar({
             optional(seq('=', field('default', $._expression))),
           ),
         ),
+      ),
+    ),
+
+    // Declaration-only public label + internal binder. Pipe parameters keep
+    // $.parameter, preserving their ordinary binding grammar.
+    external_parameter: $ => seq(
+      repeat($.decorator),
+      optional(field('convention', $.convention)),
+      field('label', choice($.identifier, alias($._contextual_type_identifier, $.identifier))),
+      field('name', choice($.identifier, alias($._contextual_type_identifier, $.identifier))),
+      choice(
+        seq('?', ':', field('type', $._type)),
+        seq(':', field('type', $._type),
+          optional(seq('=', field('default', $._expression)))),
       ),
     ),
 
@@ -619,6 +681,7 @@ module.exports = grammar({
       optional(seq('->', field('return_type', $._type))),
       choice(
         field('body', $.block),
+        field('body', $.function_expression_body),
         optional(';'),
       ),
     ),
@@ -672,19 +735,35 @@ module.exports = grammar({
 
     _machine_member: $ => choice(
       $.machine_state_decl,
+      $.machine_event_decl,
       $.machine_initial,
       $.machine_transition,
+      ';',
     ),
 
-    machine_state_decl: $ => seq('state', commaSep1(field('name', $.identifier))),
+    machine_state_decl: $ => prec.right(seq('state', commaSep1(seq(
+      field('name', $.identifier), optional(field('payload', $.parameter_list)),
+    )), optional(','))),
 
-    machine_initial: $ => seq('initial', field('state', $.identifier)),
+    machine_event_decl: $ => prec.right(seq('event', commaSep1(seq(
+      field('name', $.identifier), optional(field('payload', $.parameter_list)),
+    )), optional(','))),
+
+    machine_initial: $ => seq('initial', field('state', $.identifier),
+      optional(field('arguments', $.argument_list))),
+
+    machine_pattern_arguments: $ => seq('(',
+      optional(seq(commaSep1($._pattern), optional(','))), ')'),
 
     machine_transition: $ => seq(
       field('from', $.identifier),
+      optional(field('from_payload', $.machine_pattern_arguments)),
       '->',
       field('to', $.identifier),
-      optional(seq('on', field('event', $.identifier))),
+      optional(field('target_arguments', $.argument_list)),
+      seq('on', field('event', $.identifier)),
+      optional(field('event_payload', $.machine_pattern_arguments)),
+      optional(seq('if', field('guard', $._expression))),
       optional(seq('after', field('delay', $._expression))),
       optional(field('action', $.block)),
     ),
@@ -773,16 +852,22 @@ module.exports = grammar({
       optional(';'),
     ),
 
-    newtype_item: $ => seq(
+    newtype_item: $ => prec.right(seq(
       repeat($.decorator),
       optional('pub'),
       'newtype',
+      optional('transparent'),
       field('name', $.identifier),
       '(',
       field('inner', $._type),
       ')',
+      optional($.newtype_deriving_clause),
+      optional($.newtype_validation),
       optional(';'),
-    ),
+    )),
+
+    newtype_deriving_clause: $ => seq('deriving', commaSep1($.identifier)),
+    newtype_validation: $ => seq('where', field('predicate', $._expression)),
 
     // -- Const ------------------------------------------------------------
     const_item: $ => seq(
@@ -863,7 +948,7 @@ module.exports = grammar({
     // `guard cond else { diverge }` (parser.rs parse_guard).
     guard_statement: $ => seq(
       'guard',
-      field('condition', $._expression),
+      field('condition', choice($._expression, $.let_condition, $.condition_chain)),
       'else',
       field('else_block', $.block),
       optional(';'),
@@ -877,6 +962,7 @@ module.exports = grammar({
       optional('mut'),
       field('pattern', choice(
         $.identifier,
+        $._contextual_keyword,
         $.tuple_pattern_binding,
         $.native_multi_binding,
         $._pattern,
@@ -985,6 +1071,8 @@ module.exports = grammar({
     // Expressions
     // ---------------------------------------------------------------------
     _expression: $ => choice(
+      $.field_path_expression,
+      $.record_update_expression,
       $.extern_expression,
       $._literal,
       $.identifier,
@@ -1016,16 +1104,20 @@ module.exports = grammar({
       $.array_expression,
       $.map_expression,
       $.struct_expression,
+      $.inferred_struct_expression,
       $.if_expression,
       $.if_let_expression,
+      $.if_chain_expression,
       $.match_expression,
       $.block_expression,
       $.lambda_expression,
       $.for_expression,
       $.while_expression,
       $.while_let_expression,
+      $.while_chain_expression,
       $.loop_expression,
       $.try_catch_expression,
+      $.attempt_expression,
       $.await_expression,
       $.yield_expression,
       $.spawn_expression,
@@ -1034,6 +1126,7 @@ module.exports = grammar({
       $.select_expression,
       $.perform_expression,
       $.handle_expression,
+      $.lexical_handle_expression,
       $.handler_expression,
       $.every_expression,
       $.after_expression,
@@ -1513,7 +1606,7 @@ module.exports = grammar({
 
     // -- Path: Foo::Bar  Foo::Bar::Baz -----------------------------------
     path_expression: $ => prec(PREC.primary, seq(
-      $.identifier,
+      choice($.identifier, alias('attempt', $.identifier)),
       repeat1(seq('::', $.identifier)),
     )),
 
@@ -1525,6 +1618,9 @@ module.exports = grammar({
       field('operand', $._expression),
     )),
 
+    // Relational runs have lazy comparison-chain semantics in the compiler.
+    // Keep the existing binary_expression nodes for source-tool compatibility;
+    // parenthesized_expression still records explicit grouping.
     // -- Binary -----------------------------------------------------------
     binary_expression: $ => {
       const ops = [
@@ -1614,20 +1710,36 @@ module.exports = grammar({
     call_expression: $ => prec(PREC.call, seq(
       field('function', $._expression),
       field('arguments', $.argument_list),
-      optional(field('trailing_lambda', $.trailing_lambda)),
+      optional(seq($._trailing_callback_pipe, field('trailing_lambda', $.trailing_lambda))),
+      repeat(field('named_callback', $.named_trailing_lambda)),
+      $._callback_end,
     )),
 
     optional_call_expression: $ => prec(PREC.call, seq(
       field('function', $._expression),
       '?.',
       field('arguments', $.argument_list),
-      optional(field('trailing_lambda', $.trailing_lambda)),
+      optional(seq($._trailing_callback_pipe, field('trailing_lambda', $.trailing_lambda))),
+      repeat(field('named_callback', $.named_trailing_lambda)),
+      $._callback_end,
     )),
 
     argument_list: $ => seq(
       '(',
-      optional(seq(commaSep1($.call_argument), optional(','))),
+      optional(seq(commaSep1(choice($.call_argument, $.named_argument_shorthand)), optional(','))),
       ')',
+    ),
+
+    // `name:` carries both the formal label and the caller's same-named
+    // binding. Keeping it separate from call_argument lets decorators retain
+    // their required values while nested ordinary calls accept shorthand.
+    named_argument_shorthand: $ => seq(
+      field('name', choice(
+        $.identifier,
+        alias($._contextual_type_identifier, $.identifier),
+        $._contextual_keyword,
+      )),
+      ':',
     ),
 
     // `{ |params| … }` / `{ || … }` attached directly after a call's
@@ -1659,6 +1771,27 @@ module.exports = grammar({
       repeat($._statement),
       '}',
     )),
+
+    // The scanner admits a zero-width marker only when an identifier on
+    // the closer's line is followed by a block. Ordinary whitespace remains
+    // trivia; it cannot commit a plain call to a nonexistent callback.
+    // Comments and the label retain their own authored syntax nodes.
+    named_trailing_lambda: $ => prec.dynamic(1, seq(
+      $._named_callback_start,
+      field('name', $.identifier),
+      field('body', $.trailing_callback_body),
+    )),
+
+    trailing_callback_body: $ => choice(
+      // A leading pipe is always the parameter header, as in the parser.
+      // The existing scanner marker selects this branch before the brace,
+      // so a header cannot become a lambda expression statement instead.
+      seq($._trailing_callback_pipe, '{', choice(
+        '||',
+        seq('|', optional(seq(commaSep1($.parameter), optional(','))), '|'),
+      ), repeat($._statement), '}'),
+      seq('{', repeat($._statement), '}'),
+    ),
 
     // The optional call-site `sink` marker (`close(sink f)`,
     // `f(name: sink x)`) is the same external token as the parameter
@@ -1705,7 +1838,9 @@ module.exports = grammar({
       choice(
         seq(
           field('arguments', $.argument_list),
-          optional(field('trailing_lambda', $.trailing_lambda)),
+          optional(seq($._trailing_callback_pipe, field('trailing_lambda', $.trailing_lambda))),
+          repeat(field('named_callback', $.named_trailing_lambda)),
+          $._callback_end,
         ),
         field('trailing_lambda', $.trailing_lambda),
       ),
@@ -1797,6 +1932,21 @@ module.exports = grammar({
       field('type', $._type),
     )),
 
+    // Contextual `field`: the final :: separates the root type from members.
+    // Keep both reductions of a qualified root until the member suffix decides.
+    field_path_expression: $ => prec.right(PREC.primary, seq(
+      'field',
+      field('root', alias($._field_path_type_root, $.type_path)),
+      '::',
+      field('segment', $._method_name),
+      repeat(seq('.', field('segment', $._method_name))),
+    )),
+    _field_path_type_root: $ => seq(
+      $.identifier,
+      repeat(seq(choice('::', '.'), $.identifier)),
+      optional(seq('<', commaSep1($._type), optional(','), '>')),
+    ),
+
     // -- Grouping / Tuples / Arrays / Maps -------------------------------
     parenthesized_expression: $ => seq('(', $._expression, ')'),
 
@@ -1810,8 +1960,28 @@ module.exports = grammar({
 
     array_expression: $ => seq(
       '[',
-      optional(seq(commaSep1($._expression), optional(','))),
+      optional(seq(commaSep1($._array_entry), optional(','))),
       ']',
+    ),
+
+    // Arrow entries compose recursively; ordinary if/for expression values
+    // retain their block syntax and ordinary nested arrays remain one value.
+    _array_entry: $ => choice($._expression, $.array_if_entry, $.array_for_entry),
+    array_if_entry: $ => prec.right(seq(
+      'if', field('condition', commaSep1($._condition_clause)),
+      '=>', field('entry', $._array_entry),
+    )),
+    array_for_entry: $ => prec.right(seq(
+      optional(field('label', alias($.loop_label_declaration, $.loop_label))),
+      'for', field('binding', $._array_for_binding), 'in',
+      field('iter', $._expression), '=>', field('entry', $._array_entry),
+    )),
+    _array_for_binding: $ => choice(
+      $.identifier,
+      seq($.identifier, repeat1(seq(',', $.identifier))),
+      $.tuple_pattern_binding,
+      $.struct_pattern,
+      $.anon_struct_pattern,
     ),
 
     // Zolo map literal: #{ key: value, shorthand, ...spread }
@@ -1846,9 +2016,12 @@ module.exports = grammar({
     // dynamic precedence makes the struct win genuine ties (value positions like
     // `let p = Point { x: 1 }`).
     struct_expression: $ => prec.dynamic(1, seq(
-      field('name', choice($.identifier, $.path_expression)),
+      field('name', choice($.identifier, alias('attempt', $.identifier), $.path_expression)),
       field('body', $.struct_expression_body),
     )),
+
+    // A contextual nominal target is semantic; the authored dot remains explicit.
+    inferred_struct_expression: $ => seq('.', field('body', $.struct_expression_body)),
 
     struct_expression_body: $ => seq(
       '{',
@@ -1869,9 +2042,46 @@ module.exports = grammar({
       seq('..', field('spread', $._expression)),
     ),
 
+    // Immutable updates bind below pipes, with left-to-right chaining.
+    record_update_expression: $ => prec.left(0, seq(
+      field('base', $._expression), alias($._record_update_with, 'with'), field('body', $.record_update_body),
+    )),
+    _scrutinee_record_update: $ => prec.left(0, seq(
+      field('base', $._match_scrutinee), alias($._record_update_with, 'with'), field('body', $.record_update_body),
+    )),
+    record_update_body: $ => seq(
+      '{', optional(seq(commaSep1($.record_update_field), optional(','))), '}',
+    ),
+    record_update_field: $ => seq(
+      field('path', $.record_update_path), ':', field('value', $._expression),
+    ),
+    record_update_path: $ => sep1($._method_name, '.'),
+
     // -- Control-flow expressions ----------------------------------------
     block: $ => seq('{', repeat($._statement), '}'),
     block_expression: $ => $.block,
+
+    // Authored comma clauses are lazy and publish each successful pattern
+    // only to the following clauses and success body. Keep the existing
+    // single-condition nodes unchanged for downstream query compatibility.
+    let_condition: $ => seq(
+      'let', field('pattern', $._pattern), '=', field('value', $._expression),
+    ),
+    _condition_clause: $ => choice($.let_condition, $._expression),
+    condition_chain: $ => seq(
+      $._condition_clause, ',', commaSep1($._condition_clause),
+    ),
+    if_chain_expression: $ => prec.right(seq(
+      'if', field('condition', $.condition_chain),
+      field('consequence', $.block),
+      optional(seq('else', field('alternative', choice(
+        $.block, $.if_expression, $.if_let_expression, $.if_chain_expression,
+      )))),
+    )),
+    while_chain_expression: $ => seq(
+      optional(field('label', alias($.loop_label_declaration, $.loop_label))),
+      'while', field('condition', $.condition_chain), field('body', $.block),
+    ),
 
     if_expression: $ => prec.right(seq(
       'if',
@@ -1879,7 +2089,7 @@ module.exports = grammar({
       field('consequence', $.block),
       optional(seq(
         'else',
-        field('alternative', choice($.block, $.if_expression, $.if_let_expression)),
+        field('alternative', choice($.block, $.if_expression, $.if_let_expression, $.if_chain_expression)),
       )),
     )),
 
@@ -1891,7 +2101,7 @@ module.exports = grammar({
       field('consequence', $.block),
       optional(seq(
         'else',
-        field('alternative', choice($.block, $.if_expression, $.if_let_expression)),
+        field('alternative', choice($.block, $.if_expression, $.if_let_expression, $.if_chain_expression)),
       )),
     )),
 
@@ -1912,6 +2122,11 @@ module.exports = grammar({
     // while closing the `Name { ... }` struct back-door (e.g. `match val { ... }`
     // must not read `val { ... }` as a struct via a call's function position).
     _match_scrutinee: $ => choice(
+      $.field_path_expression,
+      $.attempt_expression,
+      alias('attempt', $.identifier),
+      alias($._scrutinee_record_update, $.record_update_expression),
+      $.inferred_struct_expression,
       $._literal,
       $.identifier,
       $.self_expression,
@@ -2096,18 +2311,48 @@ module.exports = grammar({
     ),
 
     // raise an effect: perform IO::read(path)
-    perform_expression: $ => prec.right(seq('perform', $._expression)),
+    // Effect arguments are positional Expr values in the compiler. Preserve
+    // the existing call/argument tree while preventing named-call shorthand
+    // from leaking into the outer perform list; nested calls remain ordinary.
+    perform_expression: $ => prec.right(seq(
+      'perform',
+      alias($._perform_call, $.call_expression),
+    )),
+    _perform_call: $ => prec(PREC.call, seq(
+      field('function', $.path_expression),
+      field('arguments', alias($._perform_argument_list, $.argument_list)),
+    )),
+    _perform_argument_list: $ => seq(
+      '(',
+      optional(seq(commaSep1(alias($._positional_call_argument, $.call_argument)), optional(','))),
+      ')',
+    ),
+    _positional_call_argument: $ => seq($._expression),
 
     // interpret effects: handle expr with { Eff::op(args) => body, ... }
     handle_expression: $ => prec.right(seq(
       'handle',
-      field('value', $._expression),
-      'with',
+      // The scanner closes this BP1 operand at its authored separator.
+      // Parenthesized arguments still admit ordinary BP0 record updates.
+      field('value', prec(1, $._expression)),
+      alias($._handle_separator, 'with'),
       field('handler', choice(
         $.handle_block,
         $.path_expression,
         $.identifier,
       )),
+    )),
+
+    // Prefix installation leaves the following block outside the handler header.
+    // Prefix handler headers use parse_expr_bp(1): all operators, but no
+    // level-zero record update, nominal brace literal or trailing callback.
+    // Grouping and argument lists retain their ordinary full expression rules.
+    ...handlerHeaderRules('_handler', false),
+
+    lexical_handle_expression: $ => prec.right(seq(
+      'with',
+      field('handler', $._handler_header),
+      field('body', $.block),
     )),
 
     handle_block: $ => seq('{', repeat($.handle_arm), '}'),
@@ -2132,6 +2377,12 @@ module.exports = grammar({
     _handler_open: _ => token(seq('handler', /\s*/, '{')),
 
     // structured concurrency: scope { spawn ...; spawn ... }
+    // Local Result propagation; punned/empty braces prefer the boundary.
+    // An explicit field-colon body remains a nominal constructor instead.
+    attempt_expression: $ => prec.dynamic(2, prec.right(seq(
+      'attempt', field('body', $.block),
+    ))),
+
     scope_expression: $ => seq('scope', field('body', $.block)),
 
     // `parallel { … }` — concurrency block: each top-level statement of the
@@ -2148,11 +2399,20 @@ module.exports = grammar({
     // `parallel` (`parallel { field: v }`) — the real parser resolves that
     // rare case via `looks_like_struct_literal()`, which has no grammar-only
     // equivalent here.
+    // Named entries retain their actual source label as a result field.
+    // Generic statements remain for recovery of TE976-invalid bodies.
     parallel_block: $ => seq(
       $._parallel_open,
-      repeat($._statement),
+      repeat(choice($.parallel_result_entry, $._statement)),
       '}',
     ),
+
+    parallel_result_entry: $ => prec(2, seq(
+      field('name', $.identifier),
+      '=',
+      field('value', $._expression),
+      optional(';'),
+    )),
 
     _parallel_open: _ => token(seq('parallel', /\s*/, '{')),
 
@@ -2232,6 +2492,7 @@ module.exports = grammar({
     // Patterns
     // ---------------------------------------------------------------------
     _pattern: $ => choice(
+      $.string_capture_pattern,
       $.literal_pattern,
       $.identifier_pattern,
       $.wildcard_pattern,
@@ -2254,6 +2515,20 @@ module.exports = grammar({
       $.nil_literal,
       seq('-', $.integer_literal),
       seq('-', $.float_literal),
+    ),
+
+    // Capture types are source annotations, never string interpolation expressions.
+    string_capture_pattern: $ => seq(
+      token(prec(4, 'pat"')),
+      repeat(choice($.pattern_string_content, $.escape_sequence,
+        $.pattern_brace_escape, $.string_pattern_capture)),
+      '"',
+    ),
+    pattern_string_content: _ => token.immediate(/[^"\\{}]+/),
+    pattern_brace_escape: _ => token.immediate(choice('{{', '}}')),
+    string_pattern_capture: $ => seq(
+      token.immediate('{'), field('name', $.identifier), ':',
+      field('type', $._type), '}',
     ),
 
     identifier_pattern: $ => $.identifier,
@@ -2393,29 +2668,25 @@ module.exports = grammar({
     // varargs type: fn f(xs: ...int)
     variadic_type: $ => prec.right(seq('...', $._type)),
 
-    map_type: $ => seq('{', $._type, ':', $._type, '}'),
+    map_type: $ => seq('#{', $._type, ':', $._type, '}'),
 
-    // Anonymous record type: `{ name: str, age: int }`. Labels are plain
-    // identifiers; `{str: int}` stays a map_type because primitive names lex
-    // as keywords. `{ ident : ... }` prefers record over map: the prec(1) on
-    // the field rule beats type_path's prec.left(0) reduce at the `:`, so an
-    // identifier key shifts into the record field instead of reducing to a
-    // map key type (mirrors the compiler's parse_type rule: non-primitive
-    // label + `:` → record). Cosmetic trade-off: `{User: int}` highlights as
-    // a record, matching the compiler for lowercase and diverging only for
-    // uppercase-keyed map types, which don't occur in practice.
+    // Braces always describe a record type. Field labels retain their spelling,
+    // including primitive names, uppercase names and declaration keywords.
     record_type: $ => seq(
       '{',
-      commaSep1($._record_type_field),
-      optional(','),
+      optional(seq(commaSep1($._record_type_field), optional(','))),
       '}',
     ),
 
-    _record_type_field: $ => prec(1, seq(
-      field('name', $.identifier),
+    _record_type_field: $ => seq(
+      field('name', choice(
+        $.identifier,
+        alias($.primitive_type, $.identifier),
+        alias(choice('let', 'mut', 'var', 'const', 'const_assert', 'override', 'enable', 'requires', 'fn', 'return', 'if', 'else', 'for', 'while', 'loop', 'break', 'continue', 'match', 'enum', 'struct', 'impl', 'trait', 'mod', 'use', 'pub', 'in', 'as', 'is', 'where', 'nil', 'self', 'type', 'newtype', 'comptime', 'async', 'await', 'yield', 'spawn', 'scope', 'select', 'every', 'after', 'timeout', 'sleep', 'try', 'catch', 'finally', 'defer', 'defer_ok', 'defer_err', 'guard', 'macro', 'on', 'schema', 'machine', 'effect', 'handle', 'perform', 'with', 'using', 'true', 'false'), $.identifier),
+      )),
       ':',
       field('type', $._type),
-    )),
+    ),
 
     tuple_type: $ => seq(
       '(',
@@ -2429,13 +2700,13 @@ module.exports = grammar({
 
     optional_type: $ => prec(1, seq($._type, '?')),
 
-    function_type: $ => seq(
+    function_type: $ => prec.right(seq(
       'fn',
       '(',
       optional(seq(commaSep1(choice($._type, $.function_type_parameter)), optional(','))),
       ')',
       optional(seq('->', $._type)),
-    ),
+    )),
 
     // Source-level call labels for callable values: `fn(item: Todo) -> View`.
     // The Rust parser requires either every parameter to be labelled or none;
@@ -2464,6 +2735,7 @@ module.exports = grammar({
     // Literals
     // ---------------------------------------------------------------------
     _literal: $ => choice(
+      $.unit_literal,
       $.integer_literal,
       $.float_literal,
       $.decimal_literal,
@@ -2484,6 +2756,18 @@ module.exports = grammar({
       $.nil_literal,
     ),
 
+    // User units share numeric tokens; immediate suffixes require adjacency.
+    // Built-in width suffixes use equally ranked literal tokens and win exact
+    // ties. Longer user spellings (e.g. u64bytes) still remain one suffix.
+    unit_literal: $ => choice(
+      seq(field('number', alias($._decimal_integer_digits, $.unit_magnitude)), field('suffix', $.unit_suffix)),
+      seq(field('number', alias($._float_magnitude, $.unit_magnitude)), field('suffix', $.unit_suffix)),
+      seq(alias(token(/0[xX]/), $.numeric_base_prefix), field('number', alias($._hex_integer_digits, $.unit_magnitude)), field('suffix', $.unit_suffix)),
+      seq(alias(token(/0[oO]/), $.numeric_base_prefix), field('number', alias($._octal_integer_digits, $.unit_magnitude)), field('suffix', $.unit_suffix)),
+      seq(alias(token(/0[bB]/), $.numeric_base_prefix), field('number', alias($._binary_integer_digits, $.unit_magnitude)), field('suffix', $.unit_suffix)),
+    ),
+    unit_suffix: _ => token.immediate(prec(1, /[a-zA-Z][a-zA-Z0-9_]*/)),
+
     bool_literal: _ => choice('true', 'false'),
     nil_literal: _ => 'nil',
 
@@ -2495,21 +2779,21 @@ module.exports = grammar({
       seq(
         alias(token(/0[xX]/), $.numeric_base_prefix),
         $._hex_integer_digits,
-        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+        optional(numericTypeSuffix($, ['i', 'i8', 'i16', 'i32', 'i64', 'isize', 'u', 'u8', 'u16', 'u32', 'u64', 'usize'])),
       ),
       seq(
         alias(token(/0[oO]/), $.numeric_base_prefix),
         $._octal_integer_digits,
-        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+        optional(numericTypeSuffix($, ['i', 'i8', 'i16', 'i32', 'i64', 'isize', 'u', 'u8', 'u16', 'u32', 'u64', 'usize'])),
       ),
       seq(
         alias(token(/0[bB]/), $.numeric_base_prefix),
         $._binary_integer_digits,
-        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+        optional(numericTypeSuffix($, ['i', 'i8', 'i16', 'i32', 'i64', 'isize', 'u', 'u8', 'u16', 'u32', 'u64', 'usize'])),
       ),
       seq(
         $._decimal_integer_digits,
-        optional(alias(token.immediate(/i(8|16|32|64|size)?|u(8|16|32|64|size)?/), $.numeric_type_suffix)),
+        optional(numericTypeSuffix($, ['i', 'i8', 'i16', 'i32', 'i64', 'isize', 'u', 'u8', 'u16', 'u32', 'u64', 'usize'])),
       ),
     ),
 
@@ -2518,42 +2802,45 @@ module.exports = grammar({
       // following `f*` token decide `1f32` without lexing it as `1` + `f32`.
       seq(
         $._decimal_integer_digits,
-        alias(token.immediate(/f32|f64|f/), $.numeric_type_suffix),
+        numericTypeSuffix($, ['f', 'f32', 'f64']),
       ),
       // Fractional/exponent values remain valid with or without a type suffix.
       seq(
         $._float_magnitude,
-        optional(alias(token.immediate(/f32|f64|f/), $.numeric_type_suffix)),
+        optional(numericTypeSuffix($, ['f', 'f32', 'f64'])),
       ),
     ),
 
-    _decimal_integer_digits: _ => token(/[0-9](_?[0-9])*/),
-    _hex_integer_digits: _ => token.immediate(/[0-9a-fA-F](_?[0-9a-fA-F])*/),
-    _octal_integer_digits: _ => token.immediate(/[0-7](_?[0-7])*/),
-    _binary_integer_digits: _ => token.immediate(/[01](_?[01])*/),
+    // Keep the lexer's legacy repeated/trailing numeric separators in magnitudes.
+    _decimal_integer_digits: _ => token(/[0-9][0-9_]*/),
+    _hex_integer_digits: _ => token.immediate(/[0-9a-fA-F][0-9a-fA-F_]*/),
+    _octal_integer_digits: _ => token.immediate(/[0-7][0-7_]*/),
+    _binary_integer_digits: _ => token.immediate(/[01][01_]*/),
     _float_magnitude: _ => token(choice(
       // 1.0  1.0e10  1.0e-10
-      /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?/,
+      /[0-9][0-9_]*\.[0-9][0-9_]*([eE][+-]?[0-9][0-9_]*)?/,
       // 1e10
-      /[0-9](_?[0-9])*[eE][+-]?[0-9]+/,
+      /[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*/,
     )),
 
     // 1d / 1.5d (Decimal, rust_decimal) and 1bd / 1.5bd (BigDecimal).
     // Mirrors the lexer: the `d`/`bd` suffixes win over the `d`(days)
     // duration unit, which is why `d` is absent from duration_literal.
-    decimal_literal: _ => token(choice(
-      /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?(bd|d)/,
-      /[0-9](_?[0-9])*([eE][+-]?[0-9]+)?(bd|d)/,
-    )),
+    // Share the numeric token with user units, then compare whole suffix
+    // identifiers. A whole-token decimal/duration would steal the prefix of
+    // user units such as day, mins or ncount before their suffix is read.
+    decimal_literal: $ => seq(
+      choice($._decimal_integer_digits, $._float_magnitude),
+      builtinLiteralSuffix(['bd', 'd']),
+    ),
 
-    bigint_literal: _ => token(/[0-9](_?[0-9])*n/),
+    bigint_literal: $ => seq($._decimal_integer_digits, builtinLiteralSuffix(['n'])),
 
-    // 5s, 100ms, 30min, 2h, 1w, 500us, 1ns — no `d`: bare `Nd` lexes as
-    // Decimal (see decimal_literal above / lexer.rs read_number).
-    duration_literal: _ => token(seq(
-      /[0-9](_?[0-9])*(\.[0-9](_?[0-9])*)?/,
-      choice('min', 'ms', 'ns', 'us', 's', 'h', 'w'),
-    )),
+    // 5s, 100ms, 30min, 2h, 1w, 500us, 1ns — no d: decimal keeps priority.
+    duration_literal: $ => seq(
+      choice($._decimal_integer_digits, $._float_magnitude),
+      builtinLiteralSuffix(['min', 'ms', 'ns', 'us', 's', 'h', 'w']),
+    ),
 
     char_literal: _ => token(seq(
       "'",
@@ -2742,7 +3029,7 @@ module.exports = grammar({
     // makes the generator settle the same shift/reduce choice that way.
     _contextual_keyword: $ => prec(-1, alias(choice(
       'type', 'newtype', 'impl', 'trait', 'mod', 'where', 'on', 'using',
-      'schema', 'machine', 'effect', 'macro',
+      'schema', 'machine', 'effect', 'macro', 'attempt', 'field',
     ), $.identifier)),
     identifier: _ => /[a-zA-Z_][a-zA-Z0-9_]*/,
   },
@@ -2762,4 +3049,232 @@ function commaSep1(rule) {
  */
 function sep1(rule, sep) {
   return seq(rule, repeat(seq(sep, rule)));
+}
+
+// Literal built-in suffix tokens outrank an equally long generic unit suffix.
+function numericTypeSuffix($, spellings) {
+  return choice(...spellings.map(suffix => alias(token.immediate(prec(1, suffix)), $.numeric_type_suffix)));
+}
+
+// Exact built-in suffix literals win equal-length ties with the user regex.
+function builtinLiteralSuffix(spellings) {
+  return choice(...spellings.map(suffix => token.immediate(prec(1, suffix))));
+}
+
+// Prefix headers parse operators above BP0 and leave nominal braces and
+// callback bodies outside the header. Parentheses/arguments keep full expressions.
+function handlerHeaderRules(prefix, allowBraces) {
+  return {
+    [prefix + '_header']: $ => choice(
+      $.field_path_expression,
+      $.extern_expression,
+      $._literal,
+      $.identifier,
+      alias($._contextual_type_identifier, $.identifier),
+      $._contextual_keyword,
+      $.self_expression,
+      $.path_expression,
+      $.enum_shorthand_expression,
+      alias($[prefix + '_unary'], $.unary_expression),
+      alias($[prefix + '_binary'], $.binary_expression),
+      alias($[prefix + '_approx'], $.approx_expression),
+      alias($[prefix + '_pipe'], $.pipe_expression),
+      alias($[prefix + '_range'], $.range_expression),
+      alias($[prefix + '_spread'], $.spread_expression),
+      alias($[prefix + '_call'], $.call_expression),
+      alias($[prefix + '_optional_call'], $.optional_call_expression),
+      alias($[prefix + '_method_call'], $.method_call_expression),
+      alias($[prefix + '_field'], $.field_expression),
+      alias($[prefix + '_index'], $.index_expression),
+      alias($[prefix + '_optional_chain'], $.optional_chain_expression),
+      alias($[prefix + '_force_chain'], $.force_chain_expression),
+      alias($[prefix + '_try'], $.try_expression),
+      alias($[prefix + '_iter'], $.iter_expression),
+      alias($[prefix + '_cast'], $.cast_expression),
+      $.bitcast_expression,
+      alias($[prefix + '_type_check'], $.type_check_expression),
+      $.parenthesized_expression,
+      $.tuple_expression,
+      $.array_expression,
+      $.map_expression,
+      $.inferred_struct_expression,
+      ...(allowBraces ? [$.struct_expression] : []),
+      $.if_expression,
+      $.if_let_expression,
+      $.if_chain_expression,
+      $.match_expression,
+      $.block_expression,
+      $.lambda_expression,
+      $.for_expression,
+      $.while_expression,
+      $.while_let_expression,
+      $.while_chain_expression,
+      $.loop_expression,
+      $.try_catch_expression,
+      $.attempt_expression,
+      alias($[prefix + '_await'], $.await_expression),
+      alias($[prefix + '_yield'], $.yield_expression),
+      $.spawn_expression,
+      $.scope_expression,
+      $.parallel_block,
+      $.select_expression,
+      $.perform_expression,
+      $.handle_expression,
+      $.lexical_handle_expression,
+      $.handler_expression,
+      $.every_expression,
+      $.after_expression,
+      $.timeout_expression,
+      alias($[prefix + '_sleep'], $.sleep_expression),
+      $.macro_invocation,
+      $.macro_param,
+      $.comptime_expression,
+      $.quote_expression,
+      $.markup_element,
+    ),
+
+    [prefix + '_unary']: $ => prec(PREC.unary, seq(
+      field('operator', choice('-', '!', '~', '^')),
+      field('operand', $[prefix + '_header']),
+    )),
+
+    [prefix + '_binary']: $ => {
+      const ops = [
+        ['||', PREC.or, 'left'],
+        ['&&', PREC.and, 'left'],
+        ['==', PREC.equality, 'left'],
+        ['!=', PREC.equality, 'left'],
+        ['<', PREC.comparison, 'left'],
+        ['>', PREC.comparison, 'left'],
+        ['<=', PREC.comparison, 'left'],
+        ['>=', PREC.comparison, 'left'],
+        ['in', PREC.in, 'left'],
+        ['|', PREC.bit_or, 'left'],
+        ['^', PREC.bit_xor, 'left'],
+        ['&', PREC.bit_and, 'left'],
+        ['<<', PREC.shift, 'left'],
+        ['>>', PREC.shift, 'left'],
+        ['+', PREC.additive, 'left'],
+        ['-', PREC.additive, 'left'],
+        ['*', PREC.multiplicative, 'left'],
+        ['/', PREC.multiplicative, 'left'],
+        ['~/', PREC.multiplicative, 'left'],
+        ['%', PREC.multiplicative, 'left'],
+        ['**', PREC.power, 'right'],
+        ['??', PREC.null_coalesce, 'left'],
+      ];
+      return choice(...ops.map(([op, p, assoc]) => {
+        const fn = assoc === 'right' ? prec.right : prec.left;
+        return fn(p, seq(
+          field('left', $[prefix + '_header']),
+          field('operator', op),
+          field('right', $[prefix + '_header']),
+        ));
+      }));
+    },
+
+    [prefix + '_approx']: $ => prec.left(PREC.equality, seq(
+      field('left', $[prefix + '_header']),
+      field('operator', choice('~=', '!~=')),
+      field('right', $[prefix + '_header']),
+      optional(seq(
+        'within',
+        field('tolerance', $[prefix + '_header']),
+        optional(field('mode', choice('relative', 'ulps', 'absolute'))),
+      )),
+    )),
+
+    [prefix + '_pipe']: $ => prec.left(PREC.pipe, seq(
+      field('left', $[prefix + '_header']),
+      field('operator', choice('|>', '?>', '&.')),
+      field('right', choice($._pipe_method, $[prefix + '_header'])),
+    )),
+
+    [prefix + '_range']: $ => choice(
+      prec.right(PREC.range, seq($[prefix + '_header'], choice('..', '..='), optional($[prefix + '_header']))),
+      prec.right(PREC.range, seq(choice('..', '..='), optional($[prefix + '_header']))),
+    ),
+
+    [prefix + '_spread']: $ => prec.right(seq('...', $[prefix + '_header'])),
+
+    [prefix + '_call']: $ => prec(PREC.call, seq(
+      field('function', $[prefix + '_header']),
+      field('arguments', $.argument_list),
+      ...(allowBraces ? [optional(field('trailing_lambda', $.trailing_lambda)), repeat(field('named_callback', $.named_trailing_lambda))] : []),
+    )),
+
+    [prefix + '_optional_call']: $ => prec(PREC.call, seq(
+      field('function', $[prefix + '_header']),
+      '?.',
+      field('arguments', $.argument_list),
+      ...(allowBraces ? [optional(field('trailing_lambda', $.trailing_lambda)), repeat(field('named_callback', $.named_trailing_lambda))] : []),
+    )),
+
+    [prefix + '_method_call']: $ => prec.dynamic(1, prec(PREC.call, seq(
+      field('receiver', $[prefix + '_header']),
+      '.',
+      field('method', $._method_name),
+      choice(
+        seq(
+          field('arguments', $.argument_list),
+          ...(allowBraces ? [optional(field('trailing_lambda', $.trailing_lambda)), repeat(field('named_callback', $.named_trailing_lambda))] : []),
+        ),
+        ...(allowBraces ? [field('trailing_lambda', $.trailing_lambda)] : []),
+      ),
+    ))),
+
+    [prefix + '_field']: $ => prec(PREC.call, seq(
+      field('object', $[prefix + '_header']),
+      '.',
+      field('field', $._method_name),
+    )),
+
+    [prefix + '_index']: $ => prec(PREC.call, seq(
+      field('object', $[prefix + '_header']),
+      '[',
+      field('index', $[prefix + '_header']),
+      ']',
+    )),
+
+    [prefix + '_optional_chain']: $ => prec(PREC.call, seq(
+      field('object', $[prefix + '_header']),
+      '?.',
+      field('field', $._method_name),
+    )),
+
+    [prefix + '_force_chain']: $ => prec(PREC.call, seq(
+      field('object', $[prefix + '_header']),
+      '!.',
+      field('field', $._method_name),
+    )),
+
+    [prefix + '_try']: $ => prec(PREC.try, seq(
+      field('value', $[prefix + '_header']),
+      '?',
+    )),
+
+    [prefix + '_iter']: $ => prec(PREC.call, seq(
+      field('value', $[prefix + '_header']),
+      '.*',
+    )),
+
+    [prefix + '_cast']: $ => prec.left(PREC.cast, seq(
+      field('value', $[prefix + '_header']),
+      choice('as', 'as?'),
+      field('type', $._type),
+    )),
+
+    [prefix + '_type_check']: $ => prec.left(PREC.cast, seq(
+      field('value', $[prefix + '_header']),
+      'is',
+      optional('not'),
+      field('type', $._type),
+    )),
+
+    [prefix + '_await']: $ => prec.right(seq('await', $[prefix + '_header'])),
+
+    [prefix + '_yield']: $ => prec.right(seq('yield', optional($[prefix + '_header']))),
+
+    [prefix + '_sleep']: $ => prec.right(seq('sleep', $[prefix + '_header'])),
+  };
 }

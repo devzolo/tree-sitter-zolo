@@ -1,0 +1,46 @@
+==================
+Reusable nested field path
+==================
+let city = field User::address.city
+---
+(source_file
+  (let_declaration (identifier)
+    (field_path_expression
+      (type_path (identifier)) (identifier) (identifier))))
+
+==================
+Qualified generic root and callable member
+==================
+let read = (field domain::Box<str>::value).get
+---
+(source_file
+  (let_declaration (identifier)
+    (field_expression
+      (parenthesized_expression
+        (field_path_expression
+          (type_path (identifier) (identifier) (primitive_type))
+          (identifier)))
+      (identifier))))
+
+==================
+Field stays an ordinary binding and function name
+==================
+let field = 1
+field(value: field)
+---
+(source_file
+  (let_declaration (identifier) (integer_literal))
+  (expression_statement
+    (call_expression (identifier)
+      (argument_list (call_argument (identifier) (identifier))))))
+
+==================
+Dotted qualified root
+==================
+let path = field outer.inner.User::name
+---
+(source_file
+  (let_declaration (identifier)
+    (field_path_expression
+      (type_path (identifier) (identifier) (identifier))
+      (identifier))))

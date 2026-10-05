@@ -1,0 +1,149 @@
+==================
+Prefix handler with a lexical body
+==================
+let answer = with memory { read() }
+---
+(source_file
+  (let_declaration (identifier)
+    (lexical_handle_expression (identifier)
+      (block (expression_statement
+        (call_expression (identifier) (argument_list)))))))
+
+==================
+Parenthesized factory and nested restoration
+==================
+with (make()) { with inner { read() } }
+---
+(source_file
+  (expression_statement
+    (lexical_handle_expression
+      (parenthesized_expression
+        (call_expression (identifier) (argument_list)))
+      (block (expression_statement
+        (lexical_handle_expression (identifier)
+          (block (expression_statement
+            (call_expression (identifier) (argument_list))))))))))
+
+==================
+Literal handler before the body
+==================
+with handler { Read::get() => 7 } { read() }
+---
+(source_file
+  (expression_statement
+    (lexical_handle_expression
+      (handler_expression
+        (handle_arm
+          (call_expression (path_expression (identifier) (identifier)) (argument_list))
+          (integer_literal)))
+      (block (expression_statement
+        (call_expression (identifier) (argument_list)))))))
+
+==================
+Conditional handler header
+==================
+with if chosen { first } else { second } { read() }
+---
+(source_file
+  (expression_statement
+    (lexical_handle_expression
+      (if_expression (identifier)
+        (block (expression_statement (identifier)))
+        (block (expression_statement (identifier))))
+      (block (expression_statement
+        (call_expression (identifier) (argument_list)))))))
+
+==================
+Binary handler header cannot absorb the body
+==================
+with first ?? fallback() { read() }
+---
+(source_file
+  (expression_statement
+    (lexical_handle_expression
+      (binary_expression (identifier)
+        (call_expression (identifier) (argument_list)))
+      (block (expression_statement
+        (call_expression (identifier) (argument_list)))))))
+
+==================
+Prefix handler after an unterminated local declaration
+==================
+let value = source
+with chosen { value }
+---
+(source_file
+  (let_declaration (identifier) (identifier))
+  (expression_statement
+    (lexical_handle_expression (identifier)
+      (block (expression_statement (identifier))))))
+
+==================
+Legacy handler keeps a binary operand above update precedence
+==================
+handle left + right with chosen
+---
+(source_file
+  (expression_statement
+    (handle_expression
+      (binary_expression (identifier) (identifier))
+      (identifier))))
+
+==================
+Legacy handler keeps a nominal operand with braces
+==================
+handle Point { value: 1 } with chosen
+---
+(source_file
+  (expression_statement
+    (handle_expression
+      (struct_expression (identifier)
+        (struct_expression_body
+          (struct_expression_field (identifier) (integer_literal))))
+      (identifier))))
+
+==================
+Legacy handler retains a grouped immutable update
+==================
+handle (user with { count: 1 }) with chosen
+---
+(source_file
+  (expression_statement
+    (handle_expression
+      (parenthesized_expression
+        (record_update_expression (identifier)
+          (record_update_body
+            (record_update_field (record_update_path (identifier)) (integer_literal)))))
+      (identifier))))
+
+==================
+Legacy handler retains immutable updates inside call arguments
+==================
+handle consume(user with { count: 1 }) with chosen
+---
+(source_file
+  (expression_statement
+    (handle_expression
+      (call_expression (identifier)
+        (argument_list
+          (call_argument
+            (record_update_expression (identifier)
+              (record_update_body
+                (record_update_field (record_update_path (identifier)) (integer_literal)))))))
+      (identifier))))
+
+==================
+Nested prefix body retains its own immutable update
+==================
+handle with chosen { user with { count: 1 } } with outer
+---
+(source_file
+  (expression_statement
+    (handle_expression
+      (lexical_handle_expression (identifier)
+        (block
+          (expression_statement
+            (record_update_expression (identifier)
+              (record_update_body
+                (record_update_field (record_update_path (identifier)) (integer_literal)))))))
+      (identifier))))

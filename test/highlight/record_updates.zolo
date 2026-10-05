@@ -1,0 +1,9 @@
+let next = user with {
+//              ^^^^ @keyword
+  address.city: "Recife",
+//^^^^^^^ @property
+//        ^^^^ @property
+  type: "Staff",
+//^^^^ @property
+}
+print(next.name)

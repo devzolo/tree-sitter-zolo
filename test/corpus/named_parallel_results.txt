@@ -1,0 +1,27 @@
+==================
+Named heterogeneous results
+==================
+let data = parallel {
+    user = await load_user();
+    count = 3;
+}
+---
+(source_file
+  (let_declaration
+    (identifier)
+    (parallel_block
+      (parallel_result_entry (identifier) (await_expression (call_expression (identifier) (argument_list))))
+      (parallel_result_entry (identifier) (integer_literal)))))
+
+==================
+Expression-only compatibility and a plain call
+==================
+parallel { first(); second(); }
+parallel(tasks)
+---
+(source_file
+  (expression_statement
+    (parallel_block
+      (expression_statement (call_expression (identifier) (argument_list)))
+      (expression_statement (call_expression (identifier) (argument_list)))))
+  (expression_statement (call_expression (identifier) (argument_list (call_argument (identifier))))))

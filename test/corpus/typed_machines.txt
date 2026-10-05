@@ -1,0 +1,44 @@
+==================
+Typed state and event catalogs with pattern-bound payloads
+==================
+machine Loader {
+ state Idle, Ready(value: int)
+ event Loaded(value: int), Reset
+ initial Idle
+ Idle -> Ready(value) on Loaded(value) if value > 0
+ Ready(previous) -> Idle on Reset
+}
+---
+(source_file
+ (machine_item (identifier)
+  (machine_body
+   (machine_state_decl (identifier) (identifier)
+    (parameter_list (parameter (identifier) (primitive_type))))
+   (machine_event_decl (identifier)
+    (parameter_list (parameter (identifier) (primitive_type))) (identifier))
+   (machine_initial (identifier))
+   (machine_transition (identifier) (identifier)
+    (argument_list (call_argument (identifier))) (identifier)
+    (machine_pattern_arguments (identifier_pattern (identifier)))
+    (binary_expression (identifier) (integer_literal)))
+   (machine_transition (identifier)
+    (machine_pattern_arguments (identifier_pattern (identifier)))
+    (identifier) (identifier)))))
+
+==================
+Typed initial state constructs its payload
+==================
+machine Counter { state Ready(value: int); event Tick; initial Ready(7); Ready(old) -> Ready(old + 1) on Tick }
+---
+(source_file
+ (machine_item (identifier)
+  (machine_body
+   (machine_state_decl (identifier)
+    (parameter_list (parameter (identifier) (primitive_type))))
+   (machine_event_decl (identifier))
+   (machine_initial (identifier) (argument_list (call_argument (integer_literal))))
+   (machine_transition (identifier)
+    (machine_pattern_arguments (identifier_pattern (identifier)))
+    (identifier)
+    (argument_list (call_argument (binary_expression (identifier) (integer_literal))))
+    (identifier)))))

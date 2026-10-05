@@ -20,7 +20,89 @@ static void dependency_header(const char *text, bool expected) {
   }
 }
 
+static void with_boundary(const char *text, bool update, bool handle, bool recovery, bool expected, unsigned token) {
+  Scanner scanner = {0};
+  bool valid[ERROR_SENTINEL + 1] = {0};
+  valid[RECORD_UPDATE_WITH] = update;
+  valid[HANDLE_SEPARATOR] = handle;
+  valid[ERROR_SENTINEL] = recovery;
+  TestLexer lexer = input(text);
+  assert(tree_sitter_zolo_external_scanner_scan(&scanner, &lexer.lexer, valid) == expected);
+  if (expected) {
+    assert(lexer.lexer.result_symbol == token);
+    const char *word = strstr(text, "with");
+    assert(word != NULL);
+    assert(lexer.end == (size_t)(word - text) + 4);
+  }
+  assert(scanner.count == 0 && scanner.scope == 0);
+}
+
+static void callback_boundary(const char *text, bool expected, size_t marker_end) {
+  Scanner scanner = {0};
+  bool valid[ERROR_SENTINEL + 1] = {0};
+  valid[NAMED_CALLBACK_START] = true;
+  valid[RECORD_UPDATE_WITH] = true;
+  valid[DEPENDENCIES_KEYWORD] = true; // Callback lookahead must not lose d-labels.
+  valid[CONVENTION] = true; // sink stays an identifier before a callback body.
+  TestLexer lexer = input(text);
+  assert(tree_sitter_zolo_external_scanner_scan(&scanner, &lexer.lexer, valid) == expected);
+  if (expected) {
+    assert(lexer.lexer.result_symbol == NAMED_CALLBACK_START);
+    assert(lexer.end == marker_end);
+  }
+  assert(scanner.count == 0 && scanner.scope == 0);
+}
+
+static void callback_finish(const char *text, unsigned token) {
+  Scanner scanner = {0};
+  bool valid[ERROR_SENTINEL + 1] = {0};
+  valid[NAMED_CALLBACK_START] = true;
+  valid[TRAILING_CALLBACK_PIPE] = true;
+  valid[CALLBACK_END] = true;
+  valid[FOREIGN_IMPORT] = true; // Marker must run before any import whitespace scan.
+  TestLexer lexer = input(text);
+  assert(tree_sitter_zolo_external_scanner_scan(&scanner, &lexer.lexer, valid));
+  assert(lexer.lexer.result_symbol == token);
+  assert(lexer.end == 0);
+  assert(scanner.count == 0 && scanner.scope == 0);
+}
+
 int main(void){
+  callback_finish(" content { 1 }", NAMED_CALLBACK_START);
+  callback_finish(" /* note */ done { 1 }", NAMED_CALLBACK_START);
+  callback_finish(" { |value| value }", TRAILING_CALLBACK_PIPE);
+  callback_finish(" {/* note */ || value }", TRAILING_CALLBACK_PIPE);
+  callback_finish(" { work() }", CALLBACK_END);
+  callback_finish("\n Point { x: 1 }", CALLBACK_END);
+  callback_finish(" /* newline\n */ Point { x: 1 }", CALLBACK_END);
+  callback_finish(" |> next()", CALLBACK_END);
+  callback_finish(" with { value: 1 }", CALLBACK_END);
+  callback_finish("", CALLBACK_END);
+  callback_boundary(" content { 1 }", true, 0);
+  callback_boundary("done { 1 }", true, 0);
+  callback_boundary("sink { 1 }", true, 0);
+  callback_boundary("when { 1 }", true, 0);
+  callback_boundary(" /* note */ content { 1 }", true, 0);
+  callback_boundary(" /* outer /* nested */ */ content { 1 }", true, 0);
+  callback_boundary("content\n { 1 }", true, 0); // Only the label must share the closer line.
+  callback_boundary("\n content { 1 }", false, 0);
+  callback_boundary(" /* newline\n */ content { 1 }", false, 0);
+  callback_boundary(" // line comment\n content { 1 }", false, 0);
+  callback_boundary(" read()", false, 0);
+  callback_boundary(" }", false, 0);
+  callback_boundary(" |> next()", false, 0);
+  callback_boundary(" scope { 1 }", false, 0);
+  callback_boundary(" with chosen { 1 }", false, 0);
+  with_boundary("with { city: 1 }", true, false, false, true, RECORD_UPDATE_WITH);
+  with_boundary("\r\n  with /* nested /* block */ */ { city: 1 }", true, false, false, true, RECORD_UPDATE_WITH);
+  with_boundary("with // brace in trivia }\n { city: 1 }", true, false, false, true, RECORD_UPDATE_WITH);
+  with_boundary("with chosen { body }", true, false, false, false, 0);
+  with_boundary("with_more { city: 1 }", true, false, false, false, 0);
+  with_boundary("with /* incomplete", true, false, false, false, 0);
+  with_boundary("with chosen", false, true, false, true, HANDLE_SEPARATOR);
+  with_boundary("with { Eff::op() => 1 }", true, true, false, true, HANDLE_SEPARATOR);
+  with_boundary("with_more chosen", false, true, false, false, 0);
+  with_boundary("with { city: 1 }", true, true, true, false, 0);
   boundary("use plugin jvm::{kotlin as kt}","kt"," val s = \"${run { \"}\" }}\"; /* { /* } */ } */ return 42; } print(42)",15);
   boundary("use plugin jvm::{kotlin}","kotlin"," val s = $$\"\"\" } ${literal} $${run { \"}\" }} \"\"\"; } print(42)",15);
   boundary("use plugin native::{c as small}","small","\n#define CLOSE } \\\n { }\n return 42; } print(42)",16);
@@ -52,5 +134,5 @@ int main(void){
   dependency_header("deps_more { rust {} }", false);
   dependency_header("deps {\n field\n}", false);
   dependency_header("deps {\n field // ordinary field }\n}", false);
-  puts("10 scanner dialect boundaries and 21 contextual dependency headers passed");return 0;
+  puts("10 scanner dialect boundaries, 21 dependency headers and 10 with and 15 callback and 10 call-end boundaries passed");return 0;
 }

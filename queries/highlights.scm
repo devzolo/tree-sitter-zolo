@@ -8,6 +8,9 @@
 (doc_comment) @comment.documentation
 (module_doc_comment) @comment.documentation
 
+; Generic identifiers precede contextual captures: later patterns win.
+(identifier) @variable
+
 ; -- Keywords ---------------------------------------------------------------
 [
   "let"
@@ -36,6 +39,8 @@
 (extern_declaration provider: (identifier) @module)
 (extern_expression provider: (identifier) @module)
 (extern_function name: (identifier) @function)
+; Expression function bodies use the ordinary expression captures.
+(function_expression_body "=" @operator)
 (extern_module name: (identifier) @module)
 (extern_dependencies "deps" @keyword)
 (extern_dependency package: (identifier) @property)
@@ -140,6 +145,8 @@
 (duration_literal) @number
 (numeric_base_prefix) @punctuation.special
 (numeric_type_suffix) @type.builtin
+(unit_magnitude) @number
+(unit_suffix) @type
 (bool_literal) @boolean
 (nil_literal) @constant.builtin
 (char_literal) @character
@@ -187,6 +194,7 @@
   "${" @punctuation.special
   "}" @punctuation.special)
 
+; Relational chains reuse these operator captures on every link.
 ; -- Operators --------------------------------------------------------------
 [
   "+" "-" "*" "/" "%" "**"
@@ -225,6 +233,9 @@
 (trait_item name: (identifier) @type)
 (type_alias name: (identifier) @type)
 (newtype_item name: (identifier) @type)
+(newtype_item "transparent" @keyword.modifier)
+(newtype_deriving_clause "deriving" @keyword)
+(newtype_deriving_clause (identifier) @type)
 (storage_class (identifier) @keyword.modifier)
 ; `sink` before a parameter or argument name (linear types).
 (convention) @keyword.modifier
@@ -235,6 +246,10 @@
 (machine_item name: (identifier) @type)
 (effect_signature name: (identifier) @function.method)
 (machine_state_decl name: (identifier) @constant)
+(machine_event_decl name: (identifier) @constructor)
+(machine_state_decl "state" @keyword)
+(machine_event_decl "event" @keyword)
+(machine_initial "initial" @keyword)
 (machine_initial state: (identifier) @constant)
 (machine_transition
   from: (identifier) @constant
@@ -278,6 +293,11 @@
 (function_type_parameter name: (identifier) @variable.parameter)
 (optional_type "?" @operator)
 
+; Qualified references precede the more specific callee captures.
+(path_expression
+  (identifier) @namespace
+  (identifier) @constructor .)
+
 ; -- Calls ------------------------------------------------------------------
 (call_expression
   function: (identifier) @function.call)
@@ -313,10 +333,6 @@
   function: (identifier) @keyword.control)
   (#any-of? @keyword.control "resume" "abort"))
 
-; Named-argument labels: `f(name: v)` / `@test(timeout: 5s)`.
-(call_argument
-  name: (identifier) @variable.parameter)
-
 ; -- Fields & paths ---------------------------------------------------------
 (field_expression
   field: (identifier) @property)
@@ -343,10 +359,6 @@
 (record_type
   name: (identifier) @property)
 
-(path_expression
-  (identifier) @namespace
-  (identifier) @constructor .)
-
 ; -- Use / Mod paths --------------------------------------------------------
 (use_path (identifier) @namespace)
 (use_item name: (identifier) @namespace)
@@ -364,8 +376,14 @@
 (macro_param "$" @punctuation.special
   (identifier) @variable.parameter)
 
-; -- Identifiers (fallback) -------------------------------------------------
-(identifier) @variable
+; Shorthand labels are also value references in the caller's lexical scope.
+; Keep the capture after the identifier fallback; explicit `name: value`
+; continues to use the call_argument label's @variable.parameter capture.
+(named_argument_shorthand name: (identifier) @variable)
+
+; Explicit labels remain formal parameter names. This must follow the
+; generic identifier fallback (later query patterns win).
+(call_argument name: (identifier) @variable.parameter)
 
 ; The `_` receiver in a short-lambda projection is the implicit parameter.
 ; Keep these contextual captures after the generic fallback: a standalone
@@ -401,9 +419,7 @@
   name: (identifier) @label)
 
 ; -- Markup (Verniz V4b) ----------------------------------------------------
-; Last in the file on purpose: tag and attribute names are `identifier`
-; nodes, and the `(identifier) @variable` fallback above would otherwise
-; claim them. Later patterns win.
+; Tag and attribute names override the generic identifier fallback.
 (markup_open_tag name: (identifier) @tag)
 (markup_close_tag name: (identifier) @tag)
 (markup_self_closing_tag name: (identifier) @tag)
@@ -469,7 +485,7 @@
   (#match? @type "^[A-Z]"))
 (enum_shorthand_expression variant: (identifier) @constructor)
 
-; Keep attribute labels and referenced fields above the generic identifier fallback.
+; Attribute labels and referenced fields override the generic fallback.
 (decorator_arguments (call_argument name: (identifier) @variable.parameter))
 (decorator_arguments
   (call_argument value: (field_expression field: (identifier) @property)))
@@ -495,3 +511,50 @@
 (qualified_dependency dependency: (extern_dependency package: (identifier) @property))
 (dependency_group (extern_dependency package: (identifier) @property))
 (extern_dependency_options option: _ @property)
+
+; Clause-local bindings use the same pattern scopes as standalone if-let.
+; The separating commas remain ordinary punctuation, never argument labels.
+(let_condition pattern: (identifier_pattern (identifier) @variable))
+(let_condition "=" @operator)
+
+; Immutable update keys are field references at every authored path segment.
+(record_update_path (identifier) @property)
+
+; Array-entry binders are authored lexical names, separate from iterable/value.
+(array_for_entry binding: (identifier) @variable)
+(array_if_entry "=>" @operator)
+(array_for_entry "=>" @operator)
+
+; Only the local Result form owns a control keyword.
+(attempt_expression "attempt" @keyword.control)
+
+; Contextual construction has no authored type identifier.
+(inferred_struct_expression "." @punctuation.special)
+
+; Exact authored labels of ordinary named callback blocks.
+(named_trailing_lambda name: (identifier) @variable.parameter)
+
+; Public labels and lexical parameter binders have separate authored tokens.
+; These contextual captures follow the generic identifier fallback.
+(external_parameter label: (identifier) @variable.parameter)
+(external_parameter name: (identifier) @variable.parameter)
+
+; Named parallel results are fields, not assignments to locals.
+(parallel_result_entry name: (identifier) @property)
+
+; Public labels on refutable clause patterns retain their own authored identity.
+(function_clause_parameter label: (identifier) @variable.parameter)
+
+; Typed capture binders are scoped pattern variables; types use normal type rules.
+(string_capture_pattern "pat\"" @keyword)
+(pattern_string_content) @string
+(pattern_brace_escape) @string.escape
+(string_pattern_capture name: (identifier) @variable.parameter)
+(string_pattern_capture ["{" "}"] @punctuation.special)
+
+; Prefix handlers reuse the existing with keyword and real block delimiters.
+(lexical_handle_expression "with" @keyword)
+
+; Field is contextual; root type and fixed member identities have separate scopes.
+(field_path_expression "field" @keyword)
+(field_path_expression segment: (identifier) @property)

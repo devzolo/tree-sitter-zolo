@@ -1,0 +1,30 @@
+==================
+Typed string captures retain literal segments and type annotations
+==================
+let value = match text { pat"order/{id: int}/{status: str}" => id, _ => 0 }
+---
+(source_file
+ (let_declaration (identifier)
+  (match_expression (identifier)
+   (match_arm
+    (string_capture_pattern (pattern_string_content)
+     (string_pattern_capture (identifier) (primitive_type))
+     (pattern_string_content)
+     (string_pattern_capture (identifier) (primitive_type)))
+    (identifier))
+   (match_arm (wildcard_pattern) (integer_literal)))))
+
+==================
+Literal double braces are not captures
+==================
+match text { pat"{{x}}/{id: int}" => id, _ => 0 }
+---
+(source_file
+ (expression_statement
+  (match_expression (identifier)
+   (match_arm
+    (string_capture_pattern (pattern_brace_escape) (pattern_string_content)
+     (pattern_brace_escape) (pattern_string_content)
+     (string_pattern_capture (identifier) (primitive_type)))
+    (identifier))
+   (match_arm (wildcard_pattern) (integer_literal)))))

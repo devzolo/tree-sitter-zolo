@@ -1,0 +1,5 @@
+fn move(from source: int, to target: int) -> int = target - source
+//      ^^^^ variable.parameter
+//           ^^^^^^ variable.parameter
+//                        ^^ variable.parameter
+//                           ^^^^^^ variable.parameter

@@ -1,0 +1,9 @@
+let menu = [if admin => "Admin", for page in pages => page.title]
+//          ^ keyword.control
+//                   ^ operator
+//                               ^ keyword.control
+//                                   ^ variable
+
+let values = [if let value = read(), value > 0 => value]
+//               ^ keyword
+//                   ^ variable

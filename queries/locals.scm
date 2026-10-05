@@ -37,6 +37,10 @@
 (parameter
   name: (identifier) @local.definition.parameter)
 
+; The public label is not a lexical binding in the function body.
+(external_parameter
+  name: (identifier) @local.definition.parameter)
+
 (variadic_parameter
   name: (identifier) @local.definition.parameter)
 
@@ -105,3 +109,6 @@
 (continue_statement
   label: (loop_label
     name: (identifier) @local.reference))
+
+; Ordinary callback bodies own their parameters and braces.
+(trailing_callback_body) @local.scope

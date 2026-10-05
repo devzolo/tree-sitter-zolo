@@ -1,0 +1,14 @@
+if ready, let value = read(), value > 0 { value }
+// <- keyword.control
+//        ^ keyword
+//            ^ variable
+
+while let item = next(), item.active { consume(item) }
+// <- keyword.control
+//    ^ keyword
+//        ^ variable
+
+guard let value = fetch(), value > 0 else { return }
+// <- keyword.exception
+//    ^ keyword
+//        ^ variable

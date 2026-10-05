@@ -1,0 +1,323 @@
+==================
+named argument shorthand in ordinary calls
+==================
+
+create_user(name:, email:, active: true)
+
+---
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (named_argument_shorthand
+          (identifier))
+        (named_argument_shorthand
+          (identifier))
+        (call_argument
+          (identifier)
+          (bool_literal))))))
+
+==================
+perform and macro nested ordinary calls accept shorthand
+==================
+
+perform IO::read(create(name:))
+echo!(create(email:))
+
+---
+
+(source_file
+  (expression_statement
+    (perform_expression
+      (call_expression
+        (path_expression
+          (identifier)
+          (identifier))
+        (argument_list
+          (call_argument
+            (call_expression
+              (identifier)
+              (argument_list
+                (named_argument_shorthand
+                  (identifier)))))))))
+  (expression_statement
+    (macro_invocation
+      (identifier)
+      (call_expression
+        (identifier)
+        (argument_list
+          (named_argument_shorthand
+            (identifier)))))))
+
+==================
+direct decorator shorthand is rejected
+==================
+
+@cached(ttl:)
+fn work() {}
+
+---
+
+(source_file
+  (function_item
+    (decorator
+      (identifier)
+      (decorator_arguments
+        (call_argument
+          (identifier))
+        (ERROR)))
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+direct perform shorthand is rejected
+==================
+
+perform IO::read(name:)
+
+---
+
+(source_file
+  (expression_statement
+    (perform_expression
+      (call_expression
+        (path_expression
+          (identifier)
+          (identifier))
+        (argument_list
+          (call_argument
+            (identifier))
+          (ERROR))))))
+
+==================
+direct macro shorthand is rejected
+==================
+
+echo!(name:)
+
+---
+
+(source_file
+  (expression_statement
+    (macro_invocation
+      (identifier)
+      (identifier)
+      (ERROR))))
+
+==================
+shorthand cannot follow a positional convention marker
+==================
+
+create(sink name:)
+
+---
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (convention)
+          (identifier))
+        (ERROR)))))
+
+==================
+method qualified optional pipe and enum shorthand calls
+==================
+
+client.create(name:)
+users::create(email:)
+callback?.(value:)
+value |> .create(name:)
+let result = .Some(value:)
+users.map(_.create(name:))
+
+---
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (named_argument_shorthand
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      (path_expression
+        (identifier)
+        (identifier))
+      (argument_list
+        (named_argument_shorthand
+          (identifier)))))
+  (expression_statement
+    (optional_call_expression
+      (identifier)
+      (argument_list
+        (named_argument_shorthand
+          (identifier)))))
+  (expression_statement
+    (pipe_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (named_argument_shorthand
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (enum_shorthand_expression
+        (identifier))
+      (argument_list
+        (named_argument_shorthand
+          (identifier)))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (method_call_expression
+            (identifier)
+            (identifier)
+            (argument_list
+              (named_argument_shorthand
+                (identifier)))))))))
+
+==================
+shorthand comments and nested calls
+==================
+
+create(
+  name: /* same-named value */,
+  email: // same-named value
+  ,
+  value: wrap(inner:),
+)
+
+---
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (named_argument_shorthand
+          (identifier))
+        (block_comment)
+        (named_argument_shorthand
+          (identifier))
+        (line_comment)
+        (call_argument
+          (identifier)
+          (call_expression
+            (identifier)
+            (argument_list
+              (named_argument_shorthand
+                (identifier)))))))))
+
+==================
+decorator nested call accepts shorthand
+==================
+
+@cached(ttl: 60s, key: compute(name:))
+fn work(name: str) -> str { return name }
+
+---
+
+(source_file
+  (function_item
+    (decorator
+      (identifier)
+      (decorator_arguments
+        (call_argument
+          (identifier)
+          (duration_literal))
+        (call_argument
+          (identifier)
+          (call_expression
+            (identifier)
+            (argument_list
+              (named_argument_shorthand
+                (identifier)))))))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (return_statement
+        (identifier)))))
+
+==================
+types lambdas records and maps retain explicit values
+==================
+
+fn create(name: str) -> str { return name }
+let callback: fn(value: int) -> int = |value: int| value
+create(value: #{name: name}, callback: |name: str| name)
+create(value: User { name: name }, callback: (name))
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (return_statement
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (function_type
+      (function_type_parameter
+        (identifier)
+        (primitive_type))
+      (primitive_type))
+    (lambda_expression
+      (parameter
+        (identifier)
+        (primitive_type))
+      (identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)
+          (map_expression
+            (map_entry
+              (identifier)
+              (identifier))))
+        (call_argument
+          (identifier)
+          (lambda_expression
+            (parameter
+              (identifier)
+              (primitive_type))
+            (identifier))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)
+          (struct_expression
+            (identifier)
+            (struct_expression_body
+              (struct_expression_field
+                (identifier)
+                (identifier)))))
+        (call_argument
+          (identifier)
+          (parenthesized_expression
+            (identifier)))))))

@@ -1,0 +1,65 @@
+==================
+Nominal unit declaration and exact decimal spelling
+==================
+@unit("kg") newtype Mass(decimal)
+let parcel = 2.5kg
+---
+(source_file
+  (newtype_item (decorator (identifier) (decorator_arguments (call_argument (string_literal (string_content))))) (identifier) (primitive_type))
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix))))
+
+==================
+Separated and scientific unit literals
+==================
+let parcel = 1_250.75e-2kg
+let count = 0x7fqty
+---
+(source_file
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (unit_literal (numeric_base_prefix) (unit_magnitude) (unit_suffix))))
+
+==================
+Longer unit suffixes preserve built-in numeric suffixes
+==================
+let custom = 2u64bytes
+let typed = 2u64
+let plain = 2e3
+---
+(source_file
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (integer_literal (numeric_type_suffix)))
+  (let_declaration (identifier) (float_literal)))
+
+==================
+Legacy numeric separators belong to the magnitude
+==================
+let decimal = 2__kg
+let count = 0XFF__qty
+let scientific = 2e3__kg
+let builtin = 2_d
+---
+(source_file
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (unit_literal (numeric_base_prefix) (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (decimal_literal)))
+
+==================
+Whole user suffixes retain longer spellings than decimal and bigint builtins
+==================
+let first = 2day
+let second = 12ncount
+let third = 3bdays
+let fourth = 2mins
+let decimal = 2d
+let bigint = 2n
+let duration = 2min
+---
+(source_file
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (unit_literal (unit_magnitude) (unit_suffix)))
+  (let_declaration (identifier) (decimal_literal))
+  (let_declaration (identifier) (bigint_literal))
+  (let_declaration (identifier) (duration_literal)))

@@ -1,0 +1,48 @@
+==================
+Explicit map with nested map and array types
+==================
+
+type Lookup = #{str: [#{int: str}]}
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (map_type
+      (primitive_type)
+      (array_type (map_type (primitive_type) (primitive_type))))))
+
+==================
+Record labels retain primitive uppercase and contextual spellings
+==================
+
+type Row = { str: int, User: str, type: bool, true: int }
+type Empty = {}
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (record_type
+      name: (identifier) type: (primitive_type)
+      name: (identifier) type: (primitive_type)
+      name: (identifier) type: (primitive_type)
+      name: (identifier) type: (primitive_type)))
+  (type_alias name: (identifier) type: (record_type)))
+
+==================
+Grouped union map slots
+==================
+
+type Mixed = #{(int | str): (bool | str)?}
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (map_type
+      (parenthesized_type (union_type (primitive_type) (primitive_type)))
+      (optional_type (parenthesized_type (union_type (primitive_type) (primitive_type)))))))

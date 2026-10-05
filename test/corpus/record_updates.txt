@@ -1,0 +1,35 @@
+==================
+Nested immutable update
+==================
+let next = user with { address.city: "Recife", name: "Ana" }
+---
+(source_file
+  (let_declaration (identifier)
+    (record_update_expression (identifier)
+      (record_update_body
+        (record_update_field (record_update_path (identifier) (identifier)) (string_literal (string_content)))
+        (record_update_field (record_update_path (identifier)) (string_literal (string_content)))))))
+
+==================
+Left associative updates and empty copy
+==================
+let next = user with { count: 1 } with {}
+---
+(source_file
+  (let_declaration (identifier)
+    (record_update_expression
+      (record_update_expression (identifier)
+        (record_update_body
+          (record_update_field (record_update_path (identifier)) (integer_literal))))
+      (record_update_body))))
+
+==================
+Handle separator retains empty handler
+==================
+let next = handle read() with {}
+---
+(source_file
+  (let_declaration (identifier)
+    (handle_expression
+      (call_expression (identifier) (argument_list))
+      (handle_block))))

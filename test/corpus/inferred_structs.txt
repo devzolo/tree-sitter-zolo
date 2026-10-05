@@ -1,0 +1,27 @@
+==================
+Contextual construction, pun, spread and nesting
+==================
+let p = .{ x: 1, y, child: .{}, ..rest }
+---
+(source_file
+  (let_declaration (identifier)
+    (inferred_struct_expression
+      (struct_expression_body
+        (struct_expression_field (identifier) (integer_literal))
+        (struct_expression_field (identifier))
+        (struct_expression_field (identifier) (inferred_struct_expression (struct_expression_body)))
+        (struct_expression_field (identifier))))))
+
+==================
+Contextual literal in call argument
+==================
+draw(.{ x: 2 })
+---
+(source_file
+  (expression_statement
+    (call_expression (identifier)
+      (argument_list
+        (call_argument
+          (inferred_struct_expression
+            (struct_expression_body
+              (struct_expression_field (identifier) (integer_literal)))))))))

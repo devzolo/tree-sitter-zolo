@@ -223,7 +223,7 @@ let after = 42
 ==================
 Typed foreign maps keep opaque bodies
 ==================
-extern rust fn rows(values: {str: [int]}) -> {str: [int]} { values }
+extern rust fn rows(values: #{str: [int]}) -> #{str: [int]} { values }
 ---
 
 (source_file (extern_declaration (identifier) (extern_function (identifier) (parameter_list (parameter (identifier) (map_type (primitive_type) (array_type (primitive_type))))) (map_type (primitive_type) (array_type (primitive_type))) (extern_body (foreign_content)))))

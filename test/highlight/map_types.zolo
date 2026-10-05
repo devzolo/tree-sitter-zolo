@@ -1,0 +1,9 @@
+type Lookup = #{str: [#{int: str}]}
+//              ^^^ type.builtin
+type Row = { str: int, User: str, type: bool }
+//           ^^^ property
+//                     ^^^^ property
+//                                ^^^^ property
+let values: #{str: int} = #{ str: 2 }
+//            ^^^ type.builtin
+//                           ^^^ property

@@ -1,0 +1,50 @@
+==================
+Several named callback thunks
+==================
+dialog() content { 1 } confirm { true }
+---
+(source_file
+  (expression_statement
+    (call_expression (identifier) (argument_list)
+      (named_trailing_lambda (identifier)
+        (trailing_callback_body (expression_statement (integer_literal))))
+      (named_trailing_lambda (identifier)
+        (trailing_callback_body (expression_statement (bool_literal)))))))
+
+==================
+Method callback parameter header
+==================
+jobs.run(3) next { |value| value }
+---
+(source_file
+  (expression_statement
+    (method_call_expression (identifier) (identifier)
+      (argument_list (call_argument (integer_literal)))
+      (named_trailing_lambda (identifier)
+        (trailing_callback_body
+          (parameter (identifier))
+          (expression_statement (identifier)))))))
+
+==================
+Next-line nominal literal does not attach
+==================
+work()
+Point { x: 1 }
+---
+(source_file
+  (expression_statement (call_expression (identifier) (argument_list)))
+  (expression_statement
+    (struct_expression (identifier)
+      (struct_expression_body (struct_expression_field (identifier) (integer_literal))))))
+
+==================
+With remains an immutable update
+==================
+let next = current() with { enabled: true }
+---
+(source_file
+  (let_declaration (identifier)
+    (record_update_expression
+      (call_expression (identifier) (argument_list))
+      (record_update_body
+        (record_update_field (record_update_path (identifier)) (bool_literal))))))

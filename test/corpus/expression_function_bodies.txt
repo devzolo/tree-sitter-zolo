@@ -1,0 +1,28 @@
+==================
+Expression body and declaration separator
+==================
+fn double(x: int) -> int = x * 2;
+fn one() = 1
+---
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list (parameter (identifier) (primitive_type)))
+    (primitive_type)
+    (function_expression_body
+      (binary_expression (identifier) (integer_literal))))
+  (function_item (identifier) (parameter_list)
+    (function_expression_body (integer_literal))))
+
+==================
+Trait method expression body
+==================
+trait Ready { fn ready(self) -> bool = true }
+---
+(source_file
+  (trait_item (identifier)
+    (trait_body
+      (trait_method (identifier)
+        (parameter_list (self_parameter))
+        (primitive_type)
+        (function_expression_body (bool_literal))))))

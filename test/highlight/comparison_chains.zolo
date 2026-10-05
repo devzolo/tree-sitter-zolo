@@ -1,0 +1,6 @@
+let valid = 0 <= age < 150
+//            ^ operator
+//                   ^ operator
+let descending = upper > value >= lower
+//                     ^ operator
+//                             ^ operator
