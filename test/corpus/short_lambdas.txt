@@ -211,3 +211,44 @@ let x = obj._.field
         (identifier)
         (identifier))
       (identifier))))
+
+==================
+unary scalar and identity short lambdas with nested value calls
+==================
+
+numbers.map(_ * 2)
+numbers.map(_)
+users.map(format_name(_.name))
+
+---
+
+(source_file
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (binary_expression
+            (identifier)
+            (integer_literal))))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (field_expression
+                  (identifier)
+                  (identifier))))))))))

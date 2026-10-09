@@ -1,0 +1,38 @@
+==================
+Required names retain real slots and public labels
+==================
+fn move(delta: int, *, from source: int, to target: int = 1) -> int = target - source
+---
+(source_file
+  (function_item (identifier)
+    (parameter_list
+      (parameter (identifier) (primitive_type))
+      (required_named_marker)
+      (external_parameter (identifier) (identifier) (primitive_type))
+      (external_parameter (identifier) (identifier) (primitive_type) (integer_literal)))
+    (primitive_type)
+    (function_expression_body (binary_expression (identifier) (identifier)))))
+
+==================
+Required labels in callback types
+==================
+type Visit = fn(int, *, item: int) -> str
+---
+(source_file
+  (type_alias (identifier)
+    (function_type (primitive_type) (required_named_marker)
+      (function_type_parameter (identifier) (primitive_type))
+      (primitive_type))))
+
+==================
+Required trait method labels
+==================
+trait Travel { fn travel(self, *, from source: int) -> int }
+---
+(source_file
+  (trait_item (identifier)
+    (trait_body
+      (trait_method (identifier)
+        (parameter_list (self_parameter) (required_named_marker)
+          (external_parameter (identifier) (identifier) (primitive_type)))
+        (primitive_type)))))

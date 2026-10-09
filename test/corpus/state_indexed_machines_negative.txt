@@ -1,0 +1,31 @@
+==================
+An index marker requires a name
+:error
+==================
+fn bad(value: Order<.>) {}
+---
+(ERROR)
+
+==================
+An index marker has no runtime argument list
+:error
+==================
+fn bad(value: Order<.Paid(1)>) {}
+---
+(ERROR)
+
+==================
+A state marker is not an ordinary type outside its generic owner
+:error
+==================
+fn bad(value: .Paid) {}
+---
+(ERROR)
+
+==================
+Qualified state references are not marker names
+:error
+==================
+fn bad(value: Order<.states::Paid>) {}
+---
+(ERROR)

@@ -1,0 +1,22 @@
+    let response = (await fetch(url) within 2s)?
+//                  ^^^^^ keyword.coroutine
+//                        ^^^^^ function.call
+//                              ^^^ variable
+//                                   ^^^^^^ keyword.operator
+//                                          ^^ number
+    let computed = await future within (configured_duration(within))
+//                 ^^^^^ keyword.coroutine
+//                       ^^^^^^ variable
+//                              ^^^^^^ keyword.operator
+//                                      ^^^^^^^^^^^^^^^^^^^ function.call
+//                                                          ^^^^^^ variable
+    let within = 7
+//      ^^^^^^ variable
+    let close = a ~= within within 0.01
+//                   ^^^^^^ variable
+//                          ^^^^^^ keyword.operator
+    with await environment within 2s { read() }
+//  ^^^^ keyword
+//       ^^^^^ keyword.coroutine
+//                         ^^^^^^ keyword.operator
+//                                     ^^^^ function.call

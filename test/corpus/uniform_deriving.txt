@@ -1,0 +1,76 @@
+==================
+Ordinary struct suffix retains request identifier nodes
+==================
+struct User { id: int, name: str } deriving Eq, Hash
+---
+(source_file
+  (struct_item (identifier)
+    (field_declaration_list
+      (field_declaration (identifier) (primitive_type))
+      (field_declaration (identifier) (primitive_type)))
+    (deriving_clause (identifier) (identifier))))
+
+==================
+Enum backing type and discriminants remain outside the suffix
+==================
+enum State: u8 { Ready = 1, Busy = 2 } deriving Debug, Clone
+---
+(source_file
+  (enum_item (identifier) (primitive_type)
+    (enum_variant_list
+      (enum_variant (identifier) (integer_literal))
+      (enum_variant (identifier) (integer_literal)))
+    (deriving_clause (identifier) (identifier))))
+
+==================
+Compact struct where bounds precede fields and methods precede deriving
+==================
+struct Box<T> where T: traits::Clone (value: T) {
+  fn marker() -> int { 7 }
+} deriving customDeriver
+---
+(source_file
+  (struct_item (identifier)
+    (type_parameters (type_parameter (identifier)))
+    (where_clause (where_predicate (type_path (identifier)) (type_path (identifier) (identifier))))
+    (compact_field_list (field_declaration (identifier) (type_path (identifier))))
+    (declaration_body
+      (function_item (identifier) (parameter_list) (primitive_type)
+        (block (expression_statement (integer_literal)))))
+    (deriving_clause (identifier))))
+
+==================
+Compact enum methods belong to the complete declaration before deriving
+==================
+enum Choice<T>(Value(T), Empty) {
+  fn marker() -> int { 7 }
+} deriving customDeriver
+---
+(source_file
+  (enum_item (identifier)
+    (type_parameters (type_parameter (identifier)))
+    (enum_compact_list
+      (enum_variant (identifier) (enum_variant_tuple (type_path (identifier))))
+      (enum_variant (identifier)))
+    (declaration_body
+      (function_item (identifier) (parameter_list) (primitive_type)
+        (block (expression_statement (integer_literal)))))
+    (deriving_clause (identifier))))
+
+==================
+Bodyless struct remains bodyless while its suffix is authored
+==================
+pub struct Opaque deriving Debug
+---
+(source_file
+  (struct_item (identifier) (deriving_clause (identifier))))
+
+==================
+Legacy newtype deriving node and predicate order remain compatible
+==================
+newtype Id(int) deriving Eq, customDeriver where valid_id
+---
+(source_file
+  (newtype_item (identifier) (primitive_type)
+    (newtype_deriving_clause (identifier) (identifier))
+    (newtype_validation (identifier))))

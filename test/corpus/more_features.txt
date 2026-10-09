@@ -6,7 +6,6 @@ fn t() {
   let a = #{}
   let b = #{title: "x", width: 800}
   let c = #{source}
-  let d = #{...base, extra: 1}
 }
 
 ---
@@ -16,33 +15,24 @@ fn t() {
     (identifier)
     (parameter_list)
     (block
-      (let_declaration
-        (identifier)
-        (map_expression))
-      (let_declaration
-        (identifier)
+      (let_declaration (identifier) (map_expression))
+      (let_declaration (identifier)
         (map_expression
-          (map_entry
-            (identifier)
-            (string_literal
-              (string_content)))
-          (map_entry
-            (identifier)
-            (integer_literal))))
-      (let_declaration
-        (identifier)
-        (map_expression
-          (map_entry
-            (identifier))))
-      (let_declaration
-        (identifier)
-        (map_expression
-          (map_entry
-            (spread_expression
-              (identifier)))
-          (map_entry
-            (identifier)
-            (integer_literal)))))))
+          (map_entry (identifier) (string_literal (string_content)))
+          (map_entry (identifier) (integer_literal))))
+      (let_declaration (identifier)
+        (map_expression (map_entry (identifier)))))))
+
+==================
+Map literal rejects general spread
+:error
+==================
+
+let bad = #{...base, extra: 1}
+
+---
+
+(ERROR)
 
 ==================
 map literal numeric keys

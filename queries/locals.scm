@@ -18,6 +18,7 @@
 (try_catch_expression) @local.scope
 (impl_item) @local.scope
 (struct_item) @local.scope
+(schema_item) @local.scope
 (enum_item) @local.scope
 (trait_item) @local.scope
 
@@ -78,6 +79,9 @@
 (struct_item
   name: (identifier) @local.definition.type)
 
+(schema_item
+  name: (identifier) @local.definition.type)
+
 (enum_item
   name: (identifier) @local.definition.type)
 
@@ -112,3 +116,17 @@
 
 ; Ordinary callback bodies own their parameters and braces.
 (trailing_callback_body) @local.scope
+
+; Typed handler override source scopes.
+(handler_override_arm) @local.scope
+(handler_override_parameter name: (identifier) @local.definition.parameter)
+(handler_override_parameter pattern: (tuple_pattern (identifier_pattern (identifier) @local.definition.parameter)))
+(handler_override_parameter pattern: (array_pattern (identifier_pattern (identifier) @local.definition.parameter)))
+(handler_override_parameter pattern: (array_pattern rest: (identifier) @local.definition.parameter))
+(handler_override_parameter pattern: (struct_pattern (field_pattern name: (identifier) @local.definition.parameter !pattern)))
+(handler_override_parameter pattern: (anon_struct_pattern (field_pattern name: (identifier) @local.definition.parameter !pattern)))
+(handler_override_parameter pattern: (struct_pattern (field_pattern pattern: (identifier_pattern (identifier) @local.definition.parameter))))
+(handler_override_parameter pattern: (anon_struct_pattern (field_pattern pattern: (identifier_pattern (identifier) @local.definition.parameter))))
+
+; Authored titled tests own a source lexical scope without a synthetic name.
+(titled_test_declaration) @local.scope

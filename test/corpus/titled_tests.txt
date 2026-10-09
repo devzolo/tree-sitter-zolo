@@ -1,0 +1,95 @@
+==================
+Regular Unicode title retains ordinary body calls and argument wrappers
+==================
+test "ação 😀" { assert_eq(1, 1) }
+---
+(source_file
+  (titled_test_declaration
+    (string_literal (string_content))
+    (block
+      (expression_statement
+        (call_expression (identifier)
+          (argument_list (call_argument (integer_literal)) (call_argument (integer_literal))))))))
+
+==================
+Keyword title and body may occupy separate lines
+==================
+test
+"future title"
+{
+  1
+}
+---
+(source_file
+  (titled_test_declaration
+    (string_literal (string_content))
+    (block (expression_statement (integer_literal)))))
+
+==================
+Raw title delimiters beyond the old general literal limit
+==================
+test r####"raw {title}"#### { 1 }
+---
+(source_file
+  (titled_test_declaration
+    (raw_string_literal)
+    (block (expression_statement (integer_literal)))))
+
+==================
+Inline and single-content-line block triples are static titles
+==================
+test """inline title""" { 1 }
+test """
+  block title
+  """
+{ 2 }
+test r####"""
+  raw {title}
+  """####
+{ 3 }
+---
+(source_file
+  (titled_test_declaration
+    (triple_string_literal (triple_string_content))
+    (block (expression_statement (integer_literal))))
+  (titled_test_declaration
+    (triple_string_literal (triple_string_content))
+    (block (expression_statement (integer_literal))))
+  (titled_test_declaration
+    (raw_triple_string_literal)
+    (block (expression_statement (integer_literal)))))
+
+==================
+An inline module owns the titled item without an authored callable name
+==================
+mod suite {
+  test "same title" { 1 }
+  test "same title" { 2 }
+}
+---
+(source_file
+  (mod_declaration (mod_path (identifier))
+    (mod_body
+      (titled_test_declaration
+        (string_literal (string_content))
+        (block (expression_statement (integer_literal))))
+      (titled_test_declaration
+        (string_literal (string_content))
+        (block (expression_statement (integer_literal)))))))
+
+==================
+Ordinary calls binders decorated functions and tagged strings keep their syntax
+==================
+let test = 1
+test(test)
+test"tagged"
+@test fn legacy() { 2 }
+---
+(source_file
+  (let_declaration (identifier) (integer_literal))
+  (expression_statement
+    (call_expression (identifier) (argument_list (call_argument (identifier)))))
+  (expression_statement
+    (tagged_string_literal (identifier) (string_content)))
+  (function_item (decorator (identifier)) (identifier) (parameter_list)
+    (block (expression_statement (integer_literal)))))

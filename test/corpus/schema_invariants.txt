@@ -1,0 +1,20 @@
+==================
+schema suffix holds multiple whole-value predicates before next declaration
+==================
+
+schema Booking { start: int, end: int }
+where |booking| true
+where ordered
+let next = 9
+
+---
+
+(source_file
+  (schema_item (identifier)
+    (field_declaration_list
+      (field_declaration (identifier) (primitive_type))
+      (field_declaration (identifier) (primitive_type)))
+    (schema_invariant_clause
+      (lambda_expression (parameter (identifier)) (bool_literal)))
+    (schema_invariant_clause (identifier)))
+  (let_declaration (identifier) (integer_literal)))

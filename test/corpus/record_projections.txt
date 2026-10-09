@@ -1,0 +1,27 @@
+==================
+postfix projection has ordered contextual property names
+==================
+
+let selected = get_user().{ id, name, type, }
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (record_projection_expression
+      (call_expression (identifier) (argument_list))
+      (record_projection_body (property_identifier (identifier)) (property_identifier (identifier)) (property_identifier (identifier))))))
+
+==================
+empty and repeated postfix projections preserve construction distinction
+==================
+
+let selected = user.{}.{}
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (record_projection_expression
+      (record_projection_expression (identifier) (record_projection_body))
+      (record_projection_body))))

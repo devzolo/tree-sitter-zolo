@@ -1,0 +1,90 @@
+==================
+Grouped deadline outcome owns the outer question
+==================
+let response = (await fetch(url) within 2s)?
+---
+(source_file
+  (let_declaration (identifier)
+    (try_expression
+      (parenthesized_expression
+        (await_deadline_expression
+          (call_expression (identifier) (argument_list (call_argument (identifier))))
+          (duration_literal))))))
+
+==================
+Computed duration retains explicit grouping and ordinary call arguments
+==================
+let response = await future within (configured_duration(within))
+---
+(source_file
+  (let_declaration (identifier)
+    (await_deadline_expression (identifier)
+      (parenthesized_expression
+        (call_expression (identifier) (argument_list (call_argument (identifier))))))))
+
+==================
+Plain await uses parser prefix precedence and approximate tolerance stays contextual
+==================
+let within = 7
+let sum = await future + 1
+let close = a ~= within within 0.01
+---
+(source_file
+  (let_declaration (identifier) (integer_literal))
+  (let_declaration (identifier)
+    (binary_expression (await_expression (identifier)) (integer_literal)))
+  (let_declaration (identifier)
+    (approx_expression (identifier) (identifier) (float_literal))))
+
+==================
+Lexical handler header mirror retains the deadline before its body
+==================
+with await environment within 2s { read() }
+---
+(source_file
+  (expression_statement
+    (lexical_handle_expression
+      (await_deadline_expression (identifier) (duration_literal))
+      (block (expression_statement
+        (call_expression (identifier) (argument_list)))))))
+
+==================
+Await and duration postfixes retain their authored grouped children
+==================
+let response = (await future? within (configured_duration()?))?
+---
+(source_file
+  (let_declaration (identifier)
+    (try_expression
+      (parenthesized_expression
+        (await_deadline_expression
+          (try_expression (identifier))
+          (parenthesized_expression
+            (try_expression
+              (call_expression (identifier) (argument_list)))))))))
+
+==================
+Braced interval retains its caller exit
+==================
+let result = await work() within { return 9; interval() }
+---
+(source_file
+  (let_declaration (identifier)
+    (await_deadline_expression
+      (call_expression (identifier) (argument_list))
+      (block_expression (block
+        (return_statement (integer_literal))
+        (expression_statement (call_expression (identifier) (argument_list))))))))
+
+==================
+Nested callback named within is retained in the operand
+==================
+let result = await outer(inner() within { 1 }) within 1s
+---
+(source_file
+  (let_declaration (identifier)
+    (await_deadline_expression
+      (call_expression (identifier) (argument_list (call_argument
+        (call_expression (identifier) (argument_list)
+          (named_trailing_lambda (identifier) (trailing_callback_body (expression_statement (integer_literal))))))))
+      (duration_literal))))

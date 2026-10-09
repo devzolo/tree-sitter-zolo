@@ -63,11 +63,9 @@ fn work() {}
 (source_file
   (function_item
     (decorator
-      (identifier)
-      (decorator_arguments
-        (call_argument
-          (identifier))
-        (ERROR)))
+      (identifier))
+    (ERROR
+      (identifier))
     (identifier)
     (parameter_list)
     (block)))
@@ -117,13 +115,11 @@ create(sink name:)
 
 (source_file
   (expression_statement
-    (call_expression
-      (identifier)
-      (argument_list
-        (call_argument
-          (convention)
-          (identifier))
-        (ERROR)))))
+    (identifier))
+  (ERROR
+    (call_argument
+      (convention)
+      (identifier))))
 
 ==================
 method qualified optional pipe and enum shorthand calls

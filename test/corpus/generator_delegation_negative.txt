@@ -1,0 +1,79 @@
+==================
+Reject standalone binding
+:error
+==================
+let result = ...values
+---
+(ERROR)
+
+==================
+Reject binary operand
+:error
+==================
+let result = 1 + ...values
+---
+(ERROR)
+
+==================
+Reject grouped delegation
+:error
+==================
+fn* parent() { yield (...values) }
+---
+(ERROR)
+
+==================
+Reject named argument
+:error
+==================
+fn* parent() { yield take(value: ...values) }
+---
+(ERROR)
+
+==================
+Reject map entry
+:error
+==================
+fn* parent() { yield #{ ...values } }
+---
+(ERROR)
+
+==================
+Reject effect argument
+:error
+==================
+fn* parent() { yield perform IO::write(...values) }
+---
+(ERROR)
+
+==================
+Reject empty delegation
+:error
+==================
+fn* parent() { yield ... }
+---
+(ERROR)
+
+==================
+Reject double delegation spread
+:error
+==================
+fn* parent() { yield ... ...values }
+---
+(ERROR)
+
+==================
+Reject header general prefix
+:error
+==================
+every ...values { print(1) }
+---
+(ERROR)
+
+==================
+Reject nested grouped argument
+:error
+==================
+fn* parent() { yield take((...values)) }
+---
+(ERROR)

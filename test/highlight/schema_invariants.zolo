@@ -1,0 +1,10 @@
+schema Booking { start: int, end: int }
+//     ^^^^^^^ type
+where |booking| booking.start < booking.end
+// <- keyword
+//     ^^^^^^^ variable.parameter
+//                      ^^^^^ property
+where ordered
+// <- keyword
+let where = 1
+//  ^^^^^ variable

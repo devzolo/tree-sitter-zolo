@@ -1,0 +1,26 @@
+let patched = world with {
+//                  ^^^^ keyword
+    Clock::now() => 7,
+//  ^^^^^ type
+//         ^^^ function.method
+    store::Store::put(
+//  ^^^^^ namespace
+//         ^^^^^ type
+//                ^^^ function.method
+        value: int,
+//      ^^^^^ variable.parameter
+//             ^^^ type.builtin
+    ) => value,
+}
+let after = 1
+//  ^^^^^ variable
+let shaped = world with {
+    Gfx::draw(Point { x, label: name }, (first, second)) => x,
+//  ^^^ type
+//       ^^^^ function.method
+//            ^^^^^ type
+//                    ^ variable.parameter
+//                              ^^^^ variable.parameter
+//                                       ^^^^^ variable.parameter
+//                                              ^^^^^^ variable.parameter
+}

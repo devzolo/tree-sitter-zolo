@@ -1,0 +1,22 @@
+    fn* parent() { yield ... child(value) }
+//                 ^^^^^ keyword.coroutine
+//                       ^^^ operator
+//                           ^^^^^ function.call
+//                                 ^^^^^ variable
+    fn* scalar() { yield [...values]; yield snapshot(...values) }
+//                 ^^^^^ keyword.coroutine
+//                        ^^^ operator
+//                           ^^^^^^ variable
+//                                          ^^^^^^^^ function.call
+//                                                   ^^^ operator
+    fn* full() { yield ... first ?? fallback() }
+//               ^^^^^ keyword.coroutine
+//                     ^^^ operator
+//                         ^^^^^ variable
+//                               ^^ operator
+//                                  ^^^^^^^^ function.call
+    fn* comments() { yield /* cursor */ ... child() }
+//                   ^^^^^ keyword.coroutine
+//                         ^^^^^^^^^^^^ comment
+//                                      ^^^ operator
+//                                          ^^^^^ function.call

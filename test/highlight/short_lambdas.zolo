@@ -23,3 +23,18 @@ match value { _ => 0 }
 
 items.map(_value.price)
 //        ^ variable
+
+numbers.map(_ * 2)
+//          ^ variable.parameter
+
+numbers.map(_)
+//          ^ variable.parameter
+
+numbers.map((_ + _) * 2)
+//           ^ variable.parameter
+//               ^ variable.parameter
+
+users.map(format_name(_.name))
+//        ^ function.call
+//                    ^ variable.parameter
+//                      ^ property

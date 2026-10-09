@@ -1,0 +1,43 @@
+==================
+Computed map keys in a comprehension
+==================
+let names = #{ for user in users => [user.id]: user.name }
+---
+(source_file
+  (let_declaration (identifier)
+    (map_expression
+      (map_for_entry (identifier) (identifier)
+        (map_builder_pair
+          (map_computed_key (field_expression (identifier) (identifier)))
+          (field_expression (identifier) (identifier)))))))
+
+==================
+Nested map loops with a conditional emission and ordinary keyword keys
+==================
+let values = #{ for row in rows => for cell in row => if cell.active => [cell.id]: cell.value, for: 1 }
+---
+(source_file
+  (let_declaration (identifier)
+    (map_expression
+      (map_for_entry (identifier) (identifier)
+        (map_for_entry (identifier) (identifier)
+          (map_if_entry
+            (field_expression (identifier) (identifier))
+            (map_builder_pair
+              (map_computed_key (field_expression (identifier) (identifier)))
+              (field_expression (identifier) (identifier))))))
+      (map_entry (identifier) (integer_literal)))))
+
+==================
+Map entries may omit commas at authored entry boundaries
+==================
+let values = #{ for value in [1] => ["one"]: value "two": 2 }
+---
+(source_file
+  (let_declaration (identifier)
+    (map_expression
+      (map_for_entry (identifier) (array_expression (integer_literal))
+        (map_builder_pair
+          (map_computed_key (string_literal (string_content)))
+          (identifier)))
+      (map_entry (string_literal (string_content)) (integer_literal)))))

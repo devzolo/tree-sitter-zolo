@@ -1,0 +1,40 @@
+==================
+capture patterns are first class expression values
+==================
+
+let route = pat"users/{id: int}/{ready: bool}"
+let empty = pat""
+let parsed = route.parse("users/7/true")
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (capture_pattern_literal (pattern_string_content)
+      (capture_pattern_slot (property_identifier) (primitive_type))
+      (pattern_string_content)
+      (capture_pattern_slot (property_identifier) (primitive_type))))
+  (let_declaration (identifier) (capture_pattern_literal))
+  (let_declaration (identifier)
+    (method_call_expression (identifier) (identifier)
+      (argument_list (call_argument (string_literal (string_content)))))))
+
+==================
+capture values preserve brace escapes and old scoped match patterns
+==================
+
+let route = pat"{{literal}}/{id: int}"
+match text { pat"x/{n: int}" => n, _ => 0 }
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (capture_pattern_literal (pattern_brace_escape) (pattern_string_content)
+      (pattern_brace_escape) (pattern_string_content)
+      (capture_pattern_slot (property_identifier) (primitive_type))))
+  (expression_statement
+    (match_expression (identifier)
+      (match_arm (string_capture_pattern (pattern_string_content)
+        (string_pattern_capture (identifier) (primitive_type))) (identifier))
+      (match_arm (wildcard_pattern) (integer_literal)))))

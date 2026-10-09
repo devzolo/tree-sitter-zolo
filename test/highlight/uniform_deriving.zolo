@@ -1,0 +1,32 @@
+    struct User { deriving: int } deriving Eq, customDeriver
+//  ^^^^^^ keyword.type
+//         ^^^^ type
+//                ^^^^^^^^ property
+//                                ^^^^^^^^ keyword
+//                                         ^^ type
+//                                             ^^^^^^^^^^^^^ type
+    enum State: u8 { Ready = 1 } deriving Debug
+//  ^^^^ keyword.type
+//              ^^ type.builtin
+//                   ^^^^^ constructor
+//                               ^^^^^^^^ keyword
+//                                        ^^^^^ type
+    struct Box<T> where T: traits::Clone (value: T) { fn marker() -> int { 7 } } deriving customDeriver
+//                         ^^^^^^ namespace
+//                                 ^^^^^ type
+//                                                       ^^^^^^ function
+//                                                                               ^^^^^^^^ keyword
+//                                                                                        ^^^^^^^^^^^^^ type
+    pub struct Opaque deriving Debug
+//             ^^^^^^ type
+//                    ^^^^^^^^ keyword
+//                             ^^^^^ type
+    newtype Id(int) deriving Eq where valid_id
+//                  ^^^^^^^^ keyword
+//                           ^^ type
+//                                    ^^^^^^^^ variable
+    let deriving = 3
+//      ^^^^^^^^ variable
+    let result = deriving(value)
+//               ^^^^^^^^ function.call
+//                        ^^^^^ variable

@@ -1,0 +1,23 @@
+@unit("km", of: units::meters, scale: 1000d) newtype Kilometers(decimal)
+//          ^^ variable.parameter
+//              ^^^^^ namespace
+//                     ^^^^^^ type
+//                             ^^^^^ variable.parameter
+@unit("kph", dimension: Kilometers / Hours) newtype Kph(decimal)
+//           ^^^^^^^^^ variable.parameter
+//                      ^^^^^^^^^^ type
+//                                   ^^^^^ type
+let speed = 80km / 2h
+//            ^^ type
+//                 ^^ number
+let micro = 500µs
+//          ^^^^^ number
+let precise = 1.000000000000000001ns
+//            ^^^^^^^^^^^^^^^^^^^^^^ number
+let named = 2km as Meters
+//                 ^^^^^^ type
+@other(of: ordinary) newtype Other(decimal)
+//     ^^ variable.parameter
+//         ^^^^^^^^ variable
+let after_value = 1
+//  ^^^^^^^^^^^ variable

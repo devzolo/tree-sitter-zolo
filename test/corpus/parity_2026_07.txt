@@ -112,10 +112,10 @@ let two = comptime 1 + 1
               (identifier)))))))
   (let_declaration
     (identifier)
-    (comptime_expression
-      (binary_expression
-        (integer_literal)
-        (integer_literal)))))
+    (binary_expression
+      (comptime_expression
+        (integer_literal))
+      (integer_literal))))
 
 ================================================================================
 Struct field type inference

@@ -1,0 +1,106 @@
+==================
+Typed handler override uses a nonempty qualified selector body
+==================
+
+let patched = world with { Clock::now() => 7, store::Store::put(value: int) => value }
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (handler_override_expression (identifier)
+      (handler_override_body
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier)) (identifier))
+          (handler_override_parameter_list) (integer_literal))
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier) (identifier)) (identifier))
+          (handler_override_parameter_list (handler_override_parameter (identifier) (primitive_type))) (identifier))))))
+
+==================
+Empty and ordinary field updates retain their original record body
+==================
+
+let empty = row with {}
+let changed = row with { count: 1 }
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (record_update_expression (identifier) (record_update_body)))
+  (let_declaration (identifier)
+    (record_update_expression (identifier)
+      (record_update_body (record_update_field (record_update_path (identifier)) (integer_literal))))))
+
+==================
+Multiline operation formals and comma-free arms keep independent scopes
+==================
+
+let patched = world with {
+  store::Store::put(
+    value: int,
+  )
+  => value
+  Clock::now() => 7
+}
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (handler_override_expression (identifier)
+      (handler_override_body
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier) (identifier)) (identifier))
+          (handler_override_parameter_list (handler_override_parameter (identifier) (primitive_type))) (identifier))
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier)) (identifier))
+          (handler_override_parameter_list) (integer_literal))))))
+
+==================
+Destructured operation parameters retain actual pattern nodes
+==================
+
+let patched = world with {
+  Gfx::draw(Point { x, label: name }, (first, second)) => x
+}
+
+---
+
+(source_file
+  (let_declaration (identifier)
+    (handler_override_expression (identifier)
+      (handler_override_body
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier)) (identifier))
+          (handler_override_parameter_list
+            (handler_override_parameter
+              (struct_pattern (identifier) (field_pattern (identifier)) (field_pattern (identifier) (identifier_pattern (identifier)))))
+            (handler_override_parameter
+              (tuple_pattern (identifier_pattern (identifier)) (identifier_pattern (identifier)))))
+          (identifier))))))
+
+==================
+Override try bodies retain their catch and finally before the next arm
+==================
+let patched = world with {
+  Clock::now() => try { 1 } catch err { 2 } finally { 3 },
+  Clock::other() => 4
+}
+---
+(source_file
+  (let_declaration (identifier)
+    (handler_override_expression (identifier)
+      (handler_override_body
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier)) (identifier))
+          (handler_override_parameter_list)
+          (try_catch_expression
+            (block (expression_statement (integer_literal)))
+            (identifier)
+            (block (expression_statement (integer_literal)))
+            (block (expression_statement (integer_literal)))))
+        (handler_override_arm
+          (handler_override_selector (handler_override_effect (identifier)) (identifier))
+          (handler_override_parameter_list) (integer_literal))))))

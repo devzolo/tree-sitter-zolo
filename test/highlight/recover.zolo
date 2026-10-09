@@ -1,0 +1,11 @@
+let value = read() recover {
+//                 ^^^^^^^ @keyword.control
+  .Missing => 0,
+// ^^^^^^^ @constructor
+  error => return .Err(error),
+//         ^^^^^^ @keyword.control
+}
+let recover = 3
+//  ^^^^^^^ @variable
+obj.recover()
+//  ^^^^^^^ @function.method.call

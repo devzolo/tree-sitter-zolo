@@ -1,0 +1,138 @@
+==================
+Machine state markers belong to generic parameter and return type owners
+==================
+fn ship(sink order: shop::Order<.Paid>) -> shop::Order<.Shipped> {}
+---
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter (convention) (identifier)
+        (generic_type (type_path (identifier) (identifier)) (state_index_argument (identifier)))))
+    (generic_type (type_path (identifier) (identifier)) (state_index_argument (identifier)))
+    (block)))
+
+==================
+Nested result retains indexed success and exact failure record type syntax
+==================
+fn keep(value: Result<Order<.Paid>, { machine: Order<.Draft>, event: Order.Event }>) {}
+---
+(source_file
+  (function_item (identifier)
+    (parameter_list (parameter (identifier)
+      (generic_type (identifier)
+        (generic_type (identifier) (state_index_argument (identifier)))
+        (record_type
+          (identifier) (generic_type (identifier) (state_index_argument (identifier)))
+          (identifier) (type_path (identifier) (identifier))))))
+    (block)))
+
+==================
+Syntax category arguments remain separate from indexed state arguments
+==================
+fn expand(value: Syntax<.Items>, param: tools::Syntax<.Param>) {}
+---
+(source_file
+  (function_item (identifier)
+    (parameter_list
+      (parameter (identifier) (syntax_category_type (identifier) (syntax_category_argument (identifier))))
+      (parameter (identifier) (syntax_category_type (type_path (identifier) (identifier)) (syntax_category_argument (identifier)))))
+    (block)))
+
+==================
+Value enum shorthand is an expression and field access stays independent
+==================
+let paid = .Paid(20)
+let value = order.Paid
+---
+(source_file
+  (let_declaration (identifier)
+    (call_expression (enum_shorthand_expression (identifier)) (argument_list (call_argument (integer_literal)))))
+  (let_declaration (identifier) (field_expression (identifier) (identifier))))
+
+==================
+Indexed annotation allows trivia between owner and authored marker
+==================
+fn keep(value: Order<
+  /* state */ .Paid
+>) {}
+---
+(source_file
+  (function_item (identifier)
+    (parameter_list (parameter (identifier)
+      (generic_type (identifier) (block_comment) (state_index_argument (identifier)))))
+    (block)))
+
+==================
+Qualified cast and type-test owners retain indexed and Syntax arguments
+==================
+let indexed = value as shop::Order<.Paid>
+let tested = value is shop::Order<.Paid>
+let syntax = value is tools::Syntax<.Items>
+---
+(source_file
+  (let_declaration (identifier)
+    (cast_expression (identifier)
+      (generic_type (type_path (identifier) (identifier)) (state_index_argument (identifier)))))
+  (let_declaration (identifier)
+    (type_check_expression (identifier)
+      (generic_type (type_path (identifier) (identifier)) (state_index_argument (identifier)))))
+  (let_declaration (identifier)
+    (type_check_expression (identifier)
+      (syntax_category_type (type_path (identifier) (identifier)) (syntax_category_argument (identifier))))))
+
+==================
+Mixed qualified owners stay greedy until a grouped projection
+==================
+let indexed = value as app::shop.Order<.Paid>
+let syntax = value is tools::quote.Syntax<.Items>
+let projected = (value as app::shop.Order).name
+let direct = value as app::shop.Order .{ state }
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (cast_expression
+      (identifier)
+      (generic_type
+        (type_path
+          (identifier)
+          (identifier)
+          (identifier))
+        (state_index_argument
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (type_check_expression
+      (identifier)
+      (syntax_category_type
+        (type_path
+          (identifier)
+          (identifier)
+          (identifier))
+        (syntax_category_argument
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (field_expression
+      (parenthesized_expression
+        (cast_expression
+          (identifier)
+          (type_path
+            (identifier)
+            (identifier)
+            (identifier))))
+      (identifier)))
+  (let_declaration
+    (identifier)
+    (record_projection_expression
+      (cast_expression
+        (identifier)
+        (type_path
+          (identifier)
+          (identifier)
+          (identifier)))
+      (record_projection_body
+        (property_identifier
+          (identifier))))))

@@ -7,3 +7,9 @@ let next = user with {
 //^^^^ @property
 }
 print(next.name)
+
+let next = counter with { amount += 1, optional ??= 3 }
+//                        ^^^^^^ @property
+//                               ^^ @operator
+//                                     ^^^^^^^^ @property
+//                                              ^^^ @operator

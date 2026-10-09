@@ -1,0 +1,9 @@
+let names = #{ for user in users => [user.id]: user.name }
+//             ^ keyword.control
+//                 ^ variable
+//                               ^ operator
+//                                   ^ variable
+
+let fixed = #{for: 1, if: 2}
+//            ^ property
+//                    ^ property

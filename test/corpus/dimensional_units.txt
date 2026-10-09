@@ -1,0 +1,57 @@
+==================
+Dimensional unit decorators reuse ordinary named-expression arguments
+==================
+
+@unit("m", base: true) newtype Meters(decimal)
+@unit("km", of: units::Meters, scale: 1000d) newtype Kilometers(decimal)
+@unit("kph", dimension: Kilometers / Hours) newtype Kph(decimal)
+
+---
+
+(source_file
+  (newtype_item
+    (decorator (identifier) (decorator_arguments (call_argument (string_literal (string_content))) (call_argument (identifier) (bool_literal))))
+    (identifier) (primitive_type))
+  (newtype_item
+    (decorator (identifier) (decorator_arguments
+      (call_argument (string_literal (string_content)))
+      (call_argument (identifier) (path_expression (identifier) (identifier)))
+      (call_argument (identifier) (decimal_literal))))
+    (identifier) (primitive_type))
+  (newtype_item
+    (decorator (identifier) (decorator_arguments
+      (call_argument (string_literal (string_content)))
+      (call_argument (identifier) (binary_expression (identifier) (identifier)))))
+    (identifier) (primitive_type)))
+
+==================
+Authored precise durations and UTF8 micro-sign remain duration literals
+==================
+
+let nano = 1.000000000000000001ns
+let micro = 500µs
+let standalone = 2h
+
+---
+
+(source_file
+  (let_declaration (identifier) (duration_literal))
+  (let_declaration (identifier) (duration_literal))
+  (let_declaration (identifier) (duration_literal)))
+
+==================
+Dimensional operands and named casts retain ordinary expression nodes
+==================
+
+let speed = 80km / 2h
+let named = 2km as Meters
+let optional = 2h as? Hours
+let clock = 90_061_000 as h
+
+---
+
+(source_file
+  (let_declaration (identifier) (binary_expression (unit_literal (unit_magnitude) (unit_suffix)) (duration_literal)))
+  (let_declaration (identifier) (cast_expression (unit_literal (unit_magnitude) (unit_suffix)) (type_path (identifier))))
+  (let_declaration (identifier) (cast_expression (duration_literal) (type_path (identifier))))
+  (let_declaration (identifier) (cast_expression (integer_literal) (type_path (identifier)))))

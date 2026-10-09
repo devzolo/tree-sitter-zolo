@@ -33,3 +33,29 @@ let next = handle read() with {}
     (handle_expression
       (call_expression (identifier) (argument_list))
       (handle_block))))
+
+==================
+Computed immutable update and mixed separators
+==================
+let next = counter with { amount += 1, optional ??= 3, label: "ready" }
+---
+(source_file
+  (let_declaration (identifier)
+    (record_update_expression (identifier)
+      (record_update_body
+        (record_update_field (record_update_path (identifier)) (integer_literal))
+        (record_update_field (record_update_path (identifier)) (integer_literal))
+        (record_update_field (record_update_path (identifier)) (string_literal (string_content)))))))
+
+==================
+Computed nested path and integer division
+==================
+let next = counter with { nested.amount ~/= step(2) }
+---
+(source_file
+  (let_declaration (identifier)
+    (record_update_expression (identifier)
+      (record_update_body
+        (record_update_field
+          (record_update_path (identifier) (identifier))
+          (call_expression (identifier) (argument_list (call_argument (integer_literal)))))))))

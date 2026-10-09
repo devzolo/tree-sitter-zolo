@@ -1,0 +1,20 @@
+==================
+Postfix recovery evaluates a call and uses an error pattern
+==================
+let value = read() recover { .Missing => 0, _ => 1 }
+---
+(source_file
+  (let_declaration (identifier)
+    (recover_expression
+      (call_expression (identifier) (argument_list))
+      (recovery_arm (enum_pattern (identifier)) (integer_literal))
+      (recovery_arm (wildcard_pattern) (integer_literal)))))
+
+==================
+Recovery preserves ordinary callable names
+==================
+let value = recover(1)
+---
+(source_file
+  (let_declaration (identifier)
+    (call_expression (identifier) (argument_list (call_argument (integer_literal))))))

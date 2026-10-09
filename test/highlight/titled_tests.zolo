@@ -1,0 +1,39 @@
+test "plain title" { assert_eq(1, 1) }
+// <- keyword.function
+//    ^^^^^^^^^^^ string
+//                   ^^^^^^^^^ function.call
+//                             ^ number
+test "escaped \{title\}" { 2 }
+// <- keyword.function
+//            ^^ string.escape
+//              ^^^^^ string
+//                   ^^ string.escape
+test r####"raw {value}"#### { 3 }
+// <- keyword.function
+//         ^^^^^^^^^^^ string
+//                            ^ number
+test
+// <- keyword.function
+"next line title"
+// <- string
+{ print(4) }
+  // <- function.call
+//      ^ number
+let test = 5
+//  ^^^^ variable
+//         ^ number
+test(test)
+// <- function.call
+//   ^^^^ variable
+test"tagged"
+// <- function.macro
+//   ^^^^^^ string
+@test fn legacy() { 6 }
+// <- attribute
+//       ^^^^^^ function
+//                  ^ number
+// test "comment title" { }
+// ^^^^ comment
+let text = "test title"
+//  ^^^^ variable
+//          ^^^^^^^^^^ string

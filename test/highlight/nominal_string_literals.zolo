@@ -1,0 +1,4 @@
+let email = Email"ana@empresa.com"
+//          ^^^^^ function.macro
+let empty = Empty""
+//          ^^^^^ function.macro

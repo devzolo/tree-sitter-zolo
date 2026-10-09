@@ -28,7 +28,7 @@ if ok and type(parsers) == "table" and type(parsers.get_parser_configs) == "func
   parsers.get_parser_configs().zolo = {
     install_info = {
       url = grammar_dir,
-      files = { "src/parser.c" },
+      files = { "src/parser.c", "src/scanner.c" },
       branch = "main",
     },
     filetype = "zolo",

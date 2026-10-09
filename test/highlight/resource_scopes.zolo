@@ -1,0 +1,6 @@
+using file = open_file(path)? { read(file) }
+// <- @keyword
+//    ^ @variable
+//         ^ @operator
+//             ^ @function.call
+let after = 1

@@ -1,0 +1,6 @@
+for case .Some(value) in values { value }
+//  ^ keyword.control
+//        ^ constructor
+
+for case in values { case }
+//  ^ variable

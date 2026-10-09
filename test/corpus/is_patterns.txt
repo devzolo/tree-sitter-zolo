@@ -1,0 +1,98 @@
+==================
+is pattern binds an enum payload in a successful conjunction
+==================
+
+if shape is .Circle(radius) && radius > 0 { radius } else { 0 }
+
+---
+
+(source_file
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (is_pattern_expression
+          (identifier)
+          (enum_pattern (identifier) (identifier_pattern (identifier))))
+        (binary_expression (identifier) (integer_literal)))
+      (block (expression_statement (identifier)))
+      (block (expression_statement (integer_literal))))))
+
+==================
+unit variant leaves the following brace to the body
+==================
+
+if value is .None { 1 }
+
+---
+
+(source_file
+  (expression_statement
+    (if_expression
+      (is_pattern_expression (identifier) (enum_pattern (identifier)))
+      (block (expression_statement (integer_literal))))))
+
+==================
+guard retains whole value binding and ordinary nil pattern
+==================
+
+guard input is whole @ nil, ready else { return }
+
+---
+
+(source_file
+  (guard_statement
+    (condition_chain
+      (is_pattern_expression
+        (identifier)
+        (binding_pattern (identifier) (literal_pattern (nil_literal))))
+      (identifier))
+    (block (return_statement))))
+
+==================
+existing named and nil type tests retain their old nodes
+==================
+
+if value is User { 1 }
+if value is not nil { 2 }
+
+---
+
+(source_file
+  (expression_statement
+    (if_expression
+      (type_check_expression (identifier) (type_path (identifier)))
+      (block (expression_statement (integer_literal)))))
+  (expression_statement
+    (if_expression
+      (type_check_expression (identifier) (type_path (identifier)))
+      (block (expression_statement (integer_literal))))))
+
+==================
+standalone pattern test is an ordinary boolean expression
+==================
+
+shape is Shape::Circle(radius)
+
+---
+
+(source_file
+  (expression_statement
+    (is_pattern_expression
+      (identifier)
+      (enum_pattern (path_expression (identifier) (identifier))
+        (identifier_pattern (identifier))))))
+
+==================
+Qualified enum payload and qualified type tests retain distinct authored nodes
+==================
+shape is pkg::Shape::Circle(radius)
+value is pkg::Shape
+---
+(source_file
+  (expression_statement
+    (is_pattern_expression
+      (identifier)
+      (enum_pattern (path_expression (identifier) (identifier) (identifier))
+        (identifier_pattern (identifier)))))
+  (expression_statement
+    (type_check_expression (identifier) (type_path (identifier) (identifier)))))

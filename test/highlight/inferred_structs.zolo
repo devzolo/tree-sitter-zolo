@@ -2,3 +2,9 @@ let p = .{ x: 1, y, child: .{} }
 //         ^ property
 //               ^ variable
 //                  ^^^^^ property
+
+let summary = .{ count, total: 12, nested: .{ active: true } }
+//               ^^^^^ variable
+//                      ^^^^^ property
+//                                 ^^^^^^ property
+//                                            ^^^^^^ property

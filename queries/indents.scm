@@ -29,6 +29,7 @@
   (map_expression)
   (tuple_expression)
   (struct_expression_body)
+  (record_projection_body)
   (match_expression)
   (tuple_pattern)
   (array_pattern)
@@ -62,3 +63,7 @@
 
 ; Ordinary callback bodies own their parameters and braces.
 (trailing_callback_body) @indent.begin
+
+; Typed handler override source scopes.
+(handler_override_body) @indent.begin
+(handler_override_parameter_list) @indent.begin

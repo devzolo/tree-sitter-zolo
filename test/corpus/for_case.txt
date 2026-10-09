@@ -1,0 +1,44 @@
+==================
+filtered case loop retains payload pattern
+==================
+
+for case .Some(value) in values { value }
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (enum_pattern (identifier) (identifier_pattern (identifier)))
+      (identifier)
+      (block (expression_statement (identifier))))))
+
+==================
+case remains an ordinary loop binding before in
+==================
+
+for case in values { case }
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (identifier)
+      (identifier)
+      (block (expression_statement (identifier))))))
+
+==================
+case retains ordinary binding value and member roles
+==================
+
+let case = 1
+case
+object.case
+
+---
+
+(source_file
+  (let_declaration (identifier) (integer_literal))
+  (expression_statement (identifier))
+  (expression_statement (field_expression (identifier) (identifier))))

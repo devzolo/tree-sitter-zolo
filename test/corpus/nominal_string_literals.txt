@@ -1,0 +1,48 @@
+==================
+Nominal static and empty string literals retain ordinary tagged syntax
+==================
+
+newtype Email(str) where |value| true
+let email = Email"ana@empresa.com"
+let empty = Empty""
+
+---
+
+(source_file
+  (newtype_item
+    (identifier)
+    (primitive_type)
+    (newtype_validation
+      (lambda_expression
+        (parameter (identifier))
+        (bool_literal))))
+  (let_declaration
+    (identifier)
+    (tagged_string_literal
+      (identifier)
+      (string_content)))
+  (let_declaration
+    (identifier)
+    (tagged_string_literal
+      (identifier))))
+
+==================
+Callable tag binding shares source spelling
+==================
+
+let Email = |parts| parts
+let text = Email"callable"
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (lambda_expression
+      (parameter (identifier))
+      (identifier)))
+  (let_declaration
+    (identifier)
+    (tagged_string_literal
+      (identifier)
+      (string_content))))

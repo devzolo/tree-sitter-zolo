@@ -31,7 +31,7 @@ fn* counter(limit: int) {
           body: (block
             (expression_statement
               (yield_expression
-                (identifier)))
+                value: (identifier)))
             (assignment_statement
               target: (identifier)
               value: (integer_literal))))))))
@@ -54,9 +54,9 @@ async fn fetch_data() {
     body: (block
       (expression_statement
         (yield_expression
-          (string_literal
+          value: (string_literal
             (string_content))))
       (expression_statement
         (yield_expression
-          (string_literal
+          value: (string_literal
             (string_content)))))))

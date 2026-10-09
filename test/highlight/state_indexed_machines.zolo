@@ -1,0 +1,8 @@
+fn ship(sink order: shop::Order<.Paid>) -> shop::Order<.Shipped> {}
+//                               ^ constant
+//                                                      ^ constant
+fn expand(value: Syntax<.Items>) {}
+//                       ^ type
+let paid = .Paid(20)
+let value = order.Paid
+//                ^ property

@@ -123,7 +123,6 @@
   "within"
   "relative"
   "ulps"
-  "absolute"
 ] @keyword.operator
 
 [
@@ -291,6 +290,7 @@
 (generic_type name: (identifier) @type)
 (function_type "fn" @keyword.function)
 (function_type_parameter name: (identifier) @variable.parameter)
+(required_named_marker) @operator
 (optional_type "?" @operator)
 
 ; Qualified references precede the more specific callee captures.
@@ -352,6 +352,8 @@
   rest: (identifier) @variable)
 (anon_struct_pattern
   rest: (identifier) @variable)
+(enum_pattern
+  variant: (identifier) @constructor)
 (enum_pattern
   rest: (identifier) @variable)
 (binding_pattern
@@ -552,9 +554,367 @@
 (string_pattern_capture name: (identifier) @variable.parameter)
 (string_pattern_capture ["{" "}"] @punctuation.special)
 
+; First-class capture names are public record slots; old patterns retain binders.
+(capture_pattern_literal "pat\"" @keyword)
+(capture_pattern_slot name: (property_identifier) @property)
+(capture_pattern_slot ["{" "}"] @punctuation.special)
+
 ; Prefix handlers reuse the existing with keyword and real block delimiters.
 (lexical_handle_expression "with" @keyword)
 
 ; Field is contextual; root type and fixed member identities have separate scopes.
 (field_path_expression "field" @keyword)
 (field_path_expression segment: (identifier) @property)
+
+; Scalar and identity underscore expressions share the implicit-parameter
+; presentation. Semantic services prove unary callback ownership; these
+; expression contexts do not capture wildcard patterns or member names.
+((call_argument (identifier) @variable.parameter)
+  (#eq? @variable.parameter "_"))
+((binary_expression left: (identifier) @variable.parameter)
+  (#eq? @variable.parameter "_"))
+((binary_expression right: (identifier) @variable.parameter)
+  (#eq? @variable.parameter "_"))
+((parenthesized_expression (identifier) @variable.parameter)
+  (#eq? @variable.parameter "_"))
+
+(recover_expression "recover" @keyword.control)
+(recovery_arm pattern: (enum_pattern variant: (identifier) @constructor))
+
+; Resource bindings retain their authored lexical identity.
+(resource_scope_expression name: (identifier) @variable)
+
+(map_for_entry binding: (identifier) @variable)
+(map_if_entry "=>" @operator)
+(map_for_entry "=>" @operator)
+(map_builder_pair key: (identifier) @property)
+
+; Pattern tests share authored is/operator and enum/pattern captures.
+(is_pattern_expression "is" @keyword.operator)
+(is_pattern_expression pattern: (enum_pattern variant: (identifier) @constructor))
+
+; Filtering marker is contextual; ordinary case bindings remain identifiers.
+(for_expression "case" @keyword.control)
+
+; Projection names designate physical properties, never local puns.
+(record_projection_body field: (property_identifier) @property)
+(record_projection_body field: (property_identifier (identifier) @property))
+
+; Whole-schema clauses retain ordinary callable/lambda scopes.
+(schema_invariant_clause "where" @keyword)
+
+; Typed handler override source scopes.
+; Qualified patch selectors and formals retain their authored roles.
+(handler_override_expression "with" @keyword)
+(handler_override_effect namespace: (identifier) @namespace)
+(handler_override_effect name: (identifier) @type)
+(handler_override_selector operation: (identifier) @function.method)
+(handler_override_parameter name: (identifier) @variable.parameter)
+(handler_override_parameter pattern: (struct_pattern name: (identifier) @type))
+(handler_override_parameter pattern: (tuple_pattern (identifier_pattern (identifier) @variable.parameter)))
+(handler_override_parameter pattern: (array_pattern (identifier_pattern (identifier) @variable.parameter)))
+(handler_override_parameter pattern: (array_pattern rest: (identifier) @variable.parameter))
+(handler_override_parameter pattern: (struct_pattern (field_pattern name: (identifier) @variable.parameter !pattern)))
+(handler_override_parameter pattern: (anon_struct_pattern (field_pattern name: (identifier) @variable.parameter !pattern)))
+(handler_override_parameter pattern: (struct_pattern (field_pattern pattern: (identifier_pattern (identifier) @variable.parameter))))
+(handler_override_parameter pattern: (anon_struct_pattern (field_pattern pattern: (identifier_pattern (identifier) @variable.parameter))))
+
+; Only @unit type-reference/formula positions supply these lexical roles.
+; Physical unit ownership and deeper formula types are supplied by semantic tokens.
+((decorator
+  name: (identifier) @attribute
+  arguments: (decorator_arguments
+    (call_argument
+      name: (identifier) @variable.parameter
+      value: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression left: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression left: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+] right: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(parenthesized_expression [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(unary_expression operand: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+] right: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression left: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+] right: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(parenthesized_expression [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(unary_expression operand: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+])
+(parenthesized_expression [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression left: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+] right: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(parenthesized_expression [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(unary_expression operand: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+])
+(unary_expression operand: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression left: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+] right: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(parenthesized_expression [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+(unary_expression operand: [
+(identifier) @type
+(path_expression (identifier) @type .)
+(integer_literal)
+(float_literal)
+(decimal_literal)
+(bigint_literal)
+(call_expression)
+(method_call_expression)
+(binary_expression)
+(parenthesized_expression)
+(unary_expression)
+])
+])
+])))
+  (#eq? @attribute "unit")
+  (#any-of? @variable.parameter "of" "dimension"))
+
+; Await deadlines install no names. Authored children retain existing captures.
+; Contextual captures are last so they refine the generic keyword list.
+(await_deadline_expression
+  "await" @keyword.coroutine
+  "within" @keyword.operator)
+
+; Yield delegates only when its immediate value is Spread.
+; Nested array/call Spread stays a scalar yield value with ordinary captures.
+; Put this after generic patterns so captures remain contextual and stable.
+(yield_expression
+  "yield" @keyword.coroutine
+  value: (spread_expression "..." @operator))
+
+; Struct/enum suffix requests select derivers, never lexical variable reads.
+; Legacy newtype_deriving_clause captures remain in the existing source query.
+(deriving_clause "deriving" @keyword)
+(deriving_clause (identifier) @type)
+
+; Existing type-path captures color every segment as type. Refine declaration
+; bound prefixes after them; final segment remains the actual type reference.
+(type_parameter bound: (type_path (identifier) @namespace (identifier) @type .))
+(where_predicate bounds: (type_path (identifier) @namespace (identifier) @type .))
+
+; Authored titled test headers: titles are text, never function bindings.
+(titled_test_declaration "test" @keyword.function)
+; Literal aliases inherit the existing string/escape captures above.
+; Do not append a whole-title capture after @string.escape.
+
+; Dotted generic state markers are enum-state references, never variables.
+; This fragment follows generic identifier/type captures (later patterns win).
+(state_index_argument name: (identifier) @constant)
+(state_index_argument "." @punctuation.special)
+(syntax_category_type name: (identifier) @type)
+(syntax_category_type name: (type_path) @type)
+(syntax_category_argument name: (identifier) @type)
+(syntax_category_argument "." @punctuation.special)

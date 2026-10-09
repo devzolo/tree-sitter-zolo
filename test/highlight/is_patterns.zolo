@@ -1,0 +1,11 @@
+if shape is .Circle(radius) { radius }
+//       ^ keyword.operator
+//           ^ constructor
+
+guard input is .Some(value), value > 0 else { return }
+// <- keyword.exception
+//          ^ keyword.operator
+//              ^ constructor
+
+let text = "shape is .Circle(radius)"
+//           ^ string

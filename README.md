@@ -63,8 +63,8 @@ tree-sitter-zolo/
   **git-ignored** (not committed), so you generate it once per clone — the
   sections below say where.
 
-The parser has **no external scanner** (only `src/parser.c`), so building it is
-a single-file compile.
+The parser uses an **external scanner** in `src/scanner.c`. Compile it together
+with the generated `src/parser.c`.
 
 ## Neovim — quick start (recommended)
 
@@ -101,7 +101,7 @@ tree-sitter generate
 ```
 
 The bundled plugin points `:TSInstall zolo` at your local checkout and compiles
-that file, so afterwards you only need a C compiler.
+both `src/parser.c` and `src/scanner.c`; afterwards you only need a C compiler.
 
 ## Neovim — other plugin managers
 
@@ -150,7 +150,7 @@ parser_config.zolo = {
     url = "https://github.com/devzolo/zolo-lang",
     branch = "main",
     location = "tree-sitter-zolo",   -- parser lives in this monorepo subdirectory
-    files = { "src/parser.c" },
+    files = { "src/parser.c", "src/scanner.c" },
     requires_generate_from_grammar = true, -- src/parser.c is git-ignored; regenerate on install
   },
   filetype = "zolo",
@@ -207,14 +207,14 @@ Neovim 0.9+ can run the parser directly, no nvim-treesitter required.
    # Linux/macOS
    cd /path/to/zolo-lang/tree-sitter-zolo
    tree-sitter generate            # only if src/parser.c is missing
-   cc -o ~/.config/nvim/parser/zolo.so -shared -Isrc src/parser.c -Os -fPIC
+   cc -o ~/.config/nvim/parser/zolo.so -shared -Isrc src/parser.c src/scanner.c -Os -fPIC
    ```
 
    ```powershell
    # Windows (gcc from MSYS2); Neovim still expects the .so suffix
    cd V:\path\to\zolo-lang\tree-sitter-zolo
    tree-sitter generate            # only if src/parser.c is missing
-   gcc -o "$env:LOCALAPPDATA\nvim\parser\zolo.so" -shared -Isrc src/parser.c -Os
+   gcc -o "$env:LOCALAPPDATA\nvim\parser\zolo.so" -shared -Isrc src/parser.c src/scanner.c -Os
    ```
 
 2. Provide the queries and filetype by loading the bundled
@@ -304,8 +304,32 @@ npm run build                  # Node bindings
 cargo build                    # Rust bindings
 ```
 
+## Node metadata compatibility
+
+`src/node-types.json` and the Node binding's `nodeTypeInfo` retain 533 node
+descriptors. Field and child type lists now use the existing `_expression`,
+`_item`, `_literal`, `_pattern`, `_statement` and `_type` supertypes where
+applicable. The raw metadata representation has changed; expanding these six
+supertypes preserves the previous logical node, field and child contracts.
+Consumers of raw descriptor lists should resolve supertype references.
+
 ## Known limitations
 
+- In documents that still contain syntax errors, an incomplete `await` or
+  temporal operand can misclassify later named trailing callbacks. For example:
+
+  ```zolo
+  let broken = await;
+  let anchor = 0;
+  f() within {1}
+  f() done {2}
+  ```
+
+  While the first line is invalid, the CST can separate `within {1}` from
+  `f()`, affecting queries, highlighting and structural tools. Recovery does
+  not guarantee correct callback ownership for every malformed input. The
+  Zolo compiler and LSP use the independent Rust parser; this CST does not
+  drive compilation or Zolo LSP diagnostics.
 - Macro bodies are parsed as a generic block — `$param` placeholders are not
   expanded during parsing.
 - `comptime` blocks have no dedicated rule yet (they fall back to `block`).

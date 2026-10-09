@@ -1,0 +1,29 @@
+==================
+Visible resource acquisition and body
+==================
+using file = open_file(path)? { read(file) }
+---
+(source_file
+  (expression_statement
+    (resource_scope_expression
+      (identifier)
+      (try_expression
+        (call_expression
+          (identifier)
+          (argument_list (call_argument (identifier)))))
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list (call_argument (identifier)))))))))
+
+==================
+Ordinary using calls stay calls
+==================
+using(1)
+---
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list (call_argument (integer_literal))))))

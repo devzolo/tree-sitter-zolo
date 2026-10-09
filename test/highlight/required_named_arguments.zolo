@@ -1,0 +1,8 @@
+fn send(*, from source: int, amount: int = 2) = source
+//      ^ operator
+//         ^^^^ variable.parameter
+//              ^^^^^^ variable.parameter
+//                           ^^^^^^ variable.parameter
+type Visit = fn(int, *, item: int) -> str
+//                   ^ operator
+//                      ^^^^ variable.parameter

@@ -1,0 +1,6 @@
+let route = pat"users/{id: int}"
+//          ^^^ keyword
+//                     ^^ property
+//                         ^^^ type.builtin
+let empty = pat""
+//          ^^^ keyword
