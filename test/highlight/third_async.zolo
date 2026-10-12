@@ -1,0 +1,8 @@
+for await event in events { process(event) }
+//  ^ keyword.control
+let values = parallel(limit: 4) [for id in ids => await load(id)]
+//           ^ keyword.control
+//                    ^ variable.parameter
+let view = <Card v:if={visible} title="News"><h1>{headline}</h1></Card>
+//               ^ keyword.control
+let following = 1

@@ -1,0 +1,371 @@
+==================
+Generic defaults retain bounds and earlier parameters
+==================
+struct Page<T = str> { value: T }
+struct Pair<T = int, U = T> { first: T, second: U }
+let page: Page = Page { value: "news" }
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (primitive_type)))
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (type_path
+          (identifier)))))
+  (struct_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (primitive_type))
+      (type_parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (type_path
+          (identifier)))
+      (field_declaration
+        (identifier)
+        (type_path
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (type_path
+      (identifier))
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (string_literal
+            (string_content)))))))
+
+==================
+Trait aliases compose existing generic bounds
+==================
+trait alias Stored = Encode + Decode
+fn save<T: Stored>(value: T) { consume(value) }
+---
+
+(source_file
+  (trait_alias_declaration
+    (identifier)
+    (type_path
+      (identifier))
+    (type_path
+      (identifier)))
+  (function_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (parameter_list
+      (parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier))))))))
+
+==================
+Static type queries retain calls and selected fields
+==================
+let source = .{ name: "Zolo" }
+let selected: typeof source.name = "reader"
+let result: typeof load() = load()
+let grouped: typeof (left + right) = total
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (inferred_struct_expression
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (string_literal
+            (string_content))))))
+  (let_declaration
+    (identifier)
+    (type_query
+      (field_expression
+        (identifier)
+        (identifier)))
+    (string_literal
+      (string_content)))
+  (let_declaration
+    (identifier)
+    (type_query
+      (call_expression
+        (identifier)
+        (argument_list)))
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (let_declaration
+    (identifier)
+    (type_query
+      (parenthesized_expression
+        (binary_expression
+          (identifier)
+          (identifier))))
+    (identifier)))
+
+==================
+Fixed array and const generic arguments keep their boundaries
+==================
+struct Buffer<const N: int = 3> { items: [int; N] }
+fn count<const N: int>(items: [int; N]) -> int { N }
+let bytes: Buffer<3> = Buffer { items: [1, 2, 3] }
+let arithmetic: Buffer<1 + 2> = bytes
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (const_type_parameter
+          (identifier)
+          (integer_literal))))
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (fixed_array_type
+          (primitive_type)
+          (identifier)))))
+  (function_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (const_type_parameter
+          (identifier))))
+    (parameter_list
+      (parameter
+        (identifier)
+        (fixed_array_type
+          (primitive_type)
+          (identifier))))
+    (primitive_type)
+    (block
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (generic_type
+      (identifier)
+      (const_type_argument
+        (integer_literal)))
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (array_expression
+            (integer_literal)
+            (integer_literal)
+            (integer_literal))))))
+  (let_declaration
+    (identifier)
+    (generic_type
+      (identifier)
+      (const_type_argument
+        (const_argument_binary
+          (integer_literal)
+          (integer_literal))))
+    (identifier)))
+
+==================
+Contextual typeof and alias names stay ordinary bindings
+==================
+let typeof = 3
+let alias = 4
+let result = typeof + alias
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (binary_expression
+      (identifier)
+      (identifier))))
+
+==================
+Type queries preserve constructors paths and full grouped operands
+==================
+let constructed: typeof Point { x: 1, y: 2 } = point
+let qualified: typeof geometry::origin() = point
+let indexed: typeof values[index].name = "entry"
+let grouped_array: typeof ([1, 2]) = [3, 4]
+let grouped_record: typeof (.{ name: "Zolo" }) = .{ name: "reader" }
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (type_query
+      (struct_expression
+        (identifier)
+        (struct_expression_body
+          (struct_expression_field
+            (identifier)
+            (integer_literal))
+          (struct_expression_field
+            (identifier)
+            (integer_literal)))))
+    (identifier))
+  (let_declaration
+    (identifier)
+    (type_query
+      (call_expression
+        (path_expression
+          (identifier)
+          (identifier))
+        (argument_list)))
+    (identifier))
+  (let_declaration
+    (identifier)
+    (type_query
+      (field_expression
+        (index_expression
+          (identifier)
+          (identifier))
+        (identifier)))
+    (string_literal
+      (string_content)))
+  (let_declaration
+    (identifier)
+    (type_query
+      (parenthesized_expression
+        (array_expression
+          (integer_literal)
+          (integer_literal))))
+    (array_expression
+      (integer_literal)
+      (integer_literal)))
+  (let_declaration
+    (identifier)
+    (type_query
+      (parenthesized_expression
+        (inferred_struct_expression
+          (struct_expression_body
+            (struct_expression_field
+              (identifier)
+              (string_literal
+                (string_content)))))))
+    (inferred_struct_expression
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (string_literal
+            (string_content)))))))
+
+==================
+Ordinary typeof call and contextual prefixes retain their expression trees
+==================
+fn typeof() -> int { 1 }
+let value = typeof()
+let callback: typeof partial add(_, 1) = partial add(_, 1)
+let captured: typeof capture { value: read() } || value = capture { value: read() } || value
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (expression_statement
+        (integer_literal))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (let_declaration
+    (identifier)
+    (type_query
+      (partial_application_expression
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier))
+            (call_argument
+              (integer_literal))))))
+    (partial_application_expression
+      (call_expression
+        (identifier)
+        (argument_list
+          (call_argument
+            (identifier))
+          (call_argument
+            (integer_literal))))))
+  (let_declaration
+    (identifier)
+    (type_query
+      (capture_expression
+        (capture_initializer
+          (identifier)
+          (call_expression
+            (identifier)
+            (argument_list)))
+        (lambda_expression
+          (identifier))))
+    (capture_expression
+      (capture_initializer
+        (identifier)
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (lambda_expression
+        (identifier)))))
+
+==================
+Type queries allow ordinary contextual variable names
+==================
+let partial = 3
+let capture = 4
+let first: typeof partial = partial
+let second: typeof capture = capture
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (type_query
+      (identifier))
+    (identifier))
+  (let_declaration
+    (identifier)
+    (type_query
+      (identifier))
+    (identifier)))

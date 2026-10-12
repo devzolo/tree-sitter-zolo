@@ -1,0 +1,218 @@
+==================
+for await source
+==================
+for await event in events { event }
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (identifier)
+      (identifier)
+      (block
+        (expression_statement
+          (identifier))))))
+
+==================
+bounded parallel collection
+==================
+let values = parallel(limit: 2) [for id in ids => id]
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (parallel_collection_expression
+      (integer_literal)
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================
+structural Verniz conditional
+==================
+<Card v:if={visible}/>
+---
+
+(source_file
+  (expression_statement
+    (markup_element
+      (markup_self_closing_tag
+        (identifier)
+        (markup_attribute
+          (markup_attribute_name)
+          (markup_attribute_expression
+            (expression_statement
+              (identifier))))))))
+
+==================
+Structural Verniz after assignment retains props children and following statements
+==================
+let view = <Card v:if={visible} title="News"><h1>{headline}</h1></Card>
+let following = 1
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (markup_element
+      (markup_open_tag
+        (identifier)
+        (markup_attribute
+          (markup_attribute_name)
+          (markup_attribute_expression
+            (expression_statement
+              (identifier))))
+        (markup_attribute
+          (markup_attribute_name)
+          (string_literal
+            (string_content))))
+      (markup_element
+        (markup_open_tag
+          (identifier))
+        (markup_interpolation
+          (expression_statement
+            (identifier)))
+        (markup_close_tag
+          (identifier)))
+      (markup_close_tag
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Markup delimiters preserve same-line tags comparisons and generic annotations
+==================
+let comparison = left < right
+let typed: Vec<int> = values
+fn fragment() -> Html { return <span/> }
+fn inline_view() -> Html = <div/>
+let nodes = [<i/>, <b/>]
+let wrapped = render(<Card/>)
+let record = .{node: <Card/>}
+let selected = match visible { true => <span/>, false => <div/> }
+let text = "ready"; <Card/>
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (binary_expression
+      (identifier)
+      (identifier)))
+  (let_declaration
+    (identifier)
+    (generic_type
+      (identifier)
+      (primitive_type))
+    (identifier))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (type_path
+      (identifier))
+    (block
+      (return_statement
+        (markup_element
+          (markup_self_closing_tag
+            (identifier))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (type_path
+      (identifier))
+    (function_expression_body
+      (markup_element
+        (markup_self_closing_tag
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (array_expression
+      (markup_element
+        (markup_self_closing_tag
+          (identifier)))
+      (markup_element
+        (markup_self_closing_tag
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (markup_element
+            (markup_self_closing_tag
+              (identifier)))))))
+  (let_declaration
+    (identifier)
+    (inferred_struct_expression
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (markup_element
+            (markup_self_closing_tag
+              (identifier)))))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (identifier)
+      (match_arm
+        (literal_pattern
+          (bool_literal))
+        (markup_element
+          (markup_self_closing_tag
+            (identifier))))
+      (match_arm
+        (literal_pattern
+          (bool_literal))
+        (markup_element
+          (markup_self_closing_tag
+            (identifier))))))
+  (let_declaration
+    (identifier)
+    (string_literal
+      (string_content)))
+  (expression_statement
+    (markup_element
+      (markup_self_closing_tag
+        (identifier)))))
+
+==================
+Parallel remains an ordinary callable before a collection is authored
+==================
+fn parallel(limit: int) -> int { limit }
+let direct = parallel(limit: 2)
+let parallel = workers
+let result = parallel(3)
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (identifier))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (integer_literal))))))

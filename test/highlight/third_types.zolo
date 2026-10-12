@@ -1,0 +1,11 @@
+trait alias Stored = Encode + Decode
+//          ^ type
+fn count<const N: int>(items: [int; N]) -> int { N }
+//       ^ keyword
+//             ^ variable.parameter
+//                ^ type.builtin
+//                                  ^ constant
+let copy: typeof source = source
+//        ^ keyword
+let typeof = 3
+let alias = 4

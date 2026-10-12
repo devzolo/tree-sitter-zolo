@@ -1,0 +1,6 @@
+let selected = user.{ name as display_name, address.city as city }
+let command = #{"action": "rename", "name": "Ada"}
+match command { #{"action": "rename", "name": name, ...options} => name, _ => "invalid" }
+match packet { [header, ...body, checksum] => body, _ => [] }
+let magic = b"\xAB\x00\xFF"
+let text = "{price:>{width}.{precision}f}"

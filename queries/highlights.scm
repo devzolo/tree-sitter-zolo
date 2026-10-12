@@ -180,6 +180,7 @@
 (escape_sequence) @string.escape
 (triple_brace_escape) @string.escape
 (format_spec) @string.special
+(dynamic_format_parameter "{" @punctuation.special "}" @punctuation.special)
 
 ; Structured, token-backed quasiquotes. The raw generated source remains
 ; opaque; interpolation expressions keep their normal Zolo captures.
@@ -598,7 +599,9 @@
 
 ; Projection names designate physical properties, never local puns.
 (record_projection_body field: (property_identifier) @property)
+(record_projection_body alias: (property_identifier) @property)
 (record_projection_body field: (property_identifier (identifier) @property))
+(record_projection_body alias: (property_identifier (identifier) @property))
 
 ; Whole-schema clauses retain ordinary callable/lambda scopes.
 (schema_invariant_clause "where" @keyword)
@@ -918,3 +921,34 @@
 (syntax_category_type name: (type_path) @type)
 (syntax_category_argument name: (identifier) @type)
 (syntax_category_argument "." @punctuation.special)
+
+; Explicit callable construction and grouped resource acquisitions.
+(partial_application_expression "partial" @keyword)
+(capture_expression "capture" @keyword)
+(capture_initializer name: (identifier) @variable.parameter)
+(resource_binding name: (identifier) @variable.parameter)
+(use_nested_item name: (identifier) @namespace)
+(array_for_entry "case" @keyword)
+(map_for_entry "case" @keyword)
+
+; Third syntax batch: trait requirement groups
+(trait_alias_declaration name: (identifier) @type)
+
+; Lazy structural conditional; ordinary attributes keep their usual scope.
+((markup_attribute_name) @keyword.control (#eq? @keyword.control "v:if"))
+
+(for_expression "await" @keyword.control)
+
+(parallel_collection_expression ["parallel" "for" "in"] @keyword.control)
+(parallel_collection_expression "limit" @variable.parameter)
+
+(type_query "typeof" @keyword)
+
+; Contracts only have keyword meaning in a function header.
+(function_contract_clause "requires" @keyword)
+(function_contract_clause "ensures" @keyword)
+
+; Fixed lengths and const parameters retain value spelling in type positions.
+(const_type_parameter "const" @keyword name: (identifier) @variable.parameter)
+(const_type_parameter "int" @type.builtin)
+(fixed_array_type ";" @punctuation.delimiter length: (identifier) @constant)

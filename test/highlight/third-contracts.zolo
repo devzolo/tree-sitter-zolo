@@ -1,0 +1,9 @@
+fn twice(x: int) -> int
+    requires x >= 0
+//  ^^^^^^^^ keyword
+    ensures result == x * 2
+//  ^^^^^^^ keyword
+    = x * 2
+
+let ensures = 7
+//  ^^^^^^^ variable

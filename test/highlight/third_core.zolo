@@ -1,0 +1,10 @@
+let add_initial = partial add(initial(), _)
+//                ^ keyword
+let quote = capture { price: current } |quantity: int| price * quantity
+//          ^ keyword
+let describe = match { .Ready(value) => value, _ => 0 }
+//             ^ keyword.control
+use helpers::{math::{twice as double}, text::{label}}
+using first = acquire(), second = acquire(first) { consume(second) }
+let moved = original with { address { city: "Natal", visits += 1 } }
+let values = [for case .Ok(value) in readings => value]

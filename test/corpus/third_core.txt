@@ -1,0 +1,467 @@
+==================
+Anonymous match callback and guards
+==================
+let describe = match { .Ready(value) if value > 0 => value, _ => 0 }
+let mapped = readings.map(match { .Ok(value) => value, _ => 0 })
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (match_expression
+      (match_arm
+        (enum_pattern
+          (identifier)
+          (identifier_pattern
+            (identifier)))
+        (binary_expression
+          (identifier)
+          (integer_literal))
+        (identifier))
+      (match_arm
+        (wildcard_pattern)
+        (integer_literal))))
+  (let_declaration
+    (identifier)
+    (method_call_expression
+      (identifier)
+      (identifier)
+      (argument_list
+        (call_argument
+          (match_expression
+            (match_arm
+              (enum_pattern
+                (identifier)
+                (identifier_pattern
+                  (identifier)))
+              (identifier))
+            (match_arm
+              (wildcard_pattern)
+              (integer_literal))))))))
+
+==================
+Multiple resources with dependent acquisition
+==================
+using input: Stream = open(path)?, cursor: Cursor = input.cursor() { consume(cursor) }
+---
+
+(source_file
+  (expression_statement
+    (resource_scope_expression
+      (identifier)
+      (type_path
+        (identifier))
+      (try_expression
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (resource_binding
+        (identifier)
+        (type_path
+          (identifier))
+        (method_call_expression
+          (identifier)
+          (identifier)
+          (argument_list)))
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (identifier)))))))))
+
+==================
+Partial call binds named arguments and placeholders
+==================
+let send_later = partial send(endpoint(), _, retries: 2)
+let result = send_later(payload)
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (partial_application_expression
+      (call_expression
+        (identifier)
+        (argument_list
+          (call_argument
+            (call_expression
+              (identifier)
+              (argument_list)))
+          (call_argument
+            (identifier))
+          (call_argument
+            (identifier)
+            (integer_literal))))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Hierarchical imports retain aliases and nested globs
+==================
+use helpers::{math::{twice as double}, text::{label}, http::*}
+---
+
+(source_file
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_nested_item
+          (identifier)
+          (use_list
+            (use_item
+              (identifier)
+              (identifier))))
+        (use_nested_item
+          (identifier)
+          (use_list
+            (use_item
+              (identifier))))
+        (use_nested_item
+          (identifier))))))
+
+==================
+Grouped record updates preserve nested paths and operations
+==================
+let moved = original with { profile { address { city: "Natal" }, visits += 1 }, active: true }
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (record_update_expression
+      (identifier)
+      (record_update_body
+        (record_update_field
+          (record_update_path
+            (identifier))
+          (record_update_body
+            (record_update_field
+              (record_update_path
+                (identifier))
+              (record_update_body
+                (record_update_field
+                  (record_update_path
+                    (identifier))
+                  (string_literal
+                    (string_content)))))
+            (record_update_field
+              (record_update_path
+                (identifier))
+              (integer_literal))))
+        (record_update_field
+          (record_update_path
+            (identifier))
+          (bool_literal))))))
+
+==================
+Filtering array builders retain case patterns
+==================
+let values = [for case .Ok(value) in readings => if value > 0 => value]
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (array_expression
+      (array_for_entry
+        (enum_pattern
+          (identifier)
+          (identifier_pattern
+            (identifier)))
+        (identifier)
+        (array_if_entry
+          (binary_expression
+            (identifier)
+            (integer_literal))
+          (identifier))))))
+
+==================
+Filtering map builders retain destructuring and keys
+==================
+let scores = #{for case .Ok((key, value)) in readings => key: value}
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (map_expression
+      (map_for_entry
+        (enum_pattern
+          (identifier)
+          (tuple_pattern
+            (identifier_pattern
+              (identifier))
+            (identifier_pattern
+              (identifier))))
+        (identifier)
+        (map_builder_pair
+          (identifier)
+          (identifier))))))
+
+==================
+Explicit captures bind initializers before lambda parameters
+==================
+let quote = capture { rate: read_rate(), tax: read_tax() } |amount: int| amount * rate + tax
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (capture_expression
+      (capture_initializer
+        (identifier)
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (capture_initializer
+        (identifier)
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (lambda_expression
+        (parameter
+          (identifier)
+          (primitive_type))
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (identifier))))))
+
+==================
+Contextual callable prefix names remain ordinary identifiers
+==================
+let partial = 3
+let capture = 2
+let result = partial + capture
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (binary_expression
+      (identifier)
+      (identifier))))
+
+==================
+Capture lookahead preserves division strings comments and nested interpolation
+==================
+let quote = capture { ratio: total / count, text: "{format("}", value)}", value: /* } */ read() } || text
+let empty = capture {} || 1
+let record = capture { value: 1 }
+let ordinary = partial(1)
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (capture_expression
+      (capture_initializer
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (capture_initializer
+        (identifier)
+        (string_literal
+          (string_interpolation
+            (call_expression
+              (identifier)
+              (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))
+                (call_argument
+                  (identifier)))))))
+      (capture_initializer
+        (identifier)
+        (block_comment)
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (lambda_expression
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (capture_expression
+      (lambda_expression
+        (integer_literal))))
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (integer_literal))))))
+
+==================
+Indexed filtered builders preserve position and element
+==================
+let positions = [for position, value in readings => position + value]
+let filtered = [for case .Ok(value) in readings => value]
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (array_expression
+      (array_for_entry
+        (identifier)
+        (identifier)
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (array_expression
+      (array_for_entry
+        (enum_pattern
+          (identifier)
+          (identifier_pattern
+            (identifier)))
+        (identifier)
+        (identifier)))))
+
+==================
+Runnable hierarchy exports nested modules and preserves leaf aliases
+==================
+mod tools {
+    pub mod numbers { pub fn twice(value: int) -> int { value * 2 } }
+    pub mod labels { pub fn label(value: int) -> str { "total: {value}" } }
+}
+use tools::{numbers::{twice}, labels::{label as display}}
+print(display(twice(6)))
+---
+
+(source_file
+  (mod_declaration
+    (mod_path
+      (identifier))
+    (mod_body
+      (mod_declaration
+        (mod_path
+          (identifier))
+        (mod_body
+          (function_item
+            (identifier)
+            (parameter_list
+              (parameter
+                (identifier)
+                (primitive_type)))
+            (primitive_type)
+            (block
+              (expression_statement
+                (binary_expression
+                  (identifier)
+                  (integer_literal)))))))
+      (mod_declaration
+        (mod_path
+          (identifier))
+        (mod_body
+          (function_item
+            (identifier)
+            (parameter_list
+              (parameter
+                (identifier)
+                (primitive_type)))
+            (primitive_type)
+            (block
+              (expression_statement
+                (string_literal
+                  (string_content)
+                  (string_interpolation
+                    (identifier))))))))))
+  (use_declaration
+    (use_path
+      (identifier)
+      (use_list
+        (use_nested_item
+          (identifier)
+          (use_list
+            (use_item
+              (identifier))))
+        (use_nested_item
+          (identifier)
+          (use_list
+            (use_item
+              (identifier)
+              (identifier)))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (call_expression
+                  (identifier)
+                  (argument_list
+                    (call_argument
+                      (integer_literal))))))))))))
+
+==================
+Capture closure can be called through an ordinary quote binding
+==================
+var unit_price = 5
+let quote = capture { price: unit_price } |quantity: int| price * quantity
+unit_price = 9
+print(quote(3))
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (capture_expression
+      (capture_initializer
+        (identifier)
+        (identifier))
+      (lambda_expression
+        (parameter
+          (identifier)
+          (primitive_type))
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (assignment_statement
+    (identifier)
+    (integer_literal))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (integer_literal)))))))))
