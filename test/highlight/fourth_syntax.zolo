@@ -1,0 +1,45 @@
+    type PublicUser = User.{ id, name }
+//                    ^^^^ type
+//                        ^ punctuation.special
+    fn subtotal(value: int) -> int fails str { fail "invalid" }
+//                                 ^^^^^ keyword.operator
+//                                             ^^^^ keyword.return
+    let connection = connect(..options, timeout: 5)
+//                           ^^ operator
+    let updated = user with { name?: patch.name }
+//                                ^ operator
+    pattern ActiveUser(name) = User { name, active: true, .. }
+//  ^^^^^^^ keyword.function
+//          ^^^^^^^^^^ type
+    fn label<R>(value: { name: str, ..R }) -> str = value.name
+//                                  ^^ operator
+//                                    ^ type
+    fn store() -> impl Store { create_store() }
+//                ^^^^ keyword
+    match message { ^request_id => accepted(), _ => rejected() }
+//                  ^ operator
+    match message { (parse_date -> .Ok(date)) => print(date), _ => rejected() }
+//                              ^^ operator
+    fn unpack() { let (status, ...payload) = response() }
+//                             ^^^ operator
+//                                ^^^^^^^ variable.parameter
+    for value in values { print(value) } else { print("empty") }
+//                                       ^^^^ keyword.conditional
+    let totals = iter[for total in invoices => total * 2]
+//               ^^^^ keyword
+    async fn* pages(ids: [int]) -> int { for id in ids { yield await fetch(id) } }
+//  ^^^^^ keyword.coroutine
+//                                                       ^^^^^ keyword.coroutine
+//                                                             ^^^^^ keyword.coroutine
+    let result = await fetch() within 2s else cached
+//                             ^^^^^^ keyword.operator
+//                                       ^^^^ keyword.conditional
+    using async session = await open_session() { await session.read() }
+//        ^^^^^ keyword.coroutine
+    test "shipping" for (total, expected) in [(99, 12), (100, 0)] { assert_eq(shipping(total), expected) }
+//                  ^^^ keyword.repeat
+//                                        ^^ keyword.repeat
+    let iter = [7]
+//      ^^^^ variable
+    let failed = fail(value)
+//               ^^^^ function.call

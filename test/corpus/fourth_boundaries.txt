@@ -1,0 +1,480 @@
+==================
+Fourth contextual timeout labels preserve temporal operands
+==================
+
+let configured = connect(..options, timeout: 5)
+let adjacent = connect(timeout:5)
+let timed = timeout 2ms { work() }
+let inferred = timeout .Duration(2) { work() }
+let commented = timeout /* duration */ 2ms { work() }
+let labeled = timeout :retry loop { break :retry 2ms } { work() }
+let nested = connect(timeout: timeout 2ms { work() })
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (named_record_argument
+            (identifier)))
+        (call_argument
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (timeout_expression
+      (duration_literal)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list))))))
+  (let_declaration
+    (identifier)
+    (timeout_expression
+      (call_expression
+        (enum_shorthand_expression
+          (identifier))
+        (argument_list
+          (call_argument
+            (integer_literal))))
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list))))))
+  (let_declaration
+    (identifier)
+    (timeout_expression
+      (block_comment)
+      (duration_literal)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list))))))
+  (let_declaration
+    (identifier)
+    (timeout_expression
+      (loop_expression
+        (loop_label
+          (identifier))
+        (block
+          (break_statement
+            (loop_label
+              (identifier))
+            (duration_literal))))
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list))))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)
+          (timeout_expression
+            (duration_literal)
+            (block
+              (expression_statement
+                (call_expression
+                  (identifier)
+                  (argument_list))))))))))
+
+==================
+Fourth contextual prefixes accept Unicode whitespace
+==================
+
+fn rejected() -> int fails str { fail "bad" }
+let values = iter [ for value in [1] => value]
+assert(values.collect() == [1])
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (primitive_type)
+    (block
+      (expression_statement
+        (fail_expression
+          (string_literal
+            (string_content))))))
+  (let_declaration
+    (identifier)
+    (lazy_builder_expression
+      (array_expression
+        (array_for_entry
+          (identifier)
+          (array_expression
+            (integer_literal))
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (binary_expression
+            (method_call_expression
+              (identifier)
+              (identifier)
+              (argument_list))
+            (array_expression
+              (integer_literal))))))))
+
+==================
+Fourth View patterns in function clause parameters
+==================
+
+fn describe((read_quantity -> .Valid(quantity)): str) -> str = "items"
+fn describe(raw (read_quantity -> .Valid(quantity)): str) -> str = "items"
+fn describe(_: str) -> str = "unknown"
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (function_clause_parameter
+        (view_pattern
+          (identifier)
+          (enum_pattern
+            (identifier)
+            (identifier_pattern
+              (identifier))))
+        (primitive_type)))
+    (primitive_type)
+    (function_expression_body
+      (string_literal
+        (string_content))))
+  (function_item
+    (identifier)
+    (parameter_list
+      (function_clause_parameter
+        (identifier)
+        (view_pattern
+          (identifier)
+          (enum_pattern
+            (identifier)
+            (identifier_pattern
+              (identifier))))
+        (primitive_type)))
+    (primitive_type)
+    (function_expression_body
+      (string_literal
+        (string_content))))
+  (function_item
+    (identifier)
+    (parameter_list
+      (function_clause_parameter
+        (wildcard_pattern)
+        (primitive_type)))
+    (primitive_type)
+    (function_expression_body
+      (string_literal
+        (string_content)))))
+
+==================
+Fourth View transformer calls retain enum and tuple pattern forks
+==================
+
+let from_factory = match 9 { (factory() -> (head, ...tail)) => head }
+let qualified_factory = match 9 { (app::factory() -> result) => result }
+let qualified_transform = match 9 { (app::split -> result) => result }
+let whole = match 8 { (split -> result) => result }
+let named_enum = match value { Factory(head) => head }
+let tuple_enum = match value { (Factory(head), remaining) => remaining }
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list))
+          (tuple_pattern
+            (identifier_pattern
+              (identifier))
+            (tuple_rest_pattern
+              (identifier))))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (path_expression
+              (identifier)
+              (identifier))
+            (argument_list))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (path_expression
+            (identifier)
+            (identifier))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (identifier)
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (identifier)
+      (match_arm
+        (enum_pattern
+          (identifier)
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (identifier)
+      (match_arm
+        (tuple_pattern
+          (enum_pattern
+            (identifier)
+            (identifier_pattern
+              (identifier)))
+          (identifier_pattern
+            (identifier)))
+        (identifier)))))
+
+==================
+Fourth View ordinary interpolation bodies
+==================
+
+let value = match 1 { (factory("{{ ")" }}") -> out) => out }
+let tagged = match 1 { (factory(text"{{ ")" }}") -> out) => out }
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (string_literal
+                  (string_interpolation
+                    (block_expression
+                      (block
+                        (expression_statement
+                          (string_literal
+                            (string_content))))))))))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (tagged_string_literal
+                  (identifier)
+                  (string_interpolation
+                    (block_expression
+                      (block
+                        (expression_statement
+                          (string_literal
+                            (string_content))))))))))
+          (identifier_pattern
+            (identifier)))
+        (identifier)))))
+
+==================
+Fourth View block string boundaries
+==================
+
+let plain = match 1 {
+  (factory("""
+    text """ )
+    body
+    """) -> out) => out
+}
+let tagged = match 1 {
+  (factory(tw"""
+    text """ )
+    body
+    """) -> out) => out
+}
+let raw = match 1 {
+  (factory(r##"""
+    text """## )
+    body
+    """##) -> out) => out
+}
+let carriage_prefix = match 1 {
+  (factory("""
+""" )
+""") -> out) => out
+}
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (triple_string_literal
+                  (triple_string_content)))))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (tagged_triple_string_literal
+                  (identifier)
+                  (triple_string_content)))))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (raw_triple_string_literal))))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (triple_string_literal
+                  (triple_string_content)))))
+          (identifier_pattern
+            (identifier)))
+        (identifier)))))
+
+==================
+Fourth View empty and one-quote raw strings
+==================
+
+let empty = match 1 { (factory(r#""#) -> out) => out }
+let quote = match 1 { (factory(r#"""#) -> out) => out }
+let separated_hash = match 1 { (factory(r#"""# ) "#) -> out) => out }
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (raw_string_literal))))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (raw_string_literal))))
+          (identifier_pattern
+            (identifier)))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (match_expression
+      (integer_literal)
+      (match_arm
+        (view_pattern
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (raw_string_literal))))
+          (identifier_pattern
+            (identifier)))
+        (identifier)))))

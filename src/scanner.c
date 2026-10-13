@@ -219,6 +219,19 @@ enum TokenType {
   CAPTURE_KEYWORD,
   PARALLEL_COLLECTION_KEYWORD,
   MARKUP_BOUNDARY,
+  FAIL_KEYWORD,
+  ITER_BUILDER_KEYWORD,
+  TIMEOUT_OPERAND_START,
+  VIEW_PATTERN_START,
+  BLOCK_TRIPLE_CONTENT,
+  RAW_BLOCK_TRIPLE_CONTENT0,
+  RAW_BLOCK_TRIPLE_CONTENT1,
+  RAW_BLOCK_TRIPLE_CONTENT2,
+  RAW_BLOCK_TRIPLE_CONTENT3,
+  BLOCK_TRIPLE_END0,
+  BLOCK_TRIPLE_END1,
+  BLOCK_TRIPLE_END2,
+  BLOCK_TRIPLE_END3,
   ERROR_SENTINEL,
 };
 
@@ -1379,6 +1392,194 @@ static bool scan_capture_payload_start(TSLexer *lexer) {
   return lexer->lookahead == '|';
 }
 
+// View has its own peek: capture/provider peeks intentionally use different
+// dialect rules. Ordinary, raw, tagged, and fenced Zolo strings hide arrows.
+static bool peek_view_content(TSLexer *lexer,int32_t closer,bool arrow,unsigned recursion);
+static bool peek_view_quote(TSLexer *lexer,int32_t quote,bool raw,bool interpolate,unsigned hashes,bool triple,unsigned recursion) {
+  lexer->advance(lexer,false);
+  unsigned width=1;
+  if(quote=='"' && triple && lexer->lookahead=='"') {
+    lexer->advance(lexer,false);
+    if(lexer->lookahead=='"') {
+      lexer->advance(lexer,false);
+      // The real lexer opens a block only on LF or CRLF, never a lone CR.
+      const bool opening_cr=lexer->lookahead=='\r';
+      if(opening_cr)lexer->advance(lexer,false);
+      if(!raw || lexer->lookahead=='\n')width=3;
+      else if(!opening_cr) {
+        unsigned found=0;
+        while(found<hashes && lexer->lookahead=='#'){lexer->advance(lexer,false);found++;}
+        if(found==hashes)return true;
+      }
+    } else {
+      unsigned found=0;
+      while(found<hashes && lexer->lookahead=='#'){lexer->advance(lexer,false);found++;}
+      if(found==hashes)return true;
+    }
+  }
+  const bool block=width==3 && lexer->lookahead=='\n';
+  bool line_start=block;
+  unsigned quotes=0;
+  while(!lexer->eof(lexer)) {
+    const int32_t c=lexer->lookahead;
+    lexer->advance(lexer,false);
+    if(c==quote && (!block || line_start || quotes)) {
+      if(++quotes<width)continue;
+      unsigned found=0;
+      while(found<hashes && lexer->lookahead=='#'){lexer->advance(lexer,false);found++;}
+      if(found==hashes)return true;
+      quotes=0;line_start=false;continue;
+    }
+    quotes=0;
+    if(block) {
+      if(c=='\n')line_start=true;
+      else if(!(line_start && (c==' ' || c=='\t')))line_start=false;
+    }
+    if(!raw && c=='\\') {
+      if(!lexer->eof(lexer))lexer->advance(lexer,false);
+    } else if(interpolate && c=='{') {
+      if(width==3 && lexer->lookahead=='{')lexer->advance(lexer,false);
+      else if(!peek_view_content(lexer,'}',false,recursion+1))return false;
+    }
+  }
+  return false;
+}
+static bool peek_view_fence(TSLexer *lexer) {
+  unsigned fence=0;
+  while(lexer->lookahead=='`'){lexer->advance(lexer,false);fence++;}
+  if(fence!=3)return false;
+  bool line_start=false;
+  while(!lexer->eof(lexer)) {
+    const int32_t c=lexer->lookahead;
+    if(c=='\n'){line_start=true;lexer->advance(lexer,false);continue;}
+    if(line_start && (c==' ' || c=='\t')){lexer->advance(lexer,false);continue;}
+    if(line_start && c=='`') {
+      unsigned ticks=0;
+      while(lexer->lookahead=='`'){lexer->advance(lexer,false);ticks++;}
+      if(ticks==3)return true;
+    } else lexer->advance(lexer,false);
+    line_start=false;
+  }
+  return false;
+}
+static bool peek_view_content(TSLexer *lexer,int32_t closer,bool arrow,unsigned recursion) {
+  if(recursion>256)return false;
+  while (!lexer->eof(lexer)) {
+    while(is_ascii_ws(lexer->lookahead) || lexer->lookahead==0x00a0)
+      lexer->advance(lexer,false);
+    if(lexer->eof(lexer))return false;
+    if(lexer->lookahead=='/') {
+      lexer->advance(lexer,false);
+      if(lexer->lookahead=='/') {
+        while(!lexer->eof(lexer) && lexer->lookahead!='\n')lexer->advance(lexer,false);
+      } else if(lexer->lookahead=='*') {
+        lexer->advance(lexer,false);
+        unsigned depth=1;
+        while(depth && !lexer->eof(lexer)) {
+          const int32_t c=lexer->lookahead;
+          lexer->advance(lexer,false);
+          if(c=='/' && lexer->lookahead=='*'){lexer->advance(lexer,false);depth++;}
+          else if(c=='*' && lexer->lookahead=='/'){lexer->advance(lexer,false);depth--;}
+        }
+        if(depth)return false;
+      }
+      // A plain slash is an operator in the transformer, not incomplete trivia.
+      continue;
+    }
+    const int32_t c=lexer->lookahead;
+    if(c==closer) {
+      if(arrow)return false;
+      lexer->advance(lexer,false);return true;
+    }
+    if(is_label_start(c)) {
+      char tag[8];unsigned length=0;
+      while(is_label_continue(lexer->lookahead)) {
+        if(length<sizeof(tag)-1)tag[length++]=(char)lexer->lookahead;
+        else length=sizeof(tag);
+        lexer->advance(lexer,false);
+      }
+      if(length<sizeof(tag))tag[length]=0;else tag[0]=0;
+      unsigned hashes=0;
+      while(lexer->lookahead=='#'){lexer->advance(lexer,false);hashes++;}
+      if(lexer->lookahead=='"') {
+        const bool raw=hashes || !strcmp(tag,"r");
+        const bool opaque=raw || !strcmp(tag,"json") || !strcmp(tag,"b") || !strcmp(tag,"re") || !strcmp(tag,"pat");
+        const bool triple=!strcmp(tag,"r") || !strcmp(tag,"tw");
+        if(!peek_view_quote(lexer,'"',raw,!opaque,hashes,triple,recursion))return false;
+      }
+      continue;
+    }
+    if(c=='"' || c=='\'') {
+      if(!peek_view_quote(lexer,c,false,c=='"',0,c=='"',recursion))return false;
+      continue;
+    }
+    if(c=='(' || c=='[' || c=='{') {
+      lexer->advance(lexer,false);
+      const int32_t closer=c=='('?')':c=='['?']':'}';
+      if(!peek_view_content(lexer,closer,false,recursion+1))return false;
+      continue;
+    }
+    if(c=='`') {
+      if(!peek_view_fence(lexer))return false;
+      continue;
+    }
+    lexer->advance(lexer,false);
+    if(arrow && c=='-' && lexer->lookahead=='>')return true;
+  }
+  return false;
+}
+
+// Only a View owns an expression inside a pattern's outer parentheses. Prove
+// its outer arrow before an expression scope can preempt nested tuple patterns.
+static bool scan_view_pattern_start(TSLexer *lexer) {
+  lexer->mark_end(lexer);
+  return peek_view_content(lexer,')',true,0);
+}
+
+// BLOCK strings have no new scanner state: the grammar selects raw/hash mode,
+// and the lexer column identifies a closing line even after interpolation.
+// Peeked delimiters leave their indentation for the separate end token.
+static bool scan_block_triple(TSLexer *lexer,bool raw,unsigned hashes,unsigned content,unsigned end,const bool *valid) {
+  bool any=false;
+  bool line_start=lexer->get_column(lexer)==0;
+  lexer->mark_end(lexer);
+  while(!lexer->eof(lexer)) {
+    if(line_start) {
+      bool prefix=false;
+      while(lexer->lookahead==' ' || lexer->lookahead=='\t'){lexer->advance(lexer,false);prefix=true;}
+      if(lexer->lookahead=='"') {
+        unsigned quotes=0;
+        while(quotes<3 && lexer->lookahead=='"'){lexer->advance(lexer,false);quotes++;}
+        prefix=true;
+        if(quotes==3) {
+          unsigned found=0;
+          while(found<hashes && lexer->lookahead=='#'){lexer->advance(lexer,false);found++;}
+          if(found==hashes) {
+            if(any) {if(!valid[content])return false;lexer->result_symbol=content;return true;}
+            if(!valid[end])return false;
+            lexer->mark_end(lexer);lexer->result_symbol=end;return true;
+          }
+        }
+      }
+      if(prefix){any=true;lexer->mark_end(lexer);}
+      line_start=false;
+    }
+    const int32_t c=lexer->lookahead;
+    if(!raw && (c=='{' || c=='\\'))break;
+    if(!raw && c=='}') {
+      lexer->advance(lexer,false);
+      if(lexer->lookahead=='}')break;
+      any=true;lexer->mark_end(lexer);continue;
+    }
+    if(lexer->eof(lexer))break;
+    lexer->advance(lexer,false);
+    line_start=c=='\n';
+    any=true;lexer->mark_end(lexer);
+  }
+  if(!any || !valid[content])return false;
+  lexer->result_symbol=content;return true;
+}
+
 // Leading comments must stay on the closer's line. This is peek-only: the
 // zero-width token leaves comments to ordinary extras and their own nodes.
 static bool skip_callback_trivia(TSLexer *lexer) {
@@ -2033,6 +2234,15 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
+  for(unsigned n=0;n<4;n++) {
+    if(valid_symbols[RAW_BLOCK_TRIPLE_CONTENT0+n] || valid_symbols[BLOCK_TRIPLE_END0+n]) {
+      const bool raw=valid_symbols[RAW_BLOCK_TRIPLE_CONTENT0+n];
+      const unsigned content=raw?RAW_BLOCK_TRIPLE_CONTENT0+n:BLOCK_TRIPLE_CONTENT;
+      return scan_block_triple(lexer,raw,n,content,BLOCK_TRIPLE_END0+n,valid_symbols);
+    }
+  }
+  if(valid_symbols[BLOCK_TRIPLE_CONTENT])return scan_block_triple(lexer,false,0,BLOCK_TRIPLE_CONTENT,BLOCK_TRIPLE_END0,valid_symbols);
+
   if (valid_symbols[MARKUP_BOUNDARY]) {
     lexer->mark_end(lexer);
     scanner->markup_first = 0;
@@ -2083,6 +2293,27 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   }
   // A map's authored if: key must resolve before a condition's zero-byte
   // scope entry commits the competing conditional-entry branch.
+  if(valid_symbols[VIEW_PATTERN_START]) {
+    if(!scan_view_pattern_start(lexer))return false;
+    lexer->result_symbol=VIEW_PATTERN_START;return true;
+  }
+  if(valid_symbols[TIMEOUT_OPERAND_START]) {
+    lexer->mark_end(lexer);
+    if(!skip_yield_trivia(lexer) || lexer->eof(lexer))return false;
+    if(lexer->lookahead==':') {
+      // A colon can also begin the compiler's labeled loop expression.
+      // Keep that operand viable; every other colon is an argument label.
+      lexer->advance(lexer,false);
+      if(!is_label_start(lexer->lookahead))return false;
+      do {lexer->advance(lexer,false);}while(is_label_continue(lexer->lookahead));
+      if(!skip_yield_trivia(lexer))return false;
+      if(lexer->lookahead=='l') {if(!scan_word(lexer,"loop"))return false;}
+      else if(lexer->lookahead=='f') {if(!scan_word(lexer,"for"))return false;}
+      else if(lexer->lookahead=='w') {if(!scan_word(lexer,"while"))return false;}
+      else return false;
+    }
+    lexer->result_symbol=TIMEOUT_OPERAND_START;return true;
+  }
   if(valid_symbols[MAP_IF_CONDITION_START]) {
     lexer->mark_end(lexer);
     if(!skip_yield_trivia(lexer) || lexer->lookahead==':')return false;
@@ -2090,11 +2321,11 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   }
   if (scan_expr_scope(scanner,lexer,valid_symbols)) return true;
   // Contextual prefix keywords consume only their word after complete positive
-  // lookahead. Reading the shared word once is essential: all three candidates
+  // lookahead. Reading the shared word once is essential: these candidates
   // are normally valid together. Negative lookahead retains ordinary identifiers.
-  if (valid_symbols[PARTIAL_KEYWORD] || valid_symbols[CAPTURE_KEYWORD] || valid_symbols[PARALLEL_COLLECTION_KEYWORD]) {
+  if (valid_symbols[PARTIAL_KEYWORD] || valid_symbols[CAPTURE_KEYWORD] || valid_symbols[PARALLEL_COLLECTION_KEYWORD] || valid_symbols[FAIL_KEYWORD] || valid_symbols[ITER_BUILDER_KEYWORD]) {
     skip_dispatch_ws(lexer,&dispatch_newline,&dispatch_markup_newline,&dispatch_markup_whitespace);
-    if (lexer->lookahead == 'c' || lexer->lookahead == 'p') {
+    if (lexer->lookahead == 'c' || lexer->lookahead == 'p' || lexer->lookahead == 'f' || lexer->lookahead == 'i') {
       char word[128]; unsigned length = 0;
       while (is_label_continue(lexer->lookahead)) {
         if (length + 1 < sizeof(word)) word[length++] = (char)lexer->lookahead;
@@ -2102,6 +2333,31 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
       }
       word[length] = 0;
       lexer->mark_end(lexer);
+      if (valid_symbols[FAIL_KEYWORD] && !strcmp(word,"fail")) {
+        // An adjacent dot/call/index belongs to an ordinary identifier.
+        if (lexer->lookahead=='.' || lexer->lookahead=='(' || lexer->lookahead=='[' || lexer->lookahead=='-') return false;
+        if (!skip_yield_trivia(lexer)) return false;
+        const int32_t start=lexer->lookahead;
+        if (start=='{' && (scanner->expr_flags & 1)) return false;
+        if (!(is_label_start(start) || (start>='0' && start<='9') || start=='"' || start=='\'' || start=='{' || start=='.' || start=='-' || start=='(' || start=='[' || start=='#')) return false;
+        lexer->result_symbol=FAIL_KEYWORD;
+        return true;
+      }
+      if (valid_symbols[ITER_BUILDER_KEYWORD] && !strcmp(word,"iter")) {
+        // Keep iter[0] available as indexing an ordinary variable.
+        if (!skip_yield_trivia(lexer) || lexer->lookahead!='[') return false;
+        lexer->advance(lexer,false);
+        if (!skip_yield_trivia(lexer)) return false;
+        length=0;
+        while (is_label_continue(lexer->lookahead)) {
+          if (length+1<sizeof(word)) word[length++]=(char)lexer->lookahead;
+          lexer->advance(lexer,false);
+        }
+        word[length]=0;
+        if (strcmp(word,"for") && strcmp(word,"if")) return false;
+        lexer->result_symbol=ITER_BUILDER_KEYWORD;
+        return true;
+      }
       if (valid_symbols[PARTIAL_KEYWORD] && !strcmp(word,"partial")) {
         if (!skip_foreign_group_trivia(lexer) || !is_label_start(lexer->lookahead)) return false;
         length = 0;

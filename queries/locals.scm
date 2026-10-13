@@ -130,3 +130,9 @@
 
 ; Authored titled tests own a source lexical scope without a synthetic name.
 (titled_test_declaration) @local.scope
+
+; Template parameters are local to their definition; pins remain references.
+(pattern_alias_declaration) @local.scope
+(pattern_alias_declaration name: (identifier) @local.definition.type)
+(pattern_alias_declaration parameter: (identifier) @local.definition.parameter)
+(tuple_rest_pattern name: (identifier) @local.definition.var)

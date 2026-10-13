@@ -92,6 +92,8 @@ let s = """
         (identifier))
       (triple_string_content)
       (triple_brace_escape)
+      (triple_string_content)
+      (triple_brace_escape)
       (triple_string_content))))
 
 ==================

@@ -1,0 +1,486 @@
+==================
+Fourth syntax forms retain their source-facing nodes
+==================
+struct Address { city: str }
+struct User { id: int, name: str, address: Address, active: bool }
+type PublicUser = User.{ id, name, address.city as city }
+newtype Id<T>(int)
+pattern ActiveUser(name) = User { name, active: true, .. }
+fn label<R>(value: { name: str, ..R }) -> str = value.name
+fn store() -> impl Store { create_store() }
+fn subtotal(quantity: int) -> int fails str {
+  if quantity <= 0 { fail "invalid quantity" }
+  quantity * 10
+}
+fn negative() -> int fails int { fail -1 }
+fn array_error() -> int fails [int] { fail [1, 2] }
+fn tuple_error() -> int fails (int, str) { fail (1, "error") }
+fn map_error() -> int fails Map<str, int> { fail #{code: 1} }
+let options = ConnectionOptions { host: "api.test", timeout: 30 }
+let connection = connect(..options, timeout: 5)
+let updated = user with { name?: patch.name }
+let selected = users?.[index]?.name
+fn summarize() {
+  let { retries = 3, timeout: wait = 5 } = settings
+  let { address.city: city } = user
+  let (status, ...payload) = response()
+}
+match message {
+  ^request_id => accepted(),
+  (parse_date -> .Ok(date)) => print(date),
+  _ => rejected(),
+}
+for case ActiveUser(name) in users { print(name) } else { print("empty") }
+let totals = iter[for total in invoices => total * 2]
+async fn* pages(ids: [int]) -> int { for id in ids { yield await fetch(id) } }
+let result = await fetch() within 2s else cached
+using async session = await open_session() { await session.read() }
+test "shipping" for (total, expected) in [(99, 12), (100, 0)] {
+  assert_eq(shipping(total), expected)
+}
+
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type))))
+  (struct_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type))
+      (field_declaration
+        (identifier)
+        (primitive_type))
+      (field_declaration
+        (identifier)
+        (type_path
+          (identifier)))
+      (field_declaration
+        (identifier)
+        (primitive_type))))
+  (type_alias
+    (identifier)
+    (type_projection
+      (identifier)
+      (record_projection_body
+        (property_identifier
+          (identifier))
+        (property_identifier
+          (identifier))
+        (property_identifier
+          (identifier))
+        (property_identifier
+          (identifier))
+        (property_identifier
+          (identifier)))))
+  (newtype_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (primitive_type))
+  (pattern_alias_declaration
+    (identifier)
+    (identifier)
+    (struct_pattern
+      (identifier)
+      (field_pattern
+        (identifier))
+      (field_pattern
+        (identifier)
+        (literal_pattern
+          (bool_literal)))))
+  (function_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (parameter_list
+      (parameter
+        (identifier)
+        (record_type
+          (identifier)
+          (primitive_type)
+          (record_row
+            (identifier)))))
+    (primitive_type)
+    (function_expression_body
+      (field_expression
+        (identifier)
+        (identifier))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (opaque_return_type
+      (type_path
+        (identifier)))
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list)))))
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (primitive_type)
+    (block
+      (expression_statement
+        (if_expression
+          (binary_expression
+            (identifier)
+            (integer_literal))
+          (block
+            (expression_statement
+              (fail_expression
+                (string_literal
+                  (string_content)))))))
+      (expression_statement
+        (binary_expression
+          (identifier)
+          (integer_literal)))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (primitive_type)
+    (block
+      (expression_statement
+        (fail_expression
+          (unary_expression
+            (integer_literal))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (array_type
+      (primitive_type))
+    (block
+      (expression_statement
+        (fail_expression
+          (array_expression
+            (integer_literal)
+            (integer_literal))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (tuple_type
+      (primitive_type)
+      (primitive_type))
+    (block
+      (expression_statement
+        (fail_expression
+          (tuple_expression
+            (integer_literal)
+            (string_literal
+              (string_content)))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (generic_type
+      (identifier)
+      (primitive_type)
+      (primitive_type))
+    (block
+      (expression_statement
+        (fail_expression
+          (map_expression
+            (map_entry
+              (identifier)
+              (integer_literal)))))))
+  (let_declaration
+    (identifier)
+    (struct_expression
+      (identifier)
+      (struct_expression_body
+        (struct_expression_field
+          (identifier)
+          (string_literal
+            (string_content)))
+        (struct_expression_field
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (named_record_argument
+            (identifier)))
+        (call_argument
+          (identifier)
+          (integer_literal)))))
+  (let_declaration
+    (identifier)
+    (record_update_expression
+      (identifier)
+      (record_update_body
+        (record_update_field
+          (record_update_path
+            (identifier))
+          (field_expression
+            (identifier)
+            (identifier))))))
+  (let_declaration
+    (identifier)
+    (optional_chain_expression
+      (index_expression
+        (identifier)
+        (identifier))
+      (identifier)))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (anon_struct_pattern
+          (field_pattern
+            (identifier)
+            (integer_literal))
+          (field_pattern
+            (identifier)
+            (identifier_pattern
+              (identifier))
+            (integer_literal)))
+        (identifier))
+      (let_declaration
+        (anon_struct_pattern
+          (field_pattern
+            (identifier)
+            (identifier)
+            (identifier_pattern
+              (identifier))))
+        (identifier))
+      (let_declaration
+        (tuple_pattern
+          (identifier_pattern
+            (identifier))
+          (tuple_rest_pattern
+            (identifier)))
+        (call_expression
+          (identifier)
+          (argument_list)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (pin_pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (match_arm
+        (view_pattern
+          (identifier)
+          (enum_pattern
+            (identifier)
+            (identifier_pattern
+              (identifier))))
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (match_arm
+        (wildcard_pattern)
+        (call_expression
+          (identifier)
+          (argument_list)))))
+  (expression_statement
+    (for_expression
+      (enum_pattern
+        (identifier)
+        (identifier_pattern
+          (identifier)))
+      (identifier)
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (identifier))))))
+      (block
+        (expression_statement
+          (call_expression
+            (identifier)
+            (argument_list
+              (call_argument
+                (string_literal
+                  (string_content)))))))))
+  (let_declaration
+    (identifier)
+    (lazy_builder_expression
+      (array_expression
+        (array_for_entry
+          (identifier)
+          (identifier)
+          (binary_expression
+            (identifier)
+            (integer_literal))))))
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (array_type
+          (primitive_type))))
+    (primitive_type)
+    (block
+      (expression_statement
+        (for_expression
+          (identifier)
+          (identifier)
+          (block
+            (expression_statement
+              (yield_expression
+                (await_expression
+                  (call_expression
+                    (identifier)
+                    (argument_list
+                      (call_argument
+                        (identifier))))))))))))
+  (let_declaration
+    (identifier)
+    (await_deadline_expression
+      (call_expression
+        (identifier)
+        (argument_list))
+      (duration_literal)
+      (identifier)))
+  (expression_statement
+    (resource_scope_expression
+      (identifier)
+      (await_expression
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (block
+        (expression_statement
+          (await_expression
+            (method_call_expression
+              (identifier)
+              (identifier)
+              (argument_list)))))))
+  (titled_test_declaration
+    (string_literal
+      (string_content))
+    (test_table_header
+      (tuple_pattern
+        (identifier_pattern
+          (identifier))
+        (identifier_pattern
+          (identifier)))
+      (array_expression
+        (tuple_expression
+          (integer_literal)
+          (integer_literal))
+        (tuple_expression
+          (integer_literal)
+          (integer_literal))))
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (call_argument
+              (call_expression
+                (identifier)
+                (argument_list
+                  (call_argument
+                    (identifier)))))
+            (call_argument
+              (identifier))))))))
+
+==================
+Fourth contextual names preserve ordinary calls and indexing
+==================
+fn fail(value: int) -> int = value
+let iter = [7]
+let value = iter[0]
+let failed = fail(value)
+let fails = 1
+let pattern = 2
+let member = context.fail
+let indexed = fail[0]
+let subtracted = fail-1
+fn choose(fail: bool) -> int { if fail { 1 } else { 0 } }
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (function_expression_body
+      (identifier)))
+  (let_declaration
+    (identifier)
+    (array_expression
+      (integer_literal)))
+  (let_declaration
+    (identifier)
+    (index_expression
+      (identifier)
+      (integer_literal)))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (field_expression
+      (identifier)
+      (identifier)))
+  (let_declaration
+    (identifier)
+    (index_expression
+      (identifier)
+      (integer_literal)))
+  (let_declaration
+    (identifier)
+    (binary_expression
+      (identifier)
+      (integer_literal)))
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (expression_statement
+        (if_expression
+          (identifier)
+          (block
+            (expression_statement
+              (integer_literal)))
+          (block
+            (expression_statement
+              (integer_literal))))))))
