@@ -956,6 +956,12 @@
 ; Fourth batch: contextual words remain ordinary identifiers elsewhere.
 (function_item "fails" @keyword.operator)
 (trait_method "fails" @keyword.operator)
+; Void success remains a contextual builtin type when its arrow is explicit.
+; Omitted success arrows still expose the error_type field and fails operator.
+(function_item return_type: (primitive_type) @type.builtin "fails" @keyword.operator
+  (#eq? @type.builtin "void"))
+(trait_method return_type: (primitive_type) @type.builtin "fails" @keyword.operator
+  (#eq? @type.builtin "void"))
 (fail_expression "fail" @keyword.return)
 (lazy_builder_expression "iter" @keyword)
 (opaque_return_type "impl" @keyword)

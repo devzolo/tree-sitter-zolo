@@ -1,0 +1,120 @@
+==================
+Fallible void declarations with omitted and explicit success arrows
+==================
+
+fn save() fails str { return }
+fn explicit() -> void fails str {}
+async fn flush() fails str { fail "cannot flush" }
+fn expression() fails str = print("saved")
+fn absent() -> nil fails str { nil }
+trait Store { fn save(self) fails str; }
+impl Store for Disk { fn save(self) fails str { return } }
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (return_statement)))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (primitive_type)
+    (block))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (expression_statement
+        (fail_expression
+          (string_literal
+            (string_content))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (function_expression_body
+      (call_expression
+        (identifier)
+        (argument_list
+          (call_argument
+            (string_literal
+              (string_content)))))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (type_path
+      (identifier))
+    (primitive_type)
+    (block
+      (expression_statement
+        (nil_literal))))
+  (trait_item
+    (identifier)
+    (trait_body
+      (trait_method
+        (identifier)
+        (parameter_list
+          (self_parameter))
+        (primitive_type))))
+  (impl_item
+    (type_path
+      (identifier))
+    (type_path
+      (identifier))
+    (impl_body
+      (function_item
+        (identifier)
+        (parameter_list
+          (self_parameter))
+        (primitive_type)
+        (block
+          (return_statement))))))
+
+==================
+Fallible void headers span lines and retain contracts and generic errors
+==================
+
+fn save<E>(name: str)
+fails E
+requires name != ""
+ensures true
+{ return }
+let fails = 1
+let result = store.fails
+
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (type_path
+      (identifier))
+    (function_contract_clause
+      (binary_expression
+        (identifier)
+        (string_literal)))
+    (function_contract_clause
+      (bool_literal))
+    (block
+      (return_statement)))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (field_expression
+      (identifier)
+      (identifier))))

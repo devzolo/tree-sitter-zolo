@@ -1,0 +1,14 @@
+    fn save() fails str { return }
+//            ^^^^^ keyword.operator
+//                  ^^^ type.builtin
+    fn flush() -> void fails WriteError { fail "cannot flush" }
+//                ^^^^ type.builtin
+//                     ^^^^^ keyword.operator
+//                           ^^^^^^^^^^ type
+//                                        ^^^^ keyword.return
+    trait Store { fn save(self) fails str; }
+//                              ^^^^^ keyword.operator
+    let fails = 1
+//      ^^^^^ variable
+    let value = store.fails
+//                    ^^^^^ property
