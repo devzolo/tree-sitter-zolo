@@ -232,6 +232,10 @@ enum TokenType {
   BLOCK_TRIPLE_END1,
   BLOCK_TRIPLE_END2,
   BLOCK_TRIPLE_END3,
+  PATCH_KEYWORD,
+  FOLD_KEYWORD,
+  FREEZE_KEYWORD,
+  TYPED_JSON_START,
   ERROR_SENTINEL,
 };
 
@@ -408,6 +412,31 @@ static bool is_reserved_word(const char *word) {
     }
   }
   return false;
+}
+
+// Keep contextual operands aligned with Rust token kinds. A following `let`
+// starts a declaration even when it occurs after the newline of an alias.
+static bool fifth_word_is_expression_start(const char *word) {
+  if (!is_reserved_word(word)) return true;
+  static const char *const operands[] = {
+    "return", "if", "for", "while", "loop", "break", "continue", "match",
+    "nil", "true", "false", "comptime", "await", "yield", "spawn", "scope",
+    "select", "every", "after", "timeout", "sleep", "try", "handle",
+    "perform", "using", "extern",
+  };
+  for (size_t i=0;i<sizeof(operands)/sizeof(operands[0]);i++) {
+    if (!strcmp(word,operands[i])) return true;
+  }
+  return false;
+}
+
+static void fifth_peek_word(TSLexer *lexer, char word[128]) {
+  unsigned length=0;
+  while (is_label_continue(lexer->lookahead)) {
+    if (length+1<128) word[length++]=(char)lexer->lookahead;
+    lexer->advance(lexer,false);
+  }
+  word[length]=0;
 }
 
 /// `sink`, the parameter convention (specs/linear-affine-types-innovations.html
@@ -2043,6 +2072,12 @@ static bool attempt_nominal_body(TSLexer *lexer) {
   lexer->advance(lexer,false);return lexer->lookahead!=':';
 }
 
+// Typed patches are expression operands. Handler heads retain their separate
+// HANDLE_SEPARATOR token and the existing lexical scope guards.
+static bool record_update_operand_start(int32_t c) {
+  return c == '{' || is_label_start(c) || c == '(' || c == '|';
+}
+
 static bool scan_static_pratt_end(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols, bool prefix_newline, bool prefix_markup_newline, bool prefetched_slash) {
   if(!prefetched_slash)lexer->mark_end(lexer);
   bool newline = prefix_newline, markup_newline = prefix_markup_newline;
@@ -2108,7 +2143,8 @@ static bool scan_static_pratt_end(Scanner *scanner, TSLexer *lexer, const bool *
     if (bounded && (!strcmp(word, "as") || !strcmp(word, "is") || !strcmp(word, "in"))) lbp = 11;
     bool after_newline = false, after_markup_newline = false;
     const bool brace = skip_pratt_end_trivia(lexer, &after_newline, &after_markup_newline) && lexer->lookahead == '{';
-    contextual_zero = bounded && brace && (!strcmp(word, "with") || !strcmp(word, "recover"));
+    contextual_zero = bounded && ((brace && !strcmp(word, "recover")) ||
+      (!strcmp(word, "with") && record_update_operand_start(lexer->lookahead) && (brace || !newline)));
     if (!newline && brace && (!bounded || (!callback_keyword(word) && strcmp(word, "recover")))) {
       const bool within = bounded && !strcmp(word, "within");
       if (within && valid_symbols[AWAIT_WITHIN_CALL_END]) { lexer->result_symbol = AWAIT_WITHIN_CALL_END; return true; }
@@ -2218,6 +2254,37 @@ static bool scan_numeric_suffix(TSLexer *lexer, const bool *valid) {
   lexer->result_symbol=token;return true;
 }
 
+// Peek the complete typed-literal header before claiming its contextual word.
+// mark_end stays after json: brackets, type and body remain grammar children.
+static bool scan_typed_json_start(TSLexer *lexer) {
+  while (is_ascii_ws(lexer->lookahead)) lexer->advance(lexer, true);
+  if (!scan_word(lexer, "json")) return false;
+  lexer->mark_end(lexer);
+  while (is_ascii_ws(lexer->lookahead)) lexer->advance(lexer, false);
+  if (lexer->lookahead != '<') return false;
+  unsigned depth = 1;
+  unsigned brackets = 0;
+  lexer->advance(lexer, false);
+  while (depth && !lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if ((c == '\n' || c == '=') && depth == 1) return false;
+    if (c == ';' && depth == 1 && !brackets) return false;
+    if (c == '[') brackets++;
+    else if (c == ']') {
+      if (!brackets) return false;
+      brackets--;
+    }
+    if (c == '<') depth++;
+    else if (c == '>') depth--;
+    lexer->advance(lexer, false);
+  }
+  if (depth || brackets) return false;
+  while (is_ascii_ws(lexer->lookahead)) lexer->advance(lexer, false);
+  if (lexer->lookahead != '"') return false;
+  lexer->result_symbol = TYPED_JSON_START;
+  return true;
+}
+
 bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
                                             const bool *valid_symbols) {
   Scanner *scanner = payload;
@@ -2254,7 +2321,8 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
-  // Anonymous match rejects a leading block before entering a value scope.
+  // Anonymous match and a nonbraced patch operand reject a leading block
+  // before entering a value scope. `record with { ... }` owns those braces.
   if (valid_symbols[MATCH_SCRUTINEE_START]) {
     lexer->mark_end(lexer);
     if (!skip_foreign_group_trivia(lexer) || lexer->lookahead == '{' || lexer->eof(lexer)) return false;
@@ -2320,10 +2388,14 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     lexer->result_symbol=MAP_IF_CONDITION_START;return true;
   }
   if (scan_expr_scope(scanner,lexer,valid_symbols)) return true;
+  if (valid_symbols[TYPED_JSON_START]) {
+    skip_dispatch_ws(lexer, &dispatch_newline, &dispatch_markup_newline, &dispatch_markup_whitespace);
+    if (lexer->lookahead == 'j') return scan_typed_json_start(lexer);
+  }
   // Contextual prefix keywords consume only their word after complete positive
   // lookahead. Reading the shared word once is essential: these candidates
   // are normally valid together. Negative lookahead retains ordinary identifiers.
-  if (valid_symbols[PARTIAL_KEYWORD] || valid_symbols[CAPTURE_KEYWORD] || valid_symbols[PARALLEL_COLLECTION_KEYWORD] || valid_symbols[FAIL_KEYWORD] || valid_symbols[ITER_BUILDER_KEYWORD]) {
+  if (valid_symbols[PARTIAL_KEYWORD] || valid_symbols[CAPTURE_KEYWORD] || valid_symbols[PARALLEL_COLLECTION_KEYWORD] || valid_symbols[FAIL_KEYWORD] || valid_symbols[ITER_BUILDER_KEYWORD] || valid_symbols[PATCH_KEYWORD] || valid_symbols[FOLD_KEYWORD] || valid_symbols[FREEZE_KEYWORD]) {
     skip_dispatch_ws(lexer,&dispatch_newline,&dispatch_markup_newline,&dispatch_markup_whitespace);
     if (lexer->lookahead == 'c' || lexer->lookahead == 'p' || lexer->lookahead == 'f' || lexer->lookahead == 'i') {
       char word[128]; unsigned length = 0;
@@ -2333,6 +2405,46 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
       }
       word[length] = 0;
       lexer->mark_end(lexer);
+      if (valid_symbols[PATCH_KEYWORD] && !strcmp(word,"patch")) {
+        if (!skip_yield_trivia(lexer)) return false;
+        if (!(is_label_start(lexer->lookahead) || lexer->lookahead=='{')) return false;
+        if (is_label_start(lexer->lookahead)) {
+          fifth_peek_word(lexer,word);
+          if ((!strcmp(word,"self")) || (is_reserved_word(word) && strcmp(word,"extern"))) return false;
+        }
+        lexer->result_symbol=PATCH_KEYWORD; return true;
+      }
+      if (valid_symbols[FOLD_KEYWORD] && !strcmp(word,"fold")) {
+        if (!skip_yield_trivia(lexer) || lexer->lookahead!='(') return false;
+        lexer->advance(lexer,false);
+        if (!skip_yield_trivia(lexer) || !is_label_start(lexer->lookahead)) return false;
+        fifth_peek_word(lexer,word);
+        if ((!strcmp(word,"self")) || (is_reserved_word(word) && strcmp(word,"extern"))) return false;
+        if (!skip_yield_trivia(lexer) || lexer->lookahead!='=') return false;
+        lexer->advance(lexer,false);
+        if (lexer->lookahead=='=') return false;
+        lexer->result_symbol=FOLD_KEYWORD; return true;
+      }
+      if (valid_symbols[FREEZE_KEYWORD] && !strcmp(word,"freeze")) {
+        // Every snapshot operand is separated from its contextual word.
+        // Adjacent calls and indices belong to an ordinary `freeze` binding.
+        if (!(is_ascii_ws(lexer->lookahead) || lexer->lookahead==0x00a0 || lexer->lookahead=='/') || !skip_yield_trivia(lexer)) return false;
+        const int32_t start=lexer->lookahead;
+        if (start=='{' && (scanner->expr_flags&1)) return false;
+        if (is_label_start(start)) {
+          fifth_peek_word(lexer,word);
+          if (!fifth_word_is_expression_start(word)) return false;
+        } else if (start=='-' || start=='!' || start=='~') {
+          lexer->advance(lexer,false);
+          if (lexer->lookahead=='=' || (start=='-' && lexer->lookahead=='>') || (start=='~' && lexer->lookahead=='/')) return false;
+        } else if (start=='.') {
+          lexer->advance(lexer,false);
+          if (lexer->lookahead!='.') return false;
+          lexer->advance(lexer,false);
+          if (lexer->lookahead=='.') return false;
+        } else if (!(is_label_start(start) || (start>='0'&&start<='9') || start=='"' || start=='\'' || start=='{' || start=='[' || start=='#' || start=='(' || start=='|' || start=='^' || start=='$' || start=='<' || start==':')) return false;
+        lexer->result_symbol=FREEZE_KEYWORD; return true;
+      }
       if (valid_symbols[FAIL_KEYWORD] && !strcmp(word,"fail")) {
         // An adjacent dot/call/index belongs to an ordinary identifier.
         if (lexer->lookahead=='.' || lexer->lookahead=='(' || lexer->lookahead=='[' || lexer->lookahead=='-') return false;
@@ -2700,7 +2812,9 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     if(wants_else && !strcmp(word,"else")){lexer->mark_end(lexer);lexer->result_symbol=IF_ELSE_KEYWORD;return true;}
     if (wants_handle && !strcmp(word,"with")) { lexer->mark_end(lexer);lexer->result_symbol=HANDLE_SEPARATOR;return true; }
     if (wants_low_tail && (!strcmp(word,"with") || !strcmp(word,"recover"))) {
-      if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '{') return false;
+      if (!skip_foreign_group_trivia(lexer)) return false;
+      if (!strcmp(word, "recover") ? lexer->lookahead != '{' : !record_update_operand_start(lexer->lookahead)) return false;
+      if (!strcmp(word, "with") && lexer->lookahead != '{' && saw_newline) return false;
       lexer->result_symbol=PRATT_LOW_TAIL_START;return true;
     }
     if(wants_mode && (!strcmp(word,"relative")||!strcmp(word,"ulps"))) {lexer->result_symbol=APPROX_MODE_START;return true;}
@@ -2722,7 +2836,8 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     if ((wants_update || wants_handle) && !strcmp(word, "with")) {
       lexer->mark_end(lexer);
       if (wants_handle) { lexer->result_symbol = HANDLE_SEPARATOR; return true; }
-      if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '{') return false;
+      if (!skip_foreign_group_trivia(lexer) || !record_update_operand_start(lexer->lookahead)) return false;
+      if (lexer->lookahead != '{' && saw_newline) return false;
       lexer->result_symbol = RECORD_UPDATE_WITH;
       return true;
     }

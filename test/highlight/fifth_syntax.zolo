@@ -1,0 +1,32 @@
+    let next = freeze cart
+//             ^^^^^^ keyword.operator
+    let change = patch Cart { items[0].n += 1 }
+//               ^^^^^ keyword.operator
+    let next = cart with change
+//                  ^^^^ keyword
+    let value = load()? map |cause| .Read(cause)
+//                      ^^^ keyword.operator
+    type Output = Input.{ id } & { version: int }
+//                             ^ operator
+    for case Ready(name) & Verified() in users { print(name) }
+//                       ^ operator
+    for index in 0..8 by 2 { print(index) }
+//                    ^^ keyword.operator
+    let total = fold(sum = 0) for value in items => sum + value
+//              ^^^^ keyword.repeat
+    const value = json<int>"42"
+//                ^^^^ keyword.operator
+    fn find() -> (.Found(int) | .Missing) { .Missing }
+//                 ^^^^^ constant
+    type Decode = fn(str) -> int fails str
+//                               ^^^^^ keyword.operator
+    let summary = invoice.{ id, total: _.subtotal + _.tax }
+//                              ^^^^^ variable.member
+    fn open(..options: Options) { }
+//          ^^ operator
+    <Card v:if={let item = current} item={item} />
+//        ^^^^ keyword.conditional
+    <Row v:for={item in items} v:key={item.id} />
+//       ^^^^^ keyword.repeat
+    test "rows" for value in #{ "first": 1 } using fixture = open() { }
+//                                           ^^^^^ keyword

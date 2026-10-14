@@ -136,3 +136,18 @@
 (pattern_alias_declaration name: (identifier) @local.definition.type)
 (pattern_alias_declaration parameter: (identifier) @local.definition.parameter)
 (tuple_rest_pattern name: (identifier) @local.definition.var)
+
+; Fifth headers keep their bindings local to their authored callable/element.
+(expanded_record_parameter name: (identifier) @local.definition.parameter)
+(fold_expression) @local.scope
+(fold_expression accumulator: (identifier) @local.definition.var)
+(fold_expression binding: (identifier_pattern (identifier) @local.definition.var))
+(resource_binding name: (identifier) @local.definition.var)
+(markup_element) @local.scope
+(markup_self_closing_tag) @local.scope
+((markup_attribute
+  name: (markup_attribute_name) @directive
+  value: (markup_attribute_expression
+    (expression_statement
+      (binary_expression left: (identifier) @local.definition.var "in"))))
+ (#eq? @directive "v:for"))

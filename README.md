@@ -66,6 +66,13 @@ tree-sitter-zolo/
 The parser uses an **external scanner** in `src/scanner.c`. Compile it together
 with the generated `src/parser.c`.
 
+The public package includes all generated sources. When its tables exceed the
+publication size limit, `parser.c` includes deterministic `src/*.inc` parts.
+Keep those parts beside `parser.c`; they are compiled as one C translation unit.
+After generating a local parser, run `node compact-parser.cjs`. The command
+checks the complete C token stream before writing the compacted files, and
+keeps each published source below 100 MiB.
+
 ## Neovim — quick start (recommended)
 
 Use the bundled plugin in [`editors/nvim`](editors/nvim). It registers the

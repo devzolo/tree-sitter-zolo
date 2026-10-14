@@ -8,7 +8,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const {
   MAX_PARSER_BYTES, PACK_WIDTH, TokenDigest, compactSource,
-  lexicalTokenDigest, fileTokenDigest, assertPublishedSize, compactFile,
+  lexicalTokenDigest, fileTokenDigest, includedTokenDigest, assertPublishedSize, assertPublishedTree, compactFile,
 } = require('../compact-parser.cjs');
 
 function preserves(source, width) {
@@ -47,6 +47,18 @@ test('all physical lines of multiline comments, strings and character literals r
   const result = preserves(source);
   assert.ok(result.startsWith(protectedLines.join('')));
   assert.ok(result.endsWith('value[0]=42;\n'));
+});
+
+test('generated quoted symbol names and lexer comparisons retain their raw C tokens', () => {
+  const source = '  [sym_name] = "name with spaces",\n'
+    + '  [sym_quote] = "\\\"quote\\\"",\n'
+    + "    if (lookahead >= 'a' && lookahead <= 'z') ADVANCE(42);\n"
+    + "    if (lookahead == '\\\\') ADVANCE(43);\n";
+  const result = preserves(source);
+  assert.ok(result.length < source.length * 0.85, 'generated quotes must not preserve unrelated indentation/operator padding');
+  assert.ok(result.includes('"name with spaces"'));
+  assert.ok(result.includes("'\\\\'"));
+  assert.equal(compactSource(result), result);
 });
 
 test('directives and complete backslash continuations preserve raw CRLF bytes', () => {
@@ -157,17 +169,72 @@ test('publication guard rejects exactly 100 MiB and failed proof/size checks nev
   assert.ok(!(await fs.readdir(dir)).some(name => name.includes('.compact-')));
 });
 
+test('oversized generated tables partition into checked C includes without altering the expanded token stream', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'zolo-parser-includes-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const input = path.join(dir, 'original.c');
+  const output = path.join(dir, 'published', 'parser.c');
+  // The conditional/continued directive and multiline comment must each stay
+  // in a single part, while the large ordinary table can span included files.
+  const source = '#if defined(TEST)\n#define TEST_VALUE(x) \\\n  ((x) + 1)\n#endif\n'
+    + '/* protected\n comment */\nstatic const unsigned table[600] = {\n'
+    + Array.from({ length: 600 }, (_, i) => `  [${i}] = ${i},\n`).join('')
+    + '};\nint answer(void) { return table[42]; }\n';
+  await fs.writeFile(input, source);
+  const result = await compactFile(input, output, { limit: 2048, chunkBytes: 1200, split: true });
+  assert.ok(result.parts.length > 1);
+  assert.ok(result.afterBytes < 2048);
+  const entrypoint = await fs.readFile(output, 'utf8');
+  const includes = Array.from(entrypoint.matchAll(/^#include "([^"/\\]+\.inc)"$/gm), match => match[1]);
+  assert.deepEqual(includes, result.parts.map(part => part.name));
+  const files = includes.map(name => path.join(path.dirname(output), name));
+  assert.deepEqual(await includedTokenDigest(files), await fileTokenDigest(input));
+  assert.ok((await assertPublishedTree(path.dirname(output), 2048)).every(artifact => artifact.bytes < 2048));
+  const firstRun = await Promise.all(files.map(file => fs.readFile(file, 'utf8')));
+  const repeated = await compactFile(input, output, { limit: 2048, chunkBytes: 1200, split: true });
+  assert.deepEqual(repeated, result, 'parts and complete lexical proof must be deterministic');
+  assert.deepEqual(await Promise.all(files.map(file => fs.readFile(file, 'utf8'))), firstRun);
+  assert.ok(firstRun.some(part => part.includes('#if defined(TEST)\n#define TEST_VALUE(x) \\\n  ((x) + 1)\n#endif\n')));
+});
+
+test('partitioning rejects context-dependent macros and oversized protected groups before replacing the entrypoint', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'zolo-parser-include-guard-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const input = path.join(dir, 'original.c');
+  const output = path.join(dir, 'parser.c');
+  const padding = 'static int values[] = {' + '1,'.repeat(800) + '0};\n';
+  await fs.writeFile(output, 'old parser');
+  for (const sensitive of ['const int line = __LINE__;\n', '#define LOCATION __FILE__\n']) {
+    await fs.writeFile(input, sensitive + padding);
+    await assert.rejects(compactFile(input, output, { limit: 1024, split: true }), /context-sensitive C macro/);
+    assert.equal(await fs.readFile(output, 'utf8'), 'old parser');
+  }
+  await fs.writeFile(input, '#if TEST\n' + padding + '#endif\n');
+  await assert.rejects(compactFile(input, output, { limit: 1024, split: true }), /protected C group exceeds/);
+  assert.equal(await fs.readFile(output, 'utf8'), 'old parser');
+  assert.ok(!(await fs.readdir(dir)).some(name => name.includes('.compact-') || name.endsWith('.inc')));
+});
+
 test('npm, bash CI and official Rust publishing all use the same published compactor', async () => {
   const root = path.join(__dirname, '..');
   const manifest = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
   const lock = JSON.parse(await fs.readFile(path.join(root, 'package-lock.json'), 'utf8'));
   assert.ok(manifest.files.includes('compact-parser.cjs'));
+  assert.ok(manifest.files.includes('src/**'), 'npm must ship the generated includes and parser headers');
   assert.equal(manifest.devDependencies['tree-sitter-cli'], '0.26.8');
   assert.equal(lock.packages[''].devDependencies['tree-sitter-cli'], '0.26.8');
   assert.equal(lock.packages['node_modules/tree-sitter-cli'].version, '0.26.8');
-  assert.match(manifest.scripts.build, /^tree-sitter generate && node compact-parser\.cjs && node-gyp build$/);
+  assert.match(manifest.scripts.build, /^node --test test\/grammar\.test\.cjs && tree-sitter generate && node compact-parser\.cjs && node-gyp build$/);
   const bash = await fs.readFile(path.join(root, 'scripts', 'publish.sh'), 'utf8');
   const rust = await fs.readFile(path.join(root, '..', 'xtask', 'src', 'tree_sitter_sync.rs'), 'utf8');
+  const cargo = await fs.readFile(path.join(root, 'Cargo.toml'), 'utf8');
+  const pythonManifest = await fs.readFile(path.join(root, 'MANIFEST.in'), 'utf8');
+  assert.match(cargo, /"src\/\*\*"/);
+  assert.match(pythonManifest, /recursive-include src[^\n]*\*\.inc/);
+  for (const buildFile of ['binding.gyp', 'pyproject.toml', 'setup.py', 'MANIFEST.in', 'Package.swift']) {
+    assert.ok(rust.includes(`"${buildFile}"`), `Rust publication must include ${buildFile}`);
+    assert.ok(bash.includes(`  ${buildFile}\n`), `bash publication must include ${buildFile}`);
+  }
   assert.match(bash, /PUBLISH_SET=\([\s\S]*?\n  compact-parser\.cjs\n/);
   assert.match(bash, /generate \)\s*\n[\s\S]*?node "\$SRC_DIR\/compact-parser\.cjs" "\$SRC_DIR\/src\/parser\.c"/);
   assert.match(bash, /--check-size "\$WORK_DIR\/src\/parser\.c"/);

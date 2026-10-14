@@ -1,0 +1,4 @@
+include README.md pyproject.toml setup.py
+recursive-include src *.c *.h *.inc *.json
+recursive-include queries *.scm
+recursive-include bindings/python *.c *.py *.pyi py.typed

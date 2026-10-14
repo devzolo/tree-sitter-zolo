@@ -6,6 +6,12 @@
 ; -- Containers that open an indentation level ------------------------------
 [
   (block)
+  (extern_body)
+  (extern_group)
+  (dependencies_declaration)
+  (dependency_group)
+  (extern_dependencies)
+  (extern_dependency_options)
   (trailing_lambda)
   (declaration_body)
   (field_declaration_list)
@@ -23,6 +29,7 @@
   (map_expression)
   (tuple_expression)
   (struct_expression_body)
+  (record_projection_body)
   (match_expression)
   (tuple_pattern)
   (array_pattern)
@@ -42,4 +49,21 @@
   (triple_string_literal)
   (raw_string_literal)
   (string_literal)
+  (foreign_content)
+  (python_foreign_content)
+  (javascript_foreign_content)
+  (typescript_foreign_content)
+  (java_foreign_content)
+  (kotlin_foreign_content)
+  (c_foreign_content)
+  (cpp_foreign_content)
+  (rust_foreign_content)
+  (go_foreign_content)
 ] @indent.ignore
+
+; Ordinary callback bodies own their parameters and braces.
+(trailing_callback_body) @indent.begin
+
+; Typed handler override source scopes.
+(handler_override_body) @indent.begin
+(handler_override_parameter_list) @indent.begin

@@ -15,12 +15,19 @@ fn bad(value: Order<.Paid(1)>) {}
 (ERROR)
 
 ==================
-A state marker is not an ordinary type outside its generic owner
-:error
+A standalone dot type is a single-variant tagged sum
 ==================
 fn bad(value: .Paid) {}
 ---
-(ERROR)
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (tagged_sum_type
+          (tagged_sum_variant (identifier)))))
+    (block)))
 
 ==================
 Qualified state references are not marker names

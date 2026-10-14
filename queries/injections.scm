@@ -1,5 +1,17 @@
 ; Injections for Zolo
 ;
+; Typed JSON uses literal delimiters, with no Zolo interpolation. Offsets keep
+; those delimiters outside the embedded JSON document.
+((typed_json_literal) @injection.content
+ (#match? @injection.content "^\"\"\"")
+ (#offset! @injection.content 0 3 0 -3)
+ (#set! injection.language "json"))
+
+((typed_json_literal) @injection.content
+ (#not-match? @injection.content "^\"\"\"")
+ (#offset! @injection.content 0 1 0 -1)
+ (#set! injection.language "json"))
+;
 ; Providers are imported bindings, not reserved language names. Known default
 ; spellings select editor parsers. Imported Python/Node aliases retain dialects.
 ((python_foreign_content) @injection.content

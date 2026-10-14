@@ -598,10 +598,10 @@
 (for_expression "case" @keyword.control)
 
 ; Projection names designate physical properties, never local puns.
-(record_projection_body field: (property_identifier) @property)
-(record_projection_body alias: (property_identifier) @property)
-(record_projection_body field: (property_identifier (identifier) @property))
-(record_projection_body alias: (property_identifier (identifier) @property))
+(record_projection_entry field: (property_identifier) @property)
+(record_projection_entry alias: (property_identifier) @property)
+(record_projection_entry field: (property_identifier (identifier) @property))
+(record_projection_entry alias: (property_identifier (identifier) @property))
 
 ; Whole-schema clauses retain ordinary callable/lambda scopes.
 (schema_invariant_clause "where" @keyword)
@@ -981,3 +981,35 @@
 (pin_pattern "^" @operator value: (identifier) @variable)
 (tuple_rest_pattern "..." @operator name: (identifier) @variable.parameter)
 (view_pattern "->" @operator)
+
+; Fifth syntax batch. Contextual spellings retain their ordinary identifier
+; scope elsewhere, including method names and foreign bodies.
+(expanded_record_parameter ".." @operator name: (identifier) @variable.parameter)
+(computed_projection_field name: (property_identifier (identifier) @variable.member))
+(function_type "fails" @keyword.operator)
+(lambda_expression "fails" @keyword.operator)
+(freeze_expression "freeze" @keyword.operator)
+(patch_expression "patch" @keyword.operator)
+(record_update_expression "with" @keyword)
+(mapped_try_expression ["?" "map"] @keyword.operator)
+(intersection_type "&" @operator)
+(and_pattern "&" @operator)
+(tagged_sum_variant "." @punctuation.special name: (identifier) @constant)
+(range_step "by" @keyword.operator)
+(zip_iteration "in" @keyword.repeat)
+(fold_expression ["fold" "for" "in"] @keyword.repeat)
+(fold_expression accumulator: (identifier) @variable.parameter)
+(markup_condition_binding "v:if" @keyword.conditional)
+(markup_for_attribute "v:for" @keyword.repeat)
+; Existing attribute tokens have lexical priority, so ordinary structural
+; headers can retain the original wrapper with their authored let/binary body.
+((markup_attribute
+   name: (markup_attribute_name) @keyword.conditional
+   value: (markup_attribute_expression (let_declaration)))
+ (#eq? @keyword.conditional "v:if"))
+((markup_attribute name: (markup_attribute_name) @keyword.repeat)
+ (#eq? @keyword.repeat "v:for"))
+((markup_attribute_name) @keyword.control (#eq? @keyword.control "v:key"))
+(test_resource_header "using" @keyword)
+(typed_json_expression "json" @keyword.operator)
+(typed_json_literal) @string

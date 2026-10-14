@@ -1,5 +1,81 @@
 ; Injections for Zolo
 ;
+; Typed JSON uses literal delimiters, with no Zolo interpolation. Offsets keep
+; those delimiters outside the embedded JSON document.
+((typed_json_literal) @injection.content
+ (#match? @injection.content "^\"\"\"")
+ (#offset! @injection.content 0 3 0 -3)
+ (#set! injection.language "json"))
+
+((typed_json_literal) @injection.content
+ (#not-match? @injection.content "^\"\"\"")
+ (#offset! @injection.content 0 1 0 -1)
+ (#set! injection.language "json"))
+;
+; Providers are imported bindings, not reserved language names. Known default
+; spellings select editor parsers. Imported Python/Node aliases retain dialects.
+((python_foreign_content) @injection.content
+ (#set! injection.language "python"))
+((java_foreign_content) @injection.content
+  (#set! injection.language "java"))
+((kotlin_foreign_content) @injection.content
+  (#set! injection.language "kotlin"))
+((c_foreign_content) @injection.content
+  (#set! injection.language "c"))
+((cpp_foreign_content) @injection.content
+  (#set! injection.language "cpp"))
+((rust_foreign_content) @injection.content
+  (#set! injection.language "rust"))
+((go_foreign_content) @injection.content
+  (#set! injection.language "go"))
+((javascript_foreign_content) @injection.content
+ (#set! injection.language "javascript"))
+((typescript_foreign_content) @injection.content
+ (#set! injection.language "typescript"))
+((extern_declaration
+   provider: (identifier) @_provider
+   (extern_function body: (extern_body content: (foreign_content) @injection.content)))
+ (#eq? @_provider "csharp")
+ (#set! injection.language "c_sharp"))
+
+((extern_declaration
+   provider: (identifier) @_provider
+   (extern_module body: (extern_body content: (foreign_content) @injection.content)))
+ (#eq? @_provider "csharp")
+ (#set! injection.language "c_sharp"))
+
+((extern_declaration
+   provider: (identifier) @_provider
+   (extern_group (extern_function body: (extern_body content: (foreign_content) @injection.content))))
+ (#eq? @_provider "csharp")
+ (#set! injection.language "c_sharp"))
+
+((extern_expression
+   provider: (identifier) @_provider
+   body: (extern_body content: (foreign_content) @injection.content))
+ (#eq? @_provider "csharp")
+ (#set! injection.language "c_sharp"))
+
+((extern_declaration
+   provider: (identifier) @injection.language
+   (extern_function body: (extern_body content: (foreign_content) @injection.content)))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
+
+((extern_declaration
+   provider: (identifier) @injection.language
+   (extern_module body: (extern_body content: (foreign_content) @injection.content)))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
+
+((extern_declaration
+   provider: (identifier) @injection.language
+   (extern_group (extern_function body: (extern_body content: (foreign_content) @injection.content))))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
+
+((extern_expression
+   provider: (identifier) @injection.language
+   body: (extern_body content: (foreign_content) @injection.content))
+ (#any-of? @injection.language "javascript" "typescript" "java" "rust"))
+;
 ; String interpolation: the {expr} part inside a string literal is itself
 ; Zolo source. tree-sitter already exposes the inner expression through the
 ; `string_interpolation` rule, so most consumers don't need an injection
@@ -66,15 +142,38 @@
    open_tag: (markup_open_tag name: (identifier) @_tag) @_open
    (markup_raw_text) @injection.content)
  (#eq? @_tag "script")
- (#not-match? @_open "client:mount")
+ (#not-match? @_open "^<script[ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]*>$")
+ (#not-match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]*>$")
+ (#not-match? @_open "^<script[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*>$")
+ (#not-match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*>$")
  (#set! injection.language "javascript"))
 
 ((markup_element
    open_tag: (markup_open_tag name: (identifier) @_tag) @_open
    (markup_raw_text) @injection.content)
  (#eq? @_tag "script")
- (#match? @_open "client:mount")
- (#match? @_open "lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"']")
+ (#match? @_open "^<script[ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]*>$")
+ (#set! injection.language "typescript"))
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag) @_open
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "script")
+ (#match? @_open "^<script[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*>$")
+ (#set! injection.language "typescript"))
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag) @_open
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "script")
+ (#match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][^>]*[ \\t\\r\\n]+client:mount(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[^>]*>$")
+ (#set! injection.language "typescript"))
+
+((markup_element
+   open_tag: (markup_open_tag name: (identifier) @_tag) @_open
+   (markup_raw_text) @injection.content)
+ (#eq? @_tag "script")
+ (#match? @_open "^<script[ \\t\\r\\n]+lang[ \\t\\r\\n]*=[ \\t\\r\\n]*[\"'](?:ts|typescript)[\"'][ \\t\\r\\n]+client(?:[ \\t\\r\\n]*=[ \\t\\r\\n]*true)?[ \\t\\r\\n]*>$")
  (#set! injection.language "typescript"))
 
 ; `@(expr)` itself: `expr`, not the whole node — `@(`/`)` are not valid

@@ -2,7 +2,14 @@
 
 [
   (function_item)
+  (extern_body)
+  (extern_group)
+  (extern_dependencies)
+  (dependencies_declaration)
+  (dependency_group)
+  (extern_dependency_options)
   (struct_item)
+  (schema_item)
   (enum_item)
   (trait_item)
   (impl_item)
@@ -19,6 +26,7 @@
   (array_expression)
   (map_expression)
   (struct_expression_body)
+  (record_projection_body)
   (match_expression)
   (try_catch_expression)
   (for_expression)
@@ -32,3 +40,12 @@
   (timeout_expression)
   (block_comment)
 ] @fold
+
+; Ordinary callback bodies own their parameters and braces.
+(trailing_callback_body) @fold
+
+; Typed handler override source scopes.
+(handler_override_body) @fold
+
+; Fold authored titled test headers with their real blocks.
+(titled_test_declaration) @fold

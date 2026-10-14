@@ -1,0 +1,92 @@
+// Fifth syntax 1
+canvas.resize(width: 640)
+buffer.resize(width: 128)
+
+// Fifth syntax 2
+let next = cart with {
+    items[2].quantity += 1
+}
+
+// Fifth syntax 3
+let summary = invoice.{
+    id,
+    total: _.subtotal + _.tax,
+}
+
+// Fifth syntax 4
+struct ConnectOptions { timeout: Duration = 2s, retries: int = 3 }
+fn connect(host: str, ..options: ConnectOptions) { /* body */ }
+connect("api.example.test", timeout: 5s)
+
+// Fifth syntax 5
+type Parser = fn(str) -> int fails ParseError
+let parse: Parser = |text| -> int fails ParseError {
+    parse_integer(text)?
+}
+
+// Fifth syntax 6
+let published = freeze draft
+let revised = published with { title: "Updated" }
+
+// Fifth syntax 7
+let add_one = patch Cart { items[2].quantity += 1 }
+let next = cart with add_one
+
+// Fifth syntax 8
+let source = read_file(path)? map |cause| .Read(path, cause)
+
+// Fifth syntax 9
+let format_name = trim >> capitalize
+let names = users.map(_.name).map(format_name)
+
+// Fifth syntax 10
+type VersionedUser = User.{ id, name } & { version: int }
+
+// Fifth syntax 11
+for case ActiveUser(name) & VerifiedUser() in users {
+    print(name)
+}
+
+// Fifth syntax 12
+for offset in 0..buffer.len() by 16 {
+    process_block(offset)
+}
+
+// Fifth syntax 13
+for name in names, score in scores {
+    print("{name}: {score}")
+}
+
+// Fifth syntax 14
+let total = fold (sum = 0) for item in items =>
+    sum + item.price * item.quantity
+
+// Fifth syntax 15
+<UserCard v:if={let user = current_user} user={user} />
+
+// Fifth syntax 16
+<TodoRow v:for={todo in todos} v:key={todo.id} {todo} />
+
+// Fifth syntax 17
+test "shipping" for (total, expected) in #{
+    "below threshold": (99, 12),
+    "at threshold": (100, 0),
+} {
+    assert_eq(shipping(total), expected)
+}
+
+// Fifth syntax 18
+test "inserts one user" using db = test_database() {
+    db.insert("Ana")
+    assert_eq(db.count(), 1)
+}
+
+// Fifth syntax 19
+const user = json<User>"""
+    { "id": 42, "name": "Ana" }
+    """
+
+// Fifth syntax 20
+fn lookup(id: int) -> (.Found(User) | .Missing) {
+    /* body */
+}

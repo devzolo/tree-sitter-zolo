@@ -86,6 +86,28 @@ static void fourth_prefix(const char *text, uint8_t flags, bool expected, unsign
   assert(scanner.expr_flags == flags && scanner.count == 0 && scanner.scope == 0);
 }
 
+static unsigned fifth_prefix_count;
+static void fifth_prefix(const char *text, uint8_t flags, bool expected, unsigned token) {
+  fifth_prefix_count++;
+  Scanner scanner={0};scanner.expr_flags=flags;
+  bool valid[ERROR_SENTINEL+1]={0};
+  valid[PATCH_KEYWORD]=valid[FOLD_KEYWORD]=valid[FREEZE_KEYWORD]=valid[TYPED_JSON_START]=true;
+  // All prefix candidates may be valid together in the actual LR state.
+  valid[PARTIAL_KEYWORD]=valid[CAPTURE_KEYWORD]=valid[FAIL_KEYWORD]=valid[ITER_BUILDER_KEYWORD]=true;
+  TestLexer lexer=input(text);
+  const bool result=tree_sitter_zolo_external_scanner_scan(&scanner,&lexer.lexer,valid);
+  if(result!=expected || (result && lexer.lexer.result_symbol!=token)) {
+    fprintf(stderr,"contextual prefix boundary failed: %s (result %d, token %u)\n",text,result,lexer.lexer.result_symbol);
+    assert(0);
+  }
+  if(expected) {
+    const char *word=text;while(*word==' '||*word=='\n'||*word=='\t'||*word=='\r')word++;
+    const char *end=word;while((*end>='a'&&*end<='z')||*end=='_')end++;
+    assert(lexer.end==(size_t)(end-text));
+  }
+  assert(scanner.expr_flags==flags&&scanner.count==0&&scanner.scope==0);
+}
+
 typedef struct {TSLexer lexer;const int32_t *text;size_t position,end;} CodepointLexer;
 static void advance_codepoint(TSLexer *base,bool skip){(void)skip;CodepointLexer*l=(CodepointLexer*)base;if(l->text[l->position])l->position++;base->lookahead=l->text[l->position];}
 static void mark_codepoint(TSLexer *base){CodepointLexer*l=(CodepointLexer*)base;l->end=l->position;}
@@ -145,6 +167,42 @@ static void block_triple(const char *text,uint32_t column,bool raw,unsigned hash
 }
 
 int main(void){
+  const char *ordinary_prefixes[]={"patch(1)","patch .name","patch.name","patch[0]","patch?","patch::run", "fold(1)","fold(name: 1)","fold(value == 1)","fold.name","fold[0]","fold", "freeze(1)","freeze[0]","freeze.name","freeze::run","freeze;","freeze}","freeze]","freeze?","freeze != 1","freeze -= 1","freeze & 1","freeze * 1", "json(1)","json.name","json[0]","json::run","json#\"{}\"#","json<int>(1)","json < 1"};
+  for(size_t i=0;i<sizeof(ordinary_prefixes)/sizeof(ordinary_prefixes[0]);i++)fifth_prefix(ordinary_prefixes[i],0,false,0);
+  fifth_prefix("patch Cart { total: 1 }",0,true,PATCH_KEYWORD);
+  fifth_prefix("patch /* note */ Cart { total: 1 }",0,true,PATCH_KEYWORD);
+  fifth_prefix("fold(total = 0) for n in numbers => total+n",0,true,FOLD_KEYWORD);
+  fifth_prefix("fold /* note */ (total /* note */ = 0) for n in numbers => total+n",0,true,FOLD_KEYWORD);
+  fifth_prefix("freeze [1]",0,true,FREEZE_KEYWORD);
+  fifth_prefix("freeze ([1])",0,true,FREEZE_KEYWORD);
+  fifth_prefix("freeze /* note */ value",0,true,FREEZE_KEYWORD);
+  fifth_prefix("freeze { total: 1 }",1,false,0);
+  fifth_prefix("json<User>\"{}\"",0,true,TYPED_JSON_START);
+  fifth_prefix("json < Map<str,int> > \"{}\"",0,true,TYPED_JSON_START);
+  fifth_prefix("json<[int; 2]>\"[1,2]\"",0,true,TYPED_JSON_START);
+  fifth_prefix("json<Map<str,[int; 2]>>\"{}\"",0,true,TYPED_JSON_START);
+  fifth_prefix("json < int; 2 > \"42\"",0,false,0);
+  fifth_prefix("json<[int; 2>\"[1,2]\"",0,false,0);
+  fifth_prefix("patch self { value: 1 }",0,false,0);
+  fifth_prefix("fold(self = 1) for item in items => item",0,false,0);
+  fifth_prefix("freeze self",0,true,FREEZE_KEYWORD);
+  // The Rust lexer emits reserved tokens, rather than Ident, for these words.
+  // Newlines between an alias and a declaration must not become a prefix.
+  const char *freeze_operand_keywords[]={"return","if","for","while","loop","break","continue","match","nil","true","false","comptime","await","yield","spawn","scope","select","every","after","timeout","sleep","try","handle","perform","using","extern"};
+  for(size_t i=0;i<sizeof(RESERVED_WORDS)/sizeof(RESERVED_WORDS[0]);i++) {
+    const char *next=RESERVED_WORDS[i];
+    char prefix[128];
+    if(strcmp(next,"extern")) {
+      snprintf(prefix,sizeof(prefix),"patch\n%s next",next);
+      fifth_prefix(prefix,0,false,0);
+      snprintf(prefix,sizeof(prefix),"fold(%s = 1) for item in items => item",next);
+      fifth_prefix(prefix,0,false,0);
+    }
+    bool operand=false;
+    for(size_t j=0;j<sizeof(freeze_operand_keywords)/sizeof(freeze_operand_keywords[0]);j++)operand|=!strcmp(next,freeze_operand_keywords[j]);
+    snprintf(prefix,sizeof(prefix),"freeze\n%s next",next);
+    fifth_prefix(prefix,0,operand,operand?FREEZE_KEYWORD:0);
+  }
   block_triple("text \"\"\" )\n  \"\"\" after",0,false,0,BLOCK_TRIPLE_CONTENT,strlen("text \"\"\" )\n"));
   block_triple("  \"\"\" after",0,false,0,BLOCK_TRIPLE_END0,5);
   block_triple("\"\"\" inline",5,false,0,BLOCK_TRIPLE_CONTENT,strlen("\"\"\" inline"));
@@ -351,5 +409,5 @@ int main(void){
   dependency_header("deps_more { rust {} }", false);
   dependency_header("deps {\n field\n}", false);
   dependency_header("deps {\n field // ordinary field }\n}", false);
-  puts("10 scanner dialect boundaries, 21 dependency headers, 10 with, 15 callback, 10 call-end, 17 fourth-prefix, 15 timeout-operand, 8 Unicode-prefix, 74 View and 27 BLOCK triple boundaries passed");return 0;
+  printf("%u fifth-prefix, 10 scanner dialect boundaries, 21 dependency headers, 10 with, 15 callback, 10 call-end, 17 fourth-prefix, 15 timeout-operand, 8 Unicode-prefix, 74 View and 27 BLOCK triple boundaries passed\n",fifth_prefix_count);return 0;
 }

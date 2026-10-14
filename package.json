@@ -42,11 +42,12 @@
     }
   ],
   "scripts": {
-    "build": "tree-sitter generate && node compact-parser.cjs && node-gyp build",
+    "build": "node --test test/grammar.test.cjs && tree-sitter generate && node compact-parser.cjs && node-gyp build",
     "install": "node-gyp-build",
     "prebuildify": "prebuildify --napi --strip",
     "test": "tree-sitter test",
-    "test:compact": "node --test test/compact-parser.test.cjs"
+    "test:compact": "node --test test/compact-parser.test.cjs",
+    "test:grammar": "node --test test/grammar.test.cjs"
   },
   "dependencies": {
     "node-addon-api": "^7.1.0",

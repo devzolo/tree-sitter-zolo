@@ -217,5 +217,6 @@ let direct = value as app::shop.Order .{ state }
           (identifier)
           (identifier))
         (record_projection_body
-          (property_identifier
-            (identifier)))))))
+          (record_projection_entry
+            (property_identifier
+              (identifier))))))))

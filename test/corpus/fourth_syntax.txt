@@ -69,16 +69,19 @@ test "shipping" for (total, expected) in [(99, 12), (100, 0)] {
     (type_projection
       (identifier)
       (record_projection_body
-        (property_identifier
-          (identifier))
-        (property_identifier
-          (identifier))
-        (property_identifier
-          (identifier))
-        (property_identifier
-          (identifier))
-        (property_identifier
-          (identifier)))))
+        (record_projection_entry
+          (property_identifier
+            (identifier)))
+        (record_projection_entry
+          (property_identifier
+            (identifier)))
+        (record_projection_entry
+          (property_identifier
+            (identifier))
+          (property_identifier
+            (identifier))
+          (property_identifier
+            (identifier))))))
   (newtype_item
     (identifier)
     (type_parameters
