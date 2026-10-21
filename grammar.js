@@ -23,6 +23,21 @@ function extendFifthGrammar(data) {
     else r[name] = choice(r[name], rule);
   };
 
+  // Source-only native libraries share registry dependency declarations but
+  // retain a literal-only input grammar, including nonrecursive target maps.
+  const nativeKeys = ['include_dirs', 'link', 'sources', 'runtime', 'defines'];
+  const nativeArray = () => seq(
+    field('option', choice(...nativeKeys.map(str))), sym('_markup_after_3d'),
+    sym('_markup_after_5b'), opt(list(sym('string_literal'))), str(']'));
+  const separator = opt(choice(comma, sym('_markup_after_3b')));
+  const options = r.extern_dependency_options.members[1].content.members[0];
+  options.members.push(nativeArray(), seq(
+    field('option', str('targets')), sym('_markup_after_3d'), sym('extern_native_targets')));
+  r.extern_native_targets = seq(open, rep(seq(sym('extern_native_target'), separator)), str('}'));
+  r.extern_native_target = seq(
+    field('target', sym('string_literal')), sym('_markup_after_3d'), sym('extern_native_target_options'));
+  r.extern_native_target_options = seq(open, rep(seq(nativeArray(), separator)), str('}'));
+
   // Existing named call labels, shifts/function composition and ordinary
   // directive expressions already have complete source grammar surfaces.
   r.expanded_record_parameter = prec(1, seq(str('..'), field('name', sym('identifier')), colon, field('type', sym('_type'))), 'PREC_LEFT');
@@ -93,6 +108,18 @@ function extendFifthGrammar(data) {
   r.test_table_header.members[r.test_table_header.members.length - 1] = field('rows', choice(sym('array_expression'), sym('map_expression')));
   r.test_resource_header = seq(str('using'), sym('resource_binding'), rep(seq(comma, sym('resource_binding'))));
   members(r.titled_test_declaration).splice(members(r.titled_test_declaration).length - 1, 0, opt(sym('test_resource_header')));
+
+  // `for mut x in xs` (`for await mut x`, `[for mut x in xs => …]`): the
+  // loop's bindings may be reassigned; without it they are immutable
+  // (TE149). Only before a single name: an optional `mut` before every
+  // binding form pushed the parse table past tree-sitter's 65535 actions,
+  // so `for mut (a, b)` parses in the compiler but not here.
+  r.mutable_loop_binding = seq(str('mut'), field('name', sym('identifier')));
+  const loopBinding = members(r.for_expression)
+    .find(part => part.type === 'CHOICE' && part.members.some(member => member.type === 'FIELD' && member.name === 'binding'))
+    .members.find(member => member.type === 'FIELD' && member.name === 'binding');
+  loopBinding.content.members.push(sym('mutable_loop_binding'));
+  appendChoice('_array_for_binding', sym('mutable_loop_binding'));
 }
 extendFifthGrammar(contextGrammarData);
 

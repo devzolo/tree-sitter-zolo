@@ -1,0 +1,74 @@
+==================
+for mut makes the loop variable reassignable
+==================
+
+for mut i in 0..3 { i = i + 1 }
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (mutable_loop_binding (identifier))
+      (range_expression (integer_literal) (integer_literal))
+      (block
+        (assignment_statement
+          (identifier)
+          (binary_expression (identifier) (integer_literal)))))))
+
+==================
+for await mut keeps await first
+==================
+
+for await mut event in source { event }
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (mutable_loop_binding (identifier))
+      (identifier)
+      (block (expression_statement (identifier))))))
+
+==================
+builders take for mut too
+==================
+
+let ys = [for mut y in [1] => y]
+let m = #{for mut z in [1] => [z]: z}
+
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (array_expression
+      (array_for_entry
+        (mutable_loop_binding (identifier))
+        (array_expression (integer_literal))
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (map_expression
+      (map_for_entry
+        (mutable_loop_binding (identifier))
+        (array_expression (integer_literal))
+        (map_builder_pair
+          (map_computed_key (identifier))
+          (identifier))))))
+
+==================
+a name that starts with mut is still a plain binding
+==================
+
+for mutation in values { mutation }
+
+---
+
+(source_file
+  (expression_statement
+    (for_expression
+      (identifier)
+      (identifier)
+      (block (expression_statement (identifier))))))

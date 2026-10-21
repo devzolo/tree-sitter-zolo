@@ -45,6 +45,7 @@
 (extern_dependencies "deps" @keyword)
 (extern_dependency package: (identifier) @property)
 (extern_dependency_options option: _ @property)
+(extern_native_target_options option: _ @property)
 
 [
   "fn"

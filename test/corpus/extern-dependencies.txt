@@ -28,3 +28,66 @@ let deps = 42
       (extern_dependency (identifier) (extern_dependency_options
         (string_literal (string_content)) (string_literal (string_content))))))
   (let_declaration (identifier) (integer_literal)))
+
+==================
+Native local libraries expose literal inputs and per-target overrides
+==================
+use plugin native::{c as ffi}
+deps {
+  ffi::math = {
+    include_dirs = ["./native/include"]
+    link = ["./native/lib/math.lib"]
+    sources = ["./native/math.c"]
+    runtime = ["./native/bin/math.dll"]
+    defines = ["MATH_API=1"]
+    targets = {
+      "x86_64-pc-windows-msvc" = { link = ["./win/math.lib"] }
+      // } still declarative
+      "x86_64-unknown-linux-gnu" = { link = ["./linux/libmath.a"], defines = ["POSIX"] }
+    }
+  }
+}
+deps { ffi { adapter = { sources = ["./adapter.c"] } } }
+extern ffi deps { platform = { targets = { "x86_64-pc-windows-msvc" = {} } } }
+let after = 42
+---
+(source_file
+  (use_declaration (use_path (identifier) (use_list (use_item (identifier) (identifier)))))
+  (dependencies_declaration
+    (qualified_dependency
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (string_literal (string_content))
+          (string_literal (string_content))
+          (string_literal (string_content))
+          (string_literal (string_content))
+          (string_literal (string_content))
+          (extern_native_targets
+            (extern_native_target
+              (string_literal (string_content))
+              (extern_native_target_options (string_literal (string_content))))
+            (line_comment)
+            (extern_native_target
+              (string_literal (string_content))
+              (extern_native_target_options
+                (string_literal (string_content))
+                (string_literal (string_content)))))))))
+  (dependencies_declaration
+    (dependency_group
+      (identifier)
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options (string_literal (string_content))))))
+  (extern_declaration
+    (identifier)
+    (extern_dependencies
+      (extern_dependency
+        (identifier)
+        (extern_dependency_options
+          (extern_native_targets
+            (extern_native_target
+              (string_literal (string_content))
+              (extern_native_target_options)))))))
+  (let_declaration (identifier) (integer_literal)))

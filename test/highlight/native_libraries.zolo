@@ -1,0 +1,26 @@
+deps {
+// <- keyword
+  c::math = {
+//^ module
+//   ^^^^ property
+    include_dirs = ["./native/include"]
+//  ^^^^^^^^^^^^ property
+    link = ["./native/math.lib"]
+//  ^^^^ property
+    sources = ["./native/math.c"]
+//  ^^^^^^^ property
+    runtime = ["./native/math.dll"]
+//  ^^^^^^^ property
+    defines = ["MATH_API=1"]
+//  ^^^^^^^ property
+    targets = {
+//  ^^^^^^^ property
+      "x86_64-pc-windows-msvc" = {
+        link = ["./win/math.lib"]
+//      ^^^^ property
+      }
+    }
+  }
+}
+let targets = 42
+//  ^^^^^^^ variable

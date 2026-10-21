@@ -904,6 +904,10 @@
             "named": true
           },
           {
+            "type": "mutable_loop_binding",
+            "named": true
+          },
+          {
             "type": "tuple_pattern_binding",
             "named": true
           }
@@ -3018,6 +3022,10 @@
             "named": false
           },
           {
+            "type": "defines",
+            "named": false
+          },
+          {
             "type": "extras",
             "named": false
           },
@@ -3026,7 +3034,27 @@
             "named": false
           },
           {
+            "type": "include_dirs",
+            "named": false
+          },
+          {
+            "type": "link",
+            "named": false
+          },
+          {
             "type": "requirement",
+            "named": false
+          },
+          {
+            "type": "runtime",
+            "named": false
+          },
+          {
+            "type": "sources",
+            "named": false
+          },
+          {
+            "type": "targets",
             "named": false
           },
           {
@@ -3042,6 +3070,10 @@
       "types": [
         {
           "type": "bool_literal",
+          "named": true
+        },
+        {
+          "type": "extern_native_targets",
           "named": true
         },
         {
@@ -3182,6 +3214,89 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "extern_native_target",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "extern_native_target_options",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "extern_native_target_options",
+    "named": true,
+    "fields": {
+      "option": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "defines",
+            "named": false
+          },
+          {
+            "type": "include_dirs",
+            "named": false
+          },
+          {
+            "type": "link",
+            "named": false
+          },
+          {
+            "type": "runtime",
+            "named": false
+          },
+          {
+            "type": "sources",
+            "named": false
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string_literal",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "extern_native_targets",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "extern_native_target",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3702,6 +3817,10 @@
           },
           {
             "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "mutable_loop_binding",
             "named": true
           },
           {
@@ -6478,6 +6597,10 @@
             "named": true
           },
           {
+            "type": "mutable_loop_binding",
+            "named": true
+          },
+          {
             "type": "tuple_pattern_binding",
             "named": true
           }
@@ -7217,6 +7340,22 @@
     }
   },
   {
+    "type": "mutable_loop_binding",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "named_argument_shorthand",
     "named": true,
     "fields": {
@@ -7654,6 +7793,10 @@
           },
           {
             "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "mutable_loop_binding",
             "named": true
           },
           {
@@ -11329,6 +11472,10 @@
     "named": false
   },
   {
+    "type": "defines",
+    "named": false
+  },
+  {
     "type": "deps",
     "named": false
   },
@@ -11502,6 +11649,10 @@
     "named": false
   },
   {
+    "type": "include_dirs",
+    "named": false
+  },
+  {
     "type": "initial",
     "named": false
   },
@@ -11557,6 +11708,10 @@
     "type": "line_comment",
     "named": true,
     "extra": true
+  },
+  {
+    "type": "link",
+    "named": false
   },
   {
     "type": "loop",
@@ -11756,6 +11911,10 @@
     "named": false
   },
   {
+    "type": "runtime",
+    "named": false
+  },
+  {
     "type": "rust_foreign_content",
     "named": true
   },
@@ -11800,6 +11959,10 @@
     "named": false
   },
   {
+    "type": "sources",
+    "named": false
+  },
+  {
     "type": "spawn",
     "named": false
   },
@@ -11829,6 +11992,10 @@
   },
   {
     "type": "super",
+    "named": false
+  },
+  {
+    "type": "targets",
     "named": false
   },
   {

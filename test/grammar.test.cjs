@@ -104,9 +104,21 @@ test('all rules outside the explicit extension set remain unchanged', () => {
     'record_projection_body', 'function_type', '_lambda_header', '_tier_non_dot_prefix',
     '_tier_non_dot_atom', '_handler_atom', '_expression', '_type', 'state_index_argument',
     '_pattern', '_for_iteration', 'markup_attribute', 'test_table_header', 'titled_test_declaration',
-    'intersection_type',
+    'intersection_type', 'extern_dependency_options', 'for_expression', '_array_for_binding',
   ]);
   for (const [name, rule] of Object.entries(old)) {
     if (!changed.has(name)) assert.deepEqual(current[name], rule, name);
   }
+});
+
+test('for mut adds one binding alternative and leaves the loop shapes alone', () => {
+  assert.deepEqual(current.mutable_loop_binding, {type: 'SEQ', members: [
+    {type: 'STRING', value: 'mut'},
+    {type: 'FIELD', name: 'name', content: {type: 'SYMBOL', name: 'identifier'}},
+  ]});
+  const added = {type: 'SYMBOL', name: 'mutable_loop_binding'};
+  const binding = rule => JSON.stringify(rule).replace(',' + JSON.stringify(added), '');
+  assert.equal(binding(current.for_expression), JSON.stringify(old.for_expression));
+  assert.deepEqual(current._array_for_binding.members.at(-1), added);
+  assert.deepEqual(current._array_for_binding.members.slice(0, -1), old._array_for_binding.members);
 });
