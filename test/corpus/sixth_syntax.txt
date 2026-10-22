@@ -1,0 +1,4461 @@
+==================
+Sixth 01-lexical-using
+==================
+
+// Keep the resource name visible while cleanup follows the enclosing block.
+var closed = ""
+struct Report { name: str }
+impl core::cleanup::Cleanup for Report {
+    fn close(self) { closed += self.name }
+}
+fn render() -> str {
+    using input = Report { name: "input" }
+    using output = Report { name: "output" }
+    "{input.name} -> {output.name}"
+}
+assert(render() == "input -> output")
+assert(closed == "outputinput")
+print(closed)
+
+---
+
+(source_file
+  (line_comment)
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (impl_item
+    trait: (type_path
+      (identifier)
+      (identifier)
+      (identifier))
+    type: (type_path
+      (identifier))
+    body: (impl_body
+      (function_item
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter))
+        body: (block
+          (assignment_statement
+            target: (identifier)
+            value: (field_expression
+              object: (self_expression)
+              field: (identifier)))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (lexical_resource_declaration
+        name: (identifier)
+        acquisition: (struct_expression
+          name: (identifier)
+          body: (struct_expression_body
+            (struct_expression_field
+              name: (identifier)
+              value: (string_literal
+                (string_content))))))
+      (lexical_resource_declaration
+        name: (identifier)
+        acquisition: (struct_expression
+          name: (identifier)
+          body: (struct_expression_body
+            (struct_expression_field
+              name: (identifier)
+              value: (string_literal
+                (string_content))))))
+      (expression_statement
+        (string_literal
+          (string_interpolation
+            (field_expression
+              object: (identifier)
+              field: (identifier)))
+          (string_content)
+          (string_interpolation
+            (field_expression
+              object: (identifier)
+              field: (identifier)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Sixth storage prefixes labels and scalar tagged payloads retain their source decisions
+==================
+
+fn observe(maybe: int?) -> int {
+    let<signal> count = 0
+    var<signal, memo> total = 1
+    let value = maybe ?? return :retry loop { break :retry 7 }
+    :outer loop {
+        let chosen = maybe ?? break :outer 42
+        let commented = maybe ?? break /* label */ :outer 42
+        let resumed = maybe ?? continue :outer
+        let continued = maybe ?? continue // label
+            :outer
+    }
+    value
+}
+fn literal_payload(value: Order<.Paid(1)>) {}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (optional_type
+          (primitive_type))))
+    return_type: (primitive_type)
+    body: (block
+      (let_declaration
+        storage: (storage_class
+          (identifier))
+        pattern: (identifier)
+        value: (integer_literal))
+      (let_declaration
+        storage: (storage_class
+          (identifier)
+          (identifier))
+        pattern: (identifier)
+        value: (integer_literal))
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (coalescing_exit
+            value: (loop_expression
+              label: (loop_label
+                name: (identifier))
+              body: (block
+                (break_statement
+                  label: (loop_label
+                    name: (identifier))
+                  value: (integer_literal)))))))
+      (expression_statement
+        (loop_expression
+          label: (loop_label
+            name: (identifier))
+          body: (block
+            (let_declaration
+              pattern: (identifier)
+              value: (binary_expression
+                left: (identifier)
+                right: (coalescing_exit
+                  (loop_label_reference
+                    name: (identifier))
+                  value: (integer_literal))))
+            (let_declaration
+              pattern: (identifier)
+              value: (binary_expression
+                left: (identifier)
+                right: (coalescing_exit
+                  (loop_label_reference
+                    (block_comment)
+                    name: (identifier))
+                  value: (integer_literal))))
+            (let_declaration
+              pattern: (identifier)
+              value: (binary_expression
+                left: (identifier)
+                right: (coalescing_exit
+                  (loop_label_reference
+                    name: (identifier)))))
+            (let_declaration
+              pattern: (identifier)
+              value: (binary_expression
+                left: (identifier)
+                right: (coalescing_exit
+                  (loop_label_reference
+                    (line_comment)
+                    name: (identifier))))))))
+      (expression_statement
+        (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (generic_type
+          name: (identifier)
+          (tagged_sum_type
+            (tagged_sum_variant
+              name: (identifier)
+              (literal_type
+                (integer_literal)))))))
+    body: (block)))
+
+==================
+Sixth every binary operator value shares ordinary parenthesis scopes
+==================
+
+let arithmetic = [(+), (-), (*), (/), (~/), (%), (**)]
+let comparisons = [(==), (!=), (<), (<=), (>), (>=)]
+let bitwise = [(&), (|), (^), (<<), (>>), (&&), (||)]
+consume(..())
+consume(..(7,))
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)))
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)))
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)
+      (operator_value)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (named_record_argument
+            value: (tuple_expression))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (named_record_argument
+            value: (tuple_expression
+              (integer_literal))))))))
+
+==================
+Sixth 02-transform-patches
+==================
+
+// Capture a label once; advance each counter from its own current value.
+struct Counter { value: int, label: str }
+
+fn label() -> str {
+    print("prepare label")
+    "saved"
+}
+
+let advance = patch Counter {
+    value => _ + 2,
+    label: label(),
+}
+let original = Counter { value: 1, label: "draft" }
+let first = original with advance
+let second = first with advance
+assert(original.value == 1)
+assert(first.value == 3)
+assert(second.value == 5)
+assert(second.label == "saved")
+print("{first.value}, {second.value}: {second.label}")
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (expression_statement
+        (string_literal
+          (string_content)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (patch_expression
+      type: (type_path
+        (identifier))
+      body: (record_update_body
+        (record_update_field
+          path: (record_update_path
+            (identifier))
+          value: (binary_expression
+            left: (identifier)
+            right: (integer_literal)))
+        (record_update_field
+          path: (record_update_path
+            (identifier))
+          value: (call_expression
+            function: (identifier)
+            arguments: (argument_list))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (record_update_expression
+      base: (identifier)
+      patch: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (record_update_expression
+      base: (identifier)
+      patch: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_interpolation
+              (field_expression
+                object: (identifier)
+                field: (identifier)))
+            (string_content)
+            (string_interpolation
+              (field_expression
+                object: (identifier)
+                field: (identifier)))
+            (string_content)
+            (string_interpolation
+              (field_expression
+                object: (identifier)
+                field: (identifier)))))))))
+
+==================
+Sixth 03-bound-methods
+==================
+
+// Keep the selected receiver when storing a method for later use.
+struct Greeter { prefix: str }
+impl Greeter {
+    fn greet(self, name: str = "world") -> str = "{self.prefix}, {name}!"
+}
+fn make_greeter() -> Greeter {
+    print("create greeter")
+    Greeter { prefix: "Hello" }
+}
+let greet = make_greeter().greet
+assert(greet() == "Hello, world!")
+assert(greet(name: "Ana") == "Hello, Ana!")
+print(greet(name: "Ana"))
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (impl_item
+    type: (type_path
+      (identifier))
+    body: (impl_body
+      (function_item
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter)
+          (parameter
+            name: (identifier)
+            type: (primitive_type)
+            default: (string_literal
+              (string_content))))
+        return_type: (primitive_type)
+        body: (function_expression_body
+          value: (string_literal
+            (string_interpolation
+              (field_expression
+                object: (self_expression)
+                field: (identifier)))
+            (string_content)
+            (string_interpolation
+              (identifier))
+            (string_content))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type_path
+      (identifier))
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (expression_statement
+        (struct_expression
+          name: (identifier)
+          body: (struct_expression_body
+            (struct_expression_field
+              name: (identifier)
+              value: (string_literal
+                (string_content))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (field_expression
+      object: (call_expression
+        function: (identifier)
+        arguments: (argument_list))
+      field: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  name: (identifier)
+                  value: (string_literal
+                    (string_content)))))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                name: (identifier)
+                value: (string_literal
+                  (string_content))))))))))
+
+==================
+Sixth 04-optional-patterns
+==================
+
+// Missing readings are skipped; a reading of zero is still present.
+let readings: [int?] = [12, nil, 0, 18]
+var total = 0
+var count = 0
+for case reading? in readings {
+    total += reading
+    count += 1
+}
+print("{count} readings, total {total}")
+assert(count == 3 && total == 30)
+
+---
+
+(source_file
+  (line_comment)
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (optional_type
+        (primitive_type)))
+    value: (array_expression
+      (integer_literal)
+      (nil_literal)
+      (integer_literal)
+      (integer_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (expression_statement
+    (for_expression
+      binding: (optional_pattern
+        binding: (identifier))
+      iter: (identifier)
+      body: (block
+        (assignment_statement
+          target: (identifier)
+          value: (identifier))
+        (assignment_statement
+          target: (identifier)
+          value: (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_interpolation
+              (identifier))
+            (string_content)
+            (string_interpolation
+              (identifier)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (identifier)
+              right: (integer_literal))
+            right: (binary_expression
+              left: (identifier)
+              right: (integer_literal))))))))
+
+==================
+Sixth 05-literal-types
+==================
+
+// Only methods handled by this endpoint may reach its dispatcher.
+type Method = "GET" | "POST"
+fn action(method: Method) -> str = match method {
+    "GET" => "Read the current order",
+    "POST" => "Create an order"
+}
+print(action("GET"))
+print(action("POST"))
+assert(action("GET") == "Read the current order")
+
+---
+
+(source_file
+  (line_comment)
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (literal_type
+        (string_literal
+          (string_content)))
+      (literal_type
+        (string_literal
+          (string_content)))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (match_expression
+        value: (identifier)
+        (match_arm
+          pattern: (literal_pattern
+            (string_literal
+              (string_content)))
+          body: (string_literal
+            (string_content)))
+        (match_arm
+          pattern: (literal_pattern
+            (string_literal
+              (string_content)))
+          body: (string_literal
+            (string_content))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_content)))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_content)))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))))
+            right: (string_literal
+              (string_content))))))))
+
+==================
+Sixth 06-coalescing-exits
+==================
+
+// A missing name exits the current function; a present empty string stays present.
+fn welcome(name: str?) -> str {
+    let present = name ?? return "Welcome, guest"
+    "Welcome, {present}"
+}
+assert(welcome(nil) == "Welcome, guest")
+assert(welcome("Ada") == "Welcome, Ada")
+assert(welcome("") == "Welcome, ")
+print(welcome("Ada"))
+
+---
+
+(source_file
+  (line_comment)
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (optional_type
+          (primitive_type))))
+    return_type: (primitive_type)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (coalescing_exit
+            value: (string_literal
+              (string_content)))))
+      (expression_statement
+        (string_literal
+          (string_content)
+          (string_interpolation
+            (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (nil_literal))))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal))))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_content))))))))))
+
+==================
+Sixth 07-inout
+==================
+
+// The call tells the reader that the balance changes, including on failure.
+fn withdraw(inout balance: int, amount: int) -> Result<int, str> {
+    if amount > balance { return .Err("insufficient balance") }
+    balance -= amount
+    return .Ok(balance)
+}
+var balance = 100
+assert(withdraw(inout balance, 30).unwrap() == 70)
+assert(balance == 70)
+assert(withdraw(inout balance, 80).is_err())
+assert(balance == 70)
+print(balance)
+
+---
+
+(source_file
+  (line_comment)
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        convention: (convention)
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (generic_type
+      name: (identifier)
+      (primitive_type)
+      (primitive_type))
+    body: (block
+      (expression_statement
+        (if_expression
+          condition: (binary_expression
+            left: (identifier)
+            right: (identifier))
+          consequence: (block
+            (return_statement
+              (call_expression
+                function: (enum_shorthand_expression
+                  variant: (identifier))
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))
+      (assignment_statement
+        target: (identifier)
+        value: (identifier))
+      (return_statement
+        (call_expression
+          function: (enum_shorthand_expression
+            variant: (identifier))
+          arguments: (argument_list
+            (call_argument
+              (identifier)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (method_call_expression
+              receiver: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    convention: (convention)
+                    (identifier))
+                  (call_argument
+                    (integer_literal))))
+              method: (identifier)
+              arguments: (argument_list))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  convention: (convention)
+                  (identifier))
+                (call_argument
+                  (integer_literal))))
+            method: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Sixth 08-computed-properties
+==================
+
+// A derived total is recalculated from storage; it has no constructor slot.
+struct Invoice { subtotal: int, tax: int }
+impl Invoice {
+    get total(self) -> int = self.subtotal + self.tax
+}
+var invoice = Invoice { subtotal: 100, tax: 12 }
+assert(invoice.total == 112)
+invoice.tax = 18
+assert(invoice.total == 118)
+print("Total: {invoice.total}")
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (impl_item
+    type: (type_path
+      (identifier))
+    body: (impl_body
+      (computed_property
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter))
+        return_type: (primitive_type)
+        body: (function_expression_body
+          value: (binary_expression
+            left: (field_expression
+              object: (self_expression)
+              field: (identifier))
+            right: (field_expression
+              object: (self_expression)
+              field: (identifier)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (integer_literal))))))
+  (assignment_statement
+    target: (field_expression
+      object: (identifier)
+      field: (identifier))
+    value: (integer_literal))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content)
+            (string_interpolation
+              (field_expression
+                object: (identifier)
+                field: (identifier)))))))))
+
+==================
+Sixth 09-loop-filters
+==================
+
+// Count only paid invoices; no temporary filtered collection is allocated.
+struct Invoice { total: int, paid: bool }
+let invoices = [
+    Invoice { total: 45, paid: true },
+    Invoice { total: 80, paid: false },
+    Invoice { total: 30, paid: true },
+]
+var received = 0
+for invoice in invoices where invoice.paid {
+    received += invoice.total
+}
+assert_eq(received, 75)
+print(received)
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))
+          (struct_expression_field
+            name: (identifier)
+            value: (bool_literal))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))
+          (struct_expression_field
+            name: (identifier)
+            value: (bool_literal))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))
+          (struct_expression_field
+            name: (identifier)
+            value: (bool_literal))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (expression_statement
+    (for_expression
+      binding: (identifier)
+      iter: (identifier)
+      (loop_filter
+        iter: (field_expression
+          object: (identifier)
+          field: (identifier)))
+      body: (block
+        (assignment_statement
+          target: (identifier)
+          value: (field_expression
+            object: (identifier)
+            field: (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Sixth 10-builder-bindings
+==================
+
+// Calculate each line once, then decide whether it belongs in the report.
+struct Line { quantity: int, unit_price: int }
+let lines = [Line { quantity: 3, unit_price: 12 }, Line { quantity: 1, unit_price: 5 }]
+let report: [int] = [for line in lines let total = line.quantity * line.unit_price if total >= 20 => total]
+assert_eq(report.len(), 1)
+assert_eq(report[0], 36)
+print(report[0])
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (primitive_type))
+    value: (array_expression
+      (array_for_entry
+        binding: (identifier)
+        iter: (identifier)
+        (builder_binding
+          binding: (identifier_pattern
+            (identifier))
+          iter: (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (field_expression
+              object: (identifier)
+              field: (identifier))))
+        (builder_filter
+          iter: (binary_expression
+            left: (identifier)
+            right: (integer_literal)))
+        entry: (identifier))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list)))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (index_expression
+            object: (identifier)
+            index: (integer_literal)))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (index_expression
+            object: (identifier)
+            index: (integer_literal)))))))
+
+==================
+Sixth 11-relational-patterns
+==================
+
+fn ticket_price(age: int) -> int = match age {
+    < 0 => 0,
+    < 18 => 8,
+    >= 65 => 10,
+    _ => 16
+}
+print("Child: {ticket_price(12)}; adult: {ticket_price(30)}")
+assert(ticket_price(12) == 8 && ticket_price(70) == 10)
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (match_expression
+        value: (identifier)
+        (match_arm
+          pattern: (relational_pattern
+            bound: (integer_literal))
+          body: (integer_literal))
+        (match_arm
+          pattern: (relational_pattern
+            bound: (integer_literal))
+          body: (integer_literal))
+        (match_arm
+          pattern: (relational_pattern
+            bound: (integer_literal))
+          body: (integer_literal))
+        (match_arm
+          pattern: (wildcard_pattern)
+          body: (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content)
+            (string_interpolation
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (integer_literal)))))
+            (string_content)
+            (string_interpolation
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (integer_literal))))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (integer_literal))))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (integer_literal))))
+              right: (integer_literal))))))))
+
+==================
+Sixth 12-tuple-expansion
+==================
+
+// A position and size remain useful values before becoming call arguments.
+fn describe(x: int, y: int, width: int, height: int) -> str =
+    "({x}, {y}) {width}x{height}"
+
+fn position() -> (int, int) {
+    print("read position")
+    return (10, 20)
+}
+let size = (640, 480)
+let description = describe(..position(), ..size)
+assert(description == "(10, 20) 640x480")
+print(description)
+
+---
+
+(source_file
+  (line_comment)
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_content)
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier)))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (tuple_type
+      (primitive_type)
+      (primitive_type))
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (return_statement
+        (tuple_expression
+          (integer_literal)
+          (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (tuple_expression
+      (integer_literal)
+      (integer_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (named_record_argument
+            value: (call_expression
+              function: (identifier)
+              arguments: (argument_list))))
+        (call_argument
+          (named_record_argument
+            value: (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Sixth 13-record-without
+==================
+
+// Build the public response without exposing authentication data.
+struct Account { id: int, name: str, password: str, token: str }
+type PublicAccount = Account without { password, token }
+
+fn welcome(account: PublicAccount) -> str = "Welcome, {account.name}"
+let account = Account { id: 7, name: "Ana", password: "secret", token: "private" }
+let response = account without { password, token }
+assert(response.id == 7)
+assert(account.password == "secret")
+print(welcome(response))
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (type_alias
+    name: (identifier)
+    type: (without_type
+      owner: (identifier)
+      fields: (without_fields
+        name: (identifier)
+        name: (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_content)
+        (string_interpolation
+          (field_expression
+            object: (identifier)
+            field: (identifier))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content)))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content)))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (without_expression
+      base: (identifier)
+      fields: (without_fields
+        name: (identifier)
+        name: (identifier))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier)))))))))
+
+==================
+Sixth 14-set-construction
+==================
+
+// A set deduplicates recipients before the next processing step.
+let recipients = set { "ana", "rui", "ana" }
+let permitted = set { for name in ["ana", "rui", "ana", "guest"] if name != "guest" => name }
+assert_eq(recipients.len(), 2)
+assert(permitted.has("ana") && permitted.has("rui"))
+assert(!permitted.has("guest"))
+print(permitted.len())
+
+---
+
+(source_file
+  (line_comment)
+  (let_declaration
+    pattern: (identifier)
+    value: (set_expression
+      (string_literal
+        (string_content))
+      (string_literal
+        (string_content))
+      (string_literal
+        (string_content))))
+  (let_declaration
+    pattern: (identifier)
+    value: (set_expression
+      (array_for_entry
+        binding: (identifier)
+        iter: (array_expression
+          (string_literal
+            (string_content))
+          (string_literal
+            (string_content))
+          (string_literal
+            (string_content))
+          (string_literal
+            (string_content)))
+        (builder_filter
+          iter: (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content))))
+        entry: (identifier))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list)))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))))
+            right: (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content))))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (unary_expression
+            operand: (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content))))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Sixth 15-repeated-arrays
+==================
+
+// Allocate a fixed packet buffer and fill one slot after construction.
+let packet: [int; 4] = [0; 4]
+packet[0] = 7
+packet[3] = 9
+assert_eq(packet.len(), 4)
+assert_eq(packet[1], 0)
+print(packet[0] + packet[3])
+
+---
+
+(source_file
+  (line_comment)
+  (let_declaration
+    pattern: (identifier)
+    type: (fixed_array_type
+      element: (primitive_type)
+      length: (integer_literal))
+    value: (repeated_array_expression
+      value: (integer_literal)
+      count: (integer_literal)))
+  (assignment_statement
+    target: (index_expression
+      object: (identifier)
+      index: (integer_literal))
+    value: (integer_literal))
+  (assignment_statement
+    target: (index_expression
+      object: (identifier)
+      index: (integer_literal))
+    value: (integer_literal))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list)))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (index_expression
+            object: (identifier)
+            index: (integer_literal)))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (index_expression
+              object: (identifier)
+              index: (integer_literal))
+            right: (index_expression
+              object: (identifier)
+              index: (integer_literal))))))))
+
+==================
+Sixth 16-operator-values
+==================
+
+// The parameter gives each operator reference its numeric signature.
+fn combine(values: [int], seed: int, operation: fn(int, int) -> int) -> int {
+    var total = seed
+    for value in values { total = operation(total, value) }
+    total
+}
+let sum = combine([2, 3, 4], 0, (+))
+let product = combine([2, 3, 4], 1, (*))
+assert_eq(sum, 9)
+assert_eq(product, 24)
+print(sum)
+print(product)
+
+---
+
+(source_file
+  (line_comment)
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (array_type
+          (primitive_type)))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (function_type
+          (primitive_type)
+          (primitive_type)
+          (primitive_type))))
+    return_type: (primitive_type)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (identifier))
+      (expression_statement
+        (for_expression
+          binding: (identifier)
+          iter: (identifier)
+          body: (block
+            (assignment_statement
+              target: (identifier)
+              value: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (identifier))
+                  (call_argument
+                    (identifier))))))))
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (array_expression
+            (integer_literal)
+            (integer_literal)
+            (integer_literal)))
+        (call_argument
+          (integer_literal))
+        (call_argument
+          (operator_value)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (array_expression
+            (integer_literal)
+            (integer_literal)
+            (integer_literal)))
+        (call_argument
+          (integer_literal))
+        (call_argument
+          (operator_value)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Sixth 17-assert-let
+==================
+
+enum Checkout { Ok(int), Declined(str) }
+fn checkout(quantity: int) -> Checkout = if quantity > 0 {
+    Checkout.Ok(quantity * 25)
+} else {
+    Checkout.Declined("The cart is empty")
+}
+fn finish_order() {
+    assert let .Ok(total) = checkout(2)
+    print("Order total: {total}")
+    assert(total == 50)
+}
+finish_order()
+
+---
+
+(source_file
+  (enum_item
+    name: (identifier)
+    body: (enum_variant_list
+      (enum_variant
+        name: (identifier)
+        tuple: (enum_variant_tuple
+          (primitive_type)))
+      (enum_variant
+        name: (identifier)
+        tuple: (enum_variant_tuple
+          (primitive_type)))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (type_path
+      (identifier))
+    body: (function_expression_body
+      value: (if_expression
+        condition: (binary_expression
+          left: (identifier)
+          right: (integer_literal))
+        consequence: (block
+          (expression_statement
+            (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (binary_expression
+                    left: (identifier)
+                    right: (integer_literal)))))))
+        alternative: (block
+          (expression_statement
+            (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content))))))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (assert_let_statement
+        pattern: (enum_pattern
+          variant: (identifier)
+          (identifier_pattern
+            (identifier)))
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (integer_literal)))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content)
+                (string_interpolation
+                  (identifier)))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (identifier)
+                right: (integer_literal))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list))))
+
+==================
+Sixth 18-error-from
+==================
+
+struct ReadError { path: str }
+struct ParseError { line: int }
+enum ConfigError {
+    @from Read(ReadError),
+    @from Parse(ParseError)
+}
+fn read_config() -> Result<str, ReadError> = Result.Err(ReadError { path: "app.conf" })
+fn load_port() -> Result<int, ConfigError> {
+    let contents = read_config()?
+    return Result.Ok(contents.len())
+}
+match load_port() {
+    .Ok(port) => print("Port: {port}"),
+    .Err(.Read(error)) => print("Could not read {error.path}"),
+    .Err(.Parse(error)) => print("Invalid configuration at line {error.line}")
+}
+assert(match load_port() { .Err(.Read(error)) => error.path == "app.conf", _ => false })
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (enum_item
+    name: (identifier)
+    body: (enum_variant_list
+      (enum_variant
+        (decorator
+          name: (identifier))
+        name: (identifier)
+        tuple: (enum_variant_tuple
+          (type_path
+            (identifier))))
+      (enum_variant
+        (decorator
+          name: (identifier))
+        name: (identifier)
+        tuple: (enum_variant_tuple
+          (type_path
+            (identifier))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (generic_type
+      name: (identifier)
+      (primitive_type)
+      (type_path
+        (identifier)))
+    body: (function_expression_body
+      value: (method_call_expression
+        receiver: (identifier)
+        method: (identifier)
+        arguments: (argument_list
+          (call_argument
+            (struct_expression
+              name: (identifier)
+              body: (struct_expression_body
+                (struct_expression_field
+                  name: (identifier)
+                  value: (string_literal
+                    (string_content))))))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (generic_type
+      name: (identifier)
+      (primitive_type)
+      (type_path
+        (identifier)))
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (try_expression
+          value: (call_expression
+            function: (identifier)
+            arguments: (argument_list))))
+      (return_statement
+        (method_call_expression
+          receiver: (identifier)
+          method: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (method_call_expression
+                receiver: (identifier)
+                method: (identifier)
+                arguments: (argument_list))))))))
+  (expression_statement
+    (match_expression
+      value: (call_expression
+        function: (identifier)
+        arguments: (argument_list))
+      (match_arm
+        pattern: (enum_pattern
+          variant: (identifier)
+          (identifier_pattern
+            (identifier)))
+        body: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content)
+                (string_interpolation
+                  (identifier)))))))
+      (match_arm
+        pattern: (enum_pattern
+          variant: (identifier)
+          (enum_pattern
+            variant: (identifier)
+            (identifier_pattern
+              (identifier))))
+        body: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content)
+                (string_interpolation
+                  (field_expression
+                    object: (identifier)
+                    field: (identifier))))))))
+      (match_arm
+        pattern: (enum_pattern
+          variant: (identifier)
+          (enum_pattern
+            variant: (identifier)
+            (identifier_pattern
+              (identifier))))
+        body: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content)
+                (string_interpolation
+                  (field_expression
+                    object: (identifier)
+                    field: (identifier))))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (match_expression
+            value: (call_expression
+              function: (identifier)
+              arguments: (argument_list))
+            (match_arm
+              pattern: (enum_pattern
+                variant: (identifier)
+                (enum_pattern
+                  variant: (identifier)
+                  (identifier_pattern
+                    (identifier))))
+              body: (binary_expression
+                left: (field_expression
+                  object: (identifier)
+                  field: (identifier))
+                right: (string_literal
+                  (string_content))))
+            (match_arm
+              pattern: (wildcard_pattern)
+              body: (bool_literal))))))))
+
+==================
+Sixth 19-escaped-identifiers
+==================
+
+// Keep an external field's spelling without renaming it throughout the program.
+struct Element { `data-id`: str, `type`: str }
+let element = Element { `data-id`: "save", `type`: "button" }
+fn `match`(element: Element) -> str { element.`data-id` }
+assert(`match`(element) == "save")
+assert(element.`type` == "button")
+print(`match`(element))
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content)))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (field_expression
+          object: (identifier)
+          field: (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (identifier))))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (field_expression
+              object: (identifier)
+              field: (identifier))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier)))))))))
+
+==================
+Sixth 20-defer-outcomes
+==================
+
+// Register the outcome-specific work where the transaction starts.
+var events = ""
+fn save(accepted: bool) -> Result<int, str> {
+    defer ok { events += "commit" }
+    defer err { events += "rollback" }
+    if !accepted { return .Err("validation failed") }
+    .Ok(1)
+}
+assert(save(true).unwrap() == 1)
+assert(save(false).is_err())
+assert(events == "commitrollback")
+print(events)
+
+---
+
+(source_file
+  (line_comment)
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (generic_type
+      name: (identifier)
+      (primitive_type)
+      (primitive_type))
+    body: (block
+      (defer_statement
+        outcome: (defer_outcome)
+        value: (block_expression
+          (block
+            (assignment_statement
+              target: (identifier)
+              value: (string_literal
+                (string_content))))))
+      (defer_statement
+        outcome: (defer_outcome)
+        value: (block_expression
+          (block
+            (assignment_statement
+              target: (identifier)
+              value: (string_literal
+                (string_content))))))
+      (expression_statement
+        (method_call_expression
+          receiver: (if_expression
+            condition: (unary_expression
+              operand: (identifier))
+            consequence: (block
+              (return_statement
+                (call_expression
+                  function: (enum_shorthand_expression
+                    variant: (identifier))
+                  arguments: (argument_list
+                    (call_argument
+                      (string_literal
+                        (string_content))))))))
+          method: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (method_call_expression
+              receiver: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (bool_literal))))
+              method: (identifier)
+              arguments: (argument_list))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (bool_literal))))
+            method: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Sixth contextual ordinary names and legacy defer calls
+==================
+
+let set = 1
+let get = 2
+let without = 3
+let inout = 4
+fn names(set: int, get: int, without: int, inout: int) -> int {
+    set + get + without + inout
+}
+fn ok() {}
+fn err() {}
+fn cleanup() { defer ok(); defer err() }
+assert(names(set, get, without, inout) == 10)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (binary_expression
+          left: (binary_expression
+            left: (binary_expression
+              left: (identifier)
+              right: (identifier))
+            right: (identifier))
+          right: (identifier)))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (defer_statement
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      (defer_statement
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (identifier))
+                (call_argument
+                  (identifier))
+                (call_argument
+                  (identifier))
+                (call_argument
+                  (identifier))))
+            right: (integer_literal)))))))
+
+==================
+Sixth words inside triple strings and foreign fences stay text
+==================
+
+let prose = """set get inout without @from
+assert let item? = optional; defer ok defer err"""
+let raw = r#"""set { using resource = open() }
+get total(self) -> int = 1; assert let item? = optional
+defer ok { inout name without { password } }"""#
+let fence = ```sql
+SELECT inout, set, get, without, "@from", "name?" FROM orders
+```
+use plugin python::{python}
+extern python fn source() -> str {
+    return """set { using resource = open() }
+get total(self) -> int; assert let item? = optional
+defer err { inout name without { password } }"""
+}
+let after = 42
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (triple_string_literal
+      (triple_string_content)))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_string_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (fenced_string_literal))
+  (use_declaration
+    path: (use_path
+      (identifier)
+      (use_list
+        (use_item
+          name: (identifier)))))
+  (extern_declaration
+    provider: (identifier)
+    (extern_function
+      name: (identifier)
+      parameters: (parameter_list)
+      return_type: (primitive_type)
+      body: (extern_body
+        content: (python_foreign_content))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal)))
+
+==================
+Sixth escaped names compose with getters conventions and optional patterns
+==================
+
+struct Invoice { `sub-total`: int }
+impl Invoice { get `line-total`(self) -> int = self.`sub-total` }
+fn `apply-change`(inout `value-now`: int) { `value-now` += 1 }
+var `value-now` = 1
+`apply-change`(inout `value-now`)
+let present: int? = 2
+if let `present-value`? = present { assert(`present-value` == 2) }
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (impl_item
+    type: (type_path
+      (identifier))
+    body: (impl_body
+      (computed_property
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter))
+        return_type: (primitive_type)
+        body: (function_expression_body
+          value: (field_expression
+            object: (self_expression)
+            field: (identifier))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        convention: (convention)
+        name: (identifier)
+        type: (primitive_type)))
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          convention: (convention)
+          (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    type: (optional_type
+      (primitive_type))
+    value: (integer_literal))
+  (expression_statement
+    (if_let_expression
+      pattern: (optional_pattern
+        binding: (identifier))
+      value: (identifier)
+      consequence: (block
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (binary_expression
+                  left: (identifier)
+                  right: (integer_literal))))))))))
+
+==================
+Sixth relational bounds keep arithmetic and grouped low-precedence continuations
+==================
+
+let policy = .{ minimum: 18, secret: "internal" }
+let adjustment = 2
+let age = 24
+let category = match age {
+    >= (policy without { secret }).minimum + adjustment & < 65 => "working age",
+    _ => "other",
+}
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (inferred_struct_expression
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (match_expression
+      value: (identifier)
+      (match_arm
+        pattern: (and_pattern
+          left: (relational_pattern
+            bound: (binary_expression
+              left: (field_expression
+                object: (parenthesized_expression
+                  (without_expression
+                    base: (identifier)
+                    fields: (without_fields
+                      name: (identifier))))
+                field: (identifier))
+              right: (identifier)))
+          right: (relational_pattern
+            bound: (integer_literal)))
+        body: (string_literal
+          (string_content)))
+      (match_arm
+        pattern: (wildcard_pattern)
+        body: (string_literal
+          (string_content))))))
+
+==================
+Sixth literal string types preserve braces raw triples and fences
+==================
+
+type Route = "/orders/\{id\}" | r#"/raw/{id}"#
+type Multiline = """
+    line {{literal}}
+    """
+type RawMultiline = r#"""
+    raw {literal}
+    """#
+type Query = ```
+SELECT "{literal}"
+```
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (literal_type
+        (string_literal
+          (string_content)
+          (escape_sequence)
+          (string_content)
+          (escape_sequence)))
+      (literal_type
+        (raw_string_literal))))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (triple_string_literal
+        (triple_string_content)
+        (triple_brace_escape)
+        (triple_string_content)
+        (triple_brace_escape)
+        (triple_string_content))))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (raw_triple_string_literal)))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (fenced_string_literal))))
+
+==================
+Sixth escaped names preserve existing contextual lookahead surfaces
+==================
+
+let `entry-value` = 4
+type `Entry-type` = typeof `entry-value`
+fn `read->value`(value: int) -> int { value }
+let delayed = partial `read->value`(_)
+let kept = capture { `saved-value`: `entry-value` } || `saved-value`
+let viewed = match `entry-value` { (`read->value` -> value) => value, _ => 0 }
+if `entry-value` is `Entry-type` { print(`entry-value`) }
+:`retry-loop` loop { break :`retry-loop` }
+use plugin python::{python as `py-provider`}
+extern `py-provider` fn source() -> str {
+    return """text } {
+still inside triple quotes"""
+}
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (type_alias
+    name: (identifier)
+    type: (type_query
+      operand: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (partial_application_expression
+      call: (call_expression
+        function: (identifier)
+        arguments: (argument_list
+          (call_argument
+            (identifier))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (capture_expression
+      (capture_initializer
+        name: (identifier)
+        value: (identifier))
+      lambda: (lambda_expression
+        body: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (match_expression
+      value: (identifier)
+      (match_arm
+        pattern: (view_pattern
+          transform: (identifier)
+          pattern: (identifier_pattern
+            (identifier)))
+        body: (identifier))
+      (match_arm
+        pattern: (wildcard_pattern)
+        body: (integer_literal))))
+  (expression_statement
+    (if_expression
+      condition: (type_check_expression
+        value: (identifier)
+        type: (type_path
+          (identifier)))
+      consequence: (block
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))))))))
+  (expression_statement
+    (loop_expression
+      label: (loop_label
+        name: (identifier))
+      body: (block
+        (break_statement
+          label: (loop_label
+            name: (identifier))))))
+  (use_declaration
+    path: (use_path
+      (identifier)
+      (use_list
+        (use_item
+          name: (identifier)
+          alias: (identifier)))))
+  (extern_declaration
+    provider: (identifier)
+    (extern_function
+      name: (identifier)
+      parameters: (parameter_list)
+      return_type: (primitive_type)
+      body: (extern_body
+        content: (python_foreign_content)))))
+
+==================
+Sixth contextual words remain named callback labels
+==================
+
+dialog() set { 1 } get { 2 } inout { 3 }
+dialog() `return` { 4 }
+dialog()
+let values = set { 1, 2 }
+
+---
+
+(source_file
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list)
+      named_callback: (named_trailing_lambda
+        name: (identifier)
+        body: (trailing_callback_body
+          (expression_statement
+            (integer_literal))))
+      named_callback: (named_trailing_lambda
+        name: (identifier)
+        body: (trailing_callback_body
+          (expression_statement
+            (integer_literal))))
+      named_callback: (named_trailing_lambda
+        name: (identifier)
+        body: (trailing_callback_body
+          (expression_statement
+            (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list)
+      named_callback: (named_trailing_lambda
+        name: (identifier)
+        body: (trailing_callback_body
+          (expression_statement
+            (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list)))
+  (let_declaration
+    pattern: (identifier)
+    value: (set_expression
+      (integer_literal)
+      (integer_literal))))
+
+==================
+Sixth without wraps the complete expression and chains left to right
+==================
+
+let source = .{ name: "A", secret: "S", private: 1 }
+let combined = left() + right() without { secret }
+let snapshot = freeze source without { secret }
+let public = source without { secret } without { private }
+let edited = source with { name: "B" } without { secret }
+let selected = (source without { secret }).name
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (inferred_struct_expression
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content)))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content)))
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (without_expression
+      base: (binary_expression
+        left: (call_expression
+          function: (identifier)
+          arguments: (argument_list))
+        right: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      fields: (without_fields
+        name: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (without_expression
+      base: (freeze_expression
+        value: (identifier))
+      fields: (without_fields
+        name: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (without_expression
+      base: (without_expression
+        base: (identifier)
+        fields: (without_fields
+          name: (identifier)))
+      fields: (without_fields
+        name: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (without_expression
+      base: (record_update_expression
+        base: (identifier)
+        body: (record_update_body
+          (record_update_field
+            path: (record_update_path
+              (identifier))
+            value: (string_literal
+              (string_content)))))
+      fields: (without_fields
+        name: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (field_expression
+      object: (parenthesized_expression
+        (without_expression
+          base: (identifier)
+          fields: (without_fields
+            name: (identifier))))
+      field: (identifier))))
+
+==================
+Sixth without types retain structural projected inferred grouped and optional owners
+==================
+
+type Base = { id: int, name: str, secret: str }
+type Structural = { id: int, secret: str } without { secret }
+type Projected = Base.{ id, secret } without { secret }
+type Grouped = (Base without { secret }) without { name }
+let source = .{ id: 1, secret: "S" }
+type Inferred = typeof source without { secret }
+type Optional = Base without { secret }?
+type StructuralProjection = { id: int, secret: str }.{ id }
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (record_type
+      name: (identifier)
+      type: (primitive_type)
+      name: (identifier)
+      type: (primitive_type)
+      name: (identifier)
+      type: (primitive_type)))
+  (type_alias
+    name: (identifier)
+    type: (without_type
+      owner: (record_type
+        name: (identifier)
+        type: (primitive_type)
+        name: (identifier)
+        type: (primitive_type))
+      fields: (without_fields
+        name: (identifier))))
+  (type_alias
+    name: (identifier)
+    type: (without_type
+      owner: (type_projection
+        owner: (identifier)
+        fields: (record_projection_body
+          (record_projection_entry
+            field: (property_identifier
+              (identifier)))
+          (record_projection_entry
+            field: (property_identifier
+              (identifier)))))
+      fields: (without_fields
+        name: (identifier))))
+  (type_alias
+    name: (identifier)
+    type: (without_type
+      owner: (parenthesized_type
+        (without_type
+          owner: (identifier)
+          fields: (without_fields
+            name: (identifier))))
+      fields: (without_fields
+        name: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (inferred_struct_expression
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (type_alias
+    name: (identifier)
+    type: (without_type
+      owner: (type_query
+        operand: (identifier))
+      fields: (without_fields
+        name: (identifier))))
+  (type_alias
+    name: (identifier)
+    type: (optional_type
+      (without_type
+        owner: (identifier)
+        fields: (without_fields
+          name: (identifier)))))
+  (type_alias
+    name: (identifier)
+    type: (type_projection
+      owner: (record_type
+        name: (identifier)
+        type: (primitive_type)
+        name: (identifier)
+        type: (primitive_type))
+      fields: (record_projection_body
+        (record_projection_entry
+          field: (property_identifier
+            (identifier)))))))
+
+==================
+Sixth contextual boundaries preserve comment trivia and escaped ordinary names
+==================
+
+struct `set` { value: int }
+struct Invoice { subtotal: int }
+impl Invoice {
+    pub get/* docs */total(self) -> int = self.subtotal
+    pub @inline get `line-total`(self) -> int = self.subtotal
+}
+fn edit(inout/* borrow */`current-value`: int) { `current-value` += 1 }
+let values = set { 1, 2 }
+let ordinary = `set` { value: 1 }
+let public = .{ id: 1, secret: "S" } without { secret }
+for value in [1, 2] where value > 1 { print(value) }
+assert/* check */let present? = maybe()
+fn `ok`() {}
+fn `err`() {}
+fn cleanup() { defer ok { print("done") }; defer `ok`(); defer `err`() }
+dialog() `without` { print("callback") }
+fn `get`() -> int = 1
+fn identity(`inout`: int) -> int = `inout`
+let `typeof` = `get`()
+type Inferred = typeof `typeof`
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (impl_item
+    type: (type_path
+      (identifier))
+    body: (impl_body
+      (computed_property
+        (block_comment)
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter))
+        return_type: (primitive_type)
+        body: (function_expression_body
+          value: (field_expression
+            object: (self_expression)
+            field: (identifier))))
+      (computed_property
+        (decorator
+          name: (identifier))
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter))
+        return_type: (primitive_type)
+        body: (function_expression_body
+          value: (field_expression
+            object: (self_expression)
+            field: (identifier))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        convention: (convention)
+        (block_comment)
+        name: (identifier)
+        type: (primitive_type)))
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))))
+  (let_declaration
+    pattern: (identifier)
+    value: (set_expression
+      (integer_literal)
+      (integer_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (without_expression
+      base: (inferred_struct_expression
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))))
+      fields: (without_fields
+        name: (identifier))))
+  (expression_statement
+    (for_expression
+      binding: (identifier)
+      iter: (array_expression
+        (integer_literal)
+        (integer_literal))
+      (loop_filter
+        iter: (binary_expression
+          left: (identifier)
+          right: (integer_literal)))
+      body: (block
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))))))))
+  (assert_let_statement
+    (block_comment)
+    pattern: (optional_pattern
+      binding: (identifier))
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (defer_statement
+        outcome: (defer_outcome)
+        value: (block_expression
+          (block
+            (expression_statement
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))
+      (defer_statement
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      (defer_statement
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list)
+      named_callback: (named_trailing_lambda
+        name: (identifier)
+        body: (trailing_callback_body
+          (expression_statement
+            (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content))))))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (integer_literal)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list)))
+  (type_alias
+    name: (identifier)
+    type: (type_query
+      operand: (identifier))))
+
+==================
+Sixth scalar literal types retain nil negative and radix numbers
+==================
+
+type Empty = nil
+type Method = "GET" | "POST" | nil
+type Count = 0 | 0xff | 0b101 | 0o17 | -2
+type Ratio = 1.5 | -2.5 | 1e3
+type Flags = true | false
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (type_path
+      (identifier)))
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (union_type
+        (literal_type
+          (string_literal
+            (string_content)))
+        (literal_type
+          (string_literal
+            (string_content))))
+      (type_path
+        (identifier))))
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (union_type
+        (union_type
+          (union_type
+            (literal_type
+              (integer_literal))
+            (literal_type
+              (integer_literal
+                (numeric_base_prefix))))
+          (literal_type
+            (integer_literal
+              (numeric_base_prefix))))
+        (literal_type
+          (integer_literal
+            (numeric_base_prefix))))
+      (literal_type
+        (integer_literal))))
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (union_type
+        (literal_type
+          (float_literal))
+        (literal_type
+          (float_literal)))
+      (literal_type
+        (float_literal))))
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (literal_type)
+      (literal_type))))
+
+==================
+Sixth coalescing exits preserve the next line and all enclosing delimiters
+==================
+
+fn fallback(value: int?) {
+    let first = value ?? return
+    print("next statement")
+    let second = value ?? return /* same line */ 7
+    let third = value ?? return /* comment with
+        a source line break */
+    print("after multiline comment")
+}
+fn delimiter(value: int?) {
+    consume(value ?? return, 1)
+    let array = [value ?? return]
+    :outer loop {
+        let found = value ?? break :outer 0
+        let retry = value ?? continue :outer
+        print("next loop statement")
+    }
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (optional_type
+          (primitive_type))))
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (coalescing_exit)))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (coalescing_exit
+            (block_comment)
+            value: (integer_literal))))
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (coalescing_exit)))
+      (block_comment)
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (optional_type
+          (primitive_type))))
+    body: (block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (identifier)
+                right: (coalescing_exit)))
+            (call_argument
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (array_expression
+          (binary_expression
+            left: (identifier)
+            right: (coalescing_exit))))
+      (expression_statement
+        (loop_expression
+          label: (loop_label
+            name: (identifier))
+          body: (block
+            (let_declaration
+              pattern: (identifier)
+              value: (binary_expression
+                left: (identifier)
+                right: (coalescing_exit
+                  (loop_label_reference
+                    name: (identifier))
+                  value: (integer_literal))))
+            (let_declaration
+              pattern: (identifier)
+              value: (binary_expression
+                left: (identifier)
+                right: (coalescing_exit
+                  (loop_label_reference
+                    name: (identifier)))))
+            (expression_statement
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content))))))))))))
+
+==================
+Sixth tuple values retain source-authored aliases and nested slots
+==================
+
+fn describe(width: int, label: str, visible: bool) -> str = "{width} {label} {visible}"
+fn make() = (640, "screen", false)
+let dimensions = make()
+let saved = dimensions
+assert(describe(..saved) == "640 screen false")
+
+var reads = 0
+fn next() -> int { reads += 1; return reads }
+fn sum(a: int, b: int, c: int) -> int = a + b + c
+let numbers = (next(), next())
+assert(reads == 2)
+assert(sum(..numbers, next()) == 6 && reads == 3)
+assert(sum(..numbers, 4) == 7 && reads == 3)
+
+fn nested(pair: (int, str), enabled: bool) -> str = "{pair[0]} {pair[1]} {enabled}"
+let combined = ((7, "nested"), false)
+assert(nested(..combined) == "7 nested false")
+fn invoke(callback: fn(int) -> int, value: int) -> int = callback(value)
+let callbacks: (fn(int) -> int, int) = (|value| value + 1, 41)
+assert(invoke(..callbacks) == 42)
+fn nullable(value: int?, enabled: bool) -> bool = value == nil && !enabled
+let absent: (int?, bool) = (nil, false)
+assert(nullable(..absent))
+fn identity<T>(value: T) -> T = value
+let generic = identity((3, "generic"))
+fn generic_pair(number: int, label: str) -> str = "{number} {label}"
+assert(generic_pair(..generic) == "3 generic")
+const anchored = (5, "constant")
+assert(generic_pair(..anchored) == "5 constant")
+fn singleton(value: int) -> int = value
+let one = (7,)
+assert(singleton(..one) == 7)
+let explicitly_widened: [int] = (3, 4)
+assert(explicitly_widened[0] == 3 && explicitly_widened[1] == 4)
+
+macro_rules! pair { () => { (2, "macro") } }
+fn from_macro(number: int, label: str) -> str = "{number} {label}"
+let materialized = pair![]
+assert(from_macro(..materialized) == "2 macro")
+let constant = comptime { (9, "static") }
+assert(from_macro(..constant) == "9 static")
+struct Entry { value: int }
+struct Packet { contents: (Entry, int) }
+let packet = comptime { Packet { contents: (Entry { value: 1 }, 2) } }
+let changed = packet with { contents: (Entry { value: 3 }, 4) }
+assert(changed.contents[0].value == 3 && changed.contents[1] == 4)
+assert(packet.contents[0].value == 1 && packet.contents[1] == 2)
+print("Tuple values: aliases, returns, nested slots, callbacks, nil, macros, comptime")
+print("Tuple element evaluations: {reads}")
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier)))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (function_expression_body
+      value: (tuple_expression
+        (integer_literal)
+        (string_literal
+          (string_content))
+        (bool_literal))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list)))
+  (let_declaration
+    pattern: (identifier)
+    value: (identifier))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (string_literal
+              (string_content)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (return_statement
+        (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (binary_expression
+        left: (binary_expression
+          left: (identifier)
+          right: (identifier))
+        right: (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (tuple_expression
+      (call_expression
+        function: (identifier)
+        arguments: (argument_list))
+      (call_expression
+        function: (identifier)
+        arguments: (argument_list))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (named_record_argument
+                      value: (identifier)))
+                  (call_argument
+                    (call_expression
+                      function: (identifier)
+                      arguments: (argument_list)))))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (identifier)
+              right: (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (named_record_argument
+                      value: (identifier)))
+                  (call_argument
+                    (integer_literal))))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (identifier)
+              right: (integer_literal)))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (tuple_type
+          (primitive_type)
+          (primitive_type)))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_interpolation
+          (index_expression
+            object: (identifier)
+            index: (integer_literal)))
+        (string_content)
+        (string_interpolation
+          (index_expression
+            object: (identifier)
+            index: (integer_literal)))
+        (string_content)
+        (string_interpolation
+          (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (tuple_expression
+      (tuple_expression
+        (integer_literal)
+        (string_literal
+          (string_content)))
+      (bool_literal)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (string_literal
+              (string_content)))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (function_type
+          (primitive_type)
+          (primitive_type)))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (call_expression
+        function: (identifier)
+        arguments: (argument_list
+          (call_argument
+            (identifier))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (tuple_type
+      (function_type
+        (primitive_type)
+        (primitive_type))
+      (primitive_type))
+    value: (tuple_expression
+      (lambda_expression
+        (parameter
+          name: (identifier))
+        body: (binary_expression
+          left: (identifier)
+          right: (integer_literal)))
+      (integer_literal)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (integer_literal))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (optional_type
+          (primitive_type)))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (binary_expression
+        left: (binary_expression
+          left: (identifier)
+          right: (nil_literal))
+        right: (unary_expression
+          operand: (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    type: (tuple_type
+      (optional_type
+        (primitive_type))
+      (primitive_type))
+    value: (tuple_expression
+      (nil_literal)
+      (bool_literal)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (named_record_argument
+                  value: (identifier)))))))))
+  (function_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier)))
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (type_path
+      (identifier))
+    body: (function_expression_body
+      value: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (tuple_expression
+            (integer_literal)
+            (string_literal
+              (string_content)))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (string_literal
+              (string_content)))))))
+  (const_item
+    name: (identifier)
+    value: (tuple_expression
+      (integer_literal)
+      (string_literal
+        (string_content))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (string_literal
+              (string_content)))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (tuple_expression
+      (integer_literal)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (integer_literal))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (primitive_type))
+    value: (tuple_expression
+      (integer_literal)
+      (integer_literal)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (integer_literal))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (integer_literal))
+              right: (integer_literal)))))))
+  (macro_rules_item
+    name: (identifier)
+    body: (macro_rules_body
+      (macro_rule
+        transcriber: (integer_literal)
+        transcriber: (string_literal
+          (string_content)))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_interpolation
+          (identifier))
+        (string_content)
+        (string_interpolation
+          (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (macro_invocation
+      macro: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (string_literal
+              (string_content)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (comptime_expression
+      body: (block_expression
+        (block
+          (expression_statement
+            (tuple_expression
+              (integer_literal)
+              (string_literal
+                (string_content))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (identifier)))))
+            right: (string_literal
+              (string_content)))))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (tuple_type
+          (type_path
+            (identifier))
+          (primitive_type)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (comptime_expression
+      body: (block_expression
+        (block
+          (expression_statement
+            (struct_expression
+              name: (identifier)
+              body: (struct_expression_body
+                (struct_expression_field
+                  name: (identifier)
+                  value: (tuple_expression
+                    (struct_expression
+                      name: (identifier)
+                      body: (struct_expression_body
+                        (struct_expression_field
+                          name: (identifier)
+                          value: (integer_literal))))
+                    (integer_literal))))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (record_update_expression
+      base: (identifier)
+      body: (record_update_body
+        (record_update_field
+          path: (record_update_path
+            (identifier))
+          value: (tuple_expression
+            (struct_expression
+              name: (identifier)
+              body: (struct_expression_body
+                (struct_expression_field
+                  name: (identifier)
+                  value: (integer_literal))))
+            (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (field_expression
+                object: (index_expression
+                  object: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  index: (integer_literal))
+                field: (identifier))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (index_expression
+                object: (field_expression
+                  object: (identifier)
+                  field: (identifier))
+                index: (integer_literal))
+              right: (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (field_expression
+                object: (index_expression
+                  object: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  index: (integer_literal))
+                field: (identifier))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (index_expression
+                object: (field_expression
+                  object: (identifier)
+                  field: (identifier))
+                index: (integer_literal))
+              right: (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content)
+            (string_interpolation
+              (identifier))))))))
+
+==================
+Sixth empty singleton and array-valued expansion syntax retain their distinct values
+==================
+
+fn zero() -> int = 42
+fn one(value: int) -> int = value
+assert(zero(..()) == 42)
+assert(one(..(7,)) == 7)
+consume(..([1, 2]))
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (integer_literal)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (tuple_expression)))))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (named_record_argument
+                    value: (tuple_expression
+                      (integer_literal))))))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (named_record_argument
+            value: (parenthesized_expression
+              (array_expression
+                (integer_literal)
+                (integer_literal)))))))))
+
+==================
+Sixth escaped contextual prefixes retain ordinary calls records macros and callback labels
+==================
+
+struct `attempt` { value: int }
+struct `patch` { value: int }
+struct `freeze` { value: int }
+struct `not` { value: int }
+struct `s` { value: int }
+let records = (`attempt` { value: 1 }, `patch` { value: 2 }, `freeze` { value: 3 })
+fn `partial`(value: int) -> int = value
+fn `fold`(value: int) -> int = value
+fn `fail`(value: int) -> int = value
+fn `capture`(value: int) -> int = value
+fn `iter`(value: int) -> int = value
+let called = `partial`(1) + `fold`(2) + `fail`(3) + `capture`(4) + `iter`(5)
+macro_rules! `json` { ($value:expr) => { $value } }
+let encoded = `json`!(1)
+let subject = `not` { value: 1 }
+let nominal_test = subject is `not`
+fn nominal_cast(subject: `s`) -> `s` = subject as `s`
+dialog() `recover` { 42 }
+async fn poll() { await task() `within` { 7 } }
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (tuple_expression
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (integer_literal))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (binary_expression
+      left: (binary_expression
+        left: (binary_expression
+          left: (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (integer_literal))))
+            right: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (integer_literal)))))
+          right: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (integer_literal)))))
+        right: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (integer_literal)))))
+      right: (call_expression
+        function: (identifier)
+        arguments: (argument_list
+          (call_argument
+            (integer_literal))))))
+  (macro_rules_item
+    name: (identifier)
+    body: (macro_rules_body
+      (macro_rule
+        matcher: (macro_fragment
+          (identifier)
+          (identifier))
+        transcriber: (macro_fragment
+          (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (macro_invocation
+      macro: (identifier)
+      (integer_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (type_check_expression
+      value: (identifier)
+      type: (type_path
+        (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (type_path
+      (identifier))
+    body: (function_expression_body
+      value: (cast_expression
+        value: (identifier)
+        type: (type_path
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list)
+      named_callback: (named_trailing_lambda
+        name: (identifier)
+        body: (trailing_callback_body
+          (expression_statement
+            (integer_literal))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (expression_statement
+        (await_expression
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list)
+            named_callback: (named_trailing_lambda
+              name: (identifier)
+              body: (trailing_callback_body
+                (expression_statement
+                  (integer_literal))))))))))
+
+==================
+Sixth braced public labels preserve explicit nominal spellings
+==================
+
+struct Point { x: int }
+struct `cart-item` { x: int }
+fn labeled(from { x }: Point) -> int = x
+fn escaped(`cart-item` { x }: `cart-item`) -> int = x
+fn nominal(point { x }) -> int = x
+fn legacy(Point { x }: Point) -> int = x
+assert(labeled(from: Point { x: 1 }) == 1)
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        pattern: (struct_pattern
+          name: (identifier)
+          (field_pattern
+            name: (identifier)))
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        pattern: (struct_pattern
+          name: (identifier)
+          (field_pattern
+            name: (identifier)))
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        pattern: (struct_pattern
+          name: (identifier)
+          (field_pattern
+            name: (identifier)))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        pattern: (struct_pattern
+          name: (identifier)
+          (field_pattern
+            name: (identifier)))
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  name: (identifier)
+                  value: (struct_expression
+                    name: (identifier)
+                    body: (struct_expression_body
+                      (struct_expression_field
+                        name: (identifier)
+                        value: (integer_literal)))))))
+            right: (integer_literal)))))))
+
+==================
+Sixth escaped extern never arms provider or opaque foreign body mode
+==================
+
+fn fixture() {
+    `extern`
+    provider { value }
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (struct_expression
+          name: (identifier)
+          body: (struct_expression_body
+            (struct_expression_field
+              shorthand: (identifier))))))))
+
+==================
+Sixth shared literal productions preserve const arguments and public string children
+==================
+
+type Dimension = Grid<42, -1, 2 + 3>
+type ScalarArguments = Grid<1.25, "GET", true>
+type Escaped = "\u{7b}literal\u{7d}" | "\{literal\}"
+type Multiline = """{{literal}}"""
+type LegacyNil = nil
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (generic_type
+      name: (identifier)
+      (const_type_argument
+        (integer_literal))
+      (const_type_argument
+        (const_argument_negative
+          operand: (integer_literal)))
+      (const_type_argument
+        (const_argument_binary
+          left: (integer_literal)
+          right: (integer_literal)))))
+  (type_alias
+    name: (identifier)
+    type: (generic_type
+      name: (identifier)
+      (literal_type
+        (float_literal))
+      (literal_type
+        (string_literal
+          (string_content)))
+      (literal_type)))
+  (type_alias
+    name: (identifier)
+    type: (union_type
+      (literal_type
+        (string_literal
+          (escape_sequence)
+          (string_content)
+          (escape_sequence)))
+      (literal_type
+        (string_literal
+          (escape_sequence)
+          (string_content)
+          (escape_sequence)))))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (triple_string_literal
+        (triple_brace_escape)
+        (triple_string_content))))
+  (type_alias
+    name: (identifier)
+    type: (type_path
+      (identifier))))
+
+==================
+Sixth raw literal types and values preserve opaque nodes and the saturated hash limit
+==================
+
+type Raw0 = r"{verbatim}\n"
+let raw0 = r"""
+  {verbatim}\n
+  """
+type Raw3 = r###"{verbatim}\n"###
+let raw3 = r###"""
+  {verbatim}\n
+  """###
+type Raw4 = r####"{verbatim}\n"####
+let raw4 = r####"""
+  {verbatim}\n
+  """####
+type Raw255 = r###############################################################################################################################################################################################################################################################"{verbatim}\n"###############################################################################################################################################################################################################################################################
+let raw255 = r###############################################################################################################################################################################################################################################################"""
+  {verbatim}\n
+  """###############################################################################################################################################################################################################################################################
+type Raw256 = r################################################################################################################################################################################################################################################################"{verbatim}\n"###############################################################################################################################################################################################################################################################
+let raw256 = r################################################################################################################################################################################################################################################################"""
+  {verbatim}\n
+  """###############################################################################################################################################################################################################################################################
+
+---
+
+(source_file
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (raw_string_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_triple_string_literal))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (raw_string_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_triple_string_literal))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (raw_string_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_triple_string_literal))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (raw_string_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_triple_string_literal))
+  (type_alias
+    name: (identifier)
+    type: (literal_type
+      (raw_string_literal)))
+  (let_declaration
+    pattern: (identifier)
+    value: (raw_triple_string_literal)))

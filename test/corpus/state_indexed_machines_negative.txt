@@ -10,7 +10,7 @@ fn bad(value: Order<.>) {}
 An index marker has no runtime argument list
 :error
 ==================
-fn bad(value: Order<.Paid(1)>) {}
+fn bad(value: Order<.Paid(value())>) {}
 ---
 (ERROR)
 

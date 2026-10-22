@@ -1,0 +1,145 @@
+==================
+Sixth ordinary string interpolation is not a scalar literal type
+:error
+==================
+
+type Invalid = "/orders/{id}"
+
+---
+
+(ERROR)
+
+==================
+Sixth triple string interpolation is not a scalar literal type
+:error
+==================
+
+type Invalid = """value {id}"""
+
+---
+
+(ERROR)
+
+==================
+Sixth typed integer tokens are not scalar literal type tokens
+:error
+==================
+
+type Invalid = 42u8
+
+---
+
+(ERROR)
+
+==================
+Sixth duration tokens are not scalar literal type tokens
+:error
+==================
+
+type Invalid = 500ms
+
+---
+
+(ERROR)
+
+==================
+Sixth tagged fences are not scalar literal type tokens
+:error
+==================
+
+type Invalid = ```sql
+SELECT 1
+```
+
+---
+
+(ERROR)
+
+==================
+Sixth fences require a newline after the opening tag
+:error
+==================
+
+let invalid = ```sql SELECT 1 ```
+
+---
+
+(ERROR)
+
+==================
+Sixth standalone empty tuples remain invalid expressions
+:error
+==================
+
+let invalid = ()
+
+---
+
+(ERROR)
+
+==================
+Sixth escaped get is an ordinary name not a property introducer
+:error
+==================
+
+impl Invoice { `get` total(self) -> int = 1 }
+
+---
+
+(ERROR)
+
+==================
+Sixth escaped where is an ordinary name not a loop filter
+:error
+==================
+
+for value in values `where` value > 0 { print(value) }
+
+---
+
+(ERROR)
+
+==================
+Sixth ordinary literal types reject byte-only hex escapes
+:error
+==================
+
+type Invalid = "\x41"
+
+---
+
+(ERROR)
+
+==================
+Sixth literal types reject invalid Unicode scalar escapes
+:error
+==================
+
+type Invalid = "\u{110000}"
+
+---
+
+(ERROR)
+
+==================
+Sixth bytes literal tokens reject interpolation before semantic type checking
+:error
+==================
+
+fn invalid(value: b"{value}") {}
+
+---
+
+(ERROR)
+
+==================
+Sixth bytes literal tokens reject Unicode escapes
+:error
+==================
+
+fn invalid(value: b"\u{41}") {}
+
+---
+
+(ERROR)
+

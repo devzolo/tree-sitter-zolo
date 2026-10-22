@@ -1014,3 +1014,29 @@
 (test_resource_header "using" @keyword)
 (typed_json_expression "json" @keyword.operator)
 (typed_json_literal) @string
+
+; Sixth syntax refinements follow generic keywords: later patterns win.
+(lexical_resource_declaration "using" @keyword)
+(defer_statement outcome: (defer_outcome) @keyword.control)
+(computed_property "get" @keyword.function name: (identifier) @function.method)
+(without_expression "without" @keyword.operator)
+(without_type "without" @keyword.operator)
+(without_fields name: (identifier) @property)
+(set_expression "set" @keyword)
+(operator_value operator: _ @operator)
+(relational_pattern operator: _ @operator)
+(optional_pattern "?" @operator)
+(assert_let_statement "assert" @keyword.control "let" @keyword)
+(loop_filter "where" @keyword.control)
+(builder_binding "let" @keyword)
+(builder_filter "if" @keyword.control)
+(literal_type ["true" "false"] @boolean)
+((type_path (identifier) @type.builtin)
+  (#eq? @type.builtin "nil"))
+
+; Braced parameter owners are nominal unless an authored lowercase public
+; label has an explicit type annotation. Backticks preserve nominal identity.
+(parameter pattern: (struct_pattern name: (identifier) @type))
+(function_clause_parameter pattern: (struct_pattern name: (identifier) @type))
+((parameter pattern: (struct_pattern name: (identifier) @variable.parameter) type: (_))
+ (#match? @variable.parameter "^[a-z_][a-zA-Z0-9_]*$"))

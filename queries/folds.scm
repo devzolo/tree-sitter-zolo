@@ -2,6 +2,7 @@
 
 [
   (function_item)
+  (computed_property)
   (extern_body)
   (extern_group)
   (extern_dependencies)
@@ -24,6 +25,9 @@
   (parameter_list)
   (argument_list)
   (array_expression)
+  (set_expression)
+  (repeated_array_expression)
+  (without_fields)
   (map_expression)
   (struct_expression_body)
   (record_projection_body)

@@ -1,0 +1,86 @@
+    fn resources() { using report = open_report() }
+//                   ^^^^^ keyword
+    let change = patch Cart { quantity => _.abs() }
+//                                     ^^ operator
+    let measure = invoice.total
+//                        ^^^^^ property
+    if let name? = maybe_name { print(name) }
+//             ^ operator
+    type Enabled = true | false
+//                        ^^^^^ boolean
+    type Empty = nil
+//               ^^^ type.builtin
+    fn value() -> int { let n = maybe ?? return 0; n }
+//                                       ^^^^^^ keyword.control
+    fn increment(inout value: int) { value += 1 }
+//               ^^^^^ keyword.modifier
+    impl Invoice { get total(self) -> int = self.subtotal + self.tax }
+//                 ^^^ keyword.function
+    for item in items where item.active { print(item) }
+//                    ^^^^^ keyword.control
+    let totals = [for line in lines let total = line.count * line.price if total > 0 => total]
+//                                  ^^^ keyword
+    let filtered = [for value in values let doubled = value * 2 if doubled > 0 => doubled]
+//                                                              ^^ keyword.control
+    let group = match age { >= 18 => "adult", _ => "minor" }
+//                          ^^ operator
+    let result = sum(..arguments)
+//                   ^^ operator
+    let public = account without { password }
+//                       ^^^^^^^ keyword.operator
+    let unique = set { 1, 2, 1 }
+//               ^^^ keyword
+    let values = [read(); 3]
+//                      ^ punctuation.delimiter
+    let add: fn(int, int) -> int = (+)
+//                                  ^ operator
+    fn check() { assert let .Ok(order) = checkout(); print(order) }
+//               ^^^^^^ keyword.control
+    enum Error { @from Read(ReadError) }
+//                ^^^^ attribute
+    fn `return`(value: int) -> int { value }
+//     ^^^^^^^^ function
+    fn save() -> Result<int, str> { defer err { rollback() }; .Ok(1) }
+//                                        ^^^ keyword.control
+    let set = 1
+//      ^^^ variable
+    let get = 2
+//      ^^^ variable
+    let inout = 3
+//      ^^^^^ variable
+    let without = 4
+//      ^^^^^^^ variable
+    fn cleanup() { defer ok() }
+//                       ^^ function.call
+    let text = ```sql
+set get inout without
+    ```
+//  ^^^ string
+    consume(..())
+//          ^^ operator
+    consume(..(7,))
+//          ^^ operator
+    impl PublicInvoice { pub get total(self) -> int = 1 }
+//                           ^^^ keyword.function
+    dialog() `without` { callback() }
+//           ^^^^^^^^^ variable.parameter
+    let `set` = 1
+//      ^^^^^ variable
+    fn `get`() -> int = 1
+//     ^^^^^ function
+    let `typeof` = 1
+//      ^^^^^^^^ variable
+    fn cleanup_named() { defer `ok`() }
+//                             ^^^^ function.call
+    async fn poll() { await task() `within` { 7 } }
+//                                 ^^^^^^^^ variable.parameter
+    dialog() `recover` { 42 }
+//           ^^^^^^^^^ variable.parameter
+    fn labeled(from { x }: Point) -> int = x
+//             ^^^^ variable.parameter
+    fn nominal(`cart-item` { x }: `cart-item`) -> int = x
+//             ^^^^^^^^^^^ type
+    fn legacy(Point { x }: Point) -> int = x
+//            ^^^^^ type
+    fn ordinary(point { x }) -> int = x
+//              ^^^^^ type

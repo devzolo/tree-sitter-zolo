@@ -123,5 +123,183 @@ function extendFifthGrammar(data) {
 }
 extendFifthGrammar(contextGrammarData);
 
+// Sixth syntax batch. Source children stay explicit in the editor tree, too.
+function extendSixthGrammar(data) {
+  const r = data.rules;
+  const sym = name => ({type: 'SYMBOL', name});
+  const str = value => ({type: 'STRING', value});
+  const seq = (...members) => ({type: 'SEQ', members});
+  const choice = (...members) => ({type: 'CHOICE', members});
+  const opt = content => choice(content, {type: 'BLANK'});
+  const rep = content => ({type: 'REPEAT', content});
+  const field = (name, content) => ({type: 'FIELD', name, content});
+  const prec = (value, content, type = 'PREC_RIGHT') => ({type, value, content});
+  const alias = (name, value) => ({type: 'ALIAS', content: sym(name), value, named: false});
+  const members = rule => rule.type === 'SEQ' ? rule.members : members(rule.content);
+  const append = (name, rule) => {
+    if (r[name].type === 'CHOICE') r[name].members.push(rule);
+    else r[name] = choice(r[name], rule);
+  };
+  const comma = sym('_markup_after_2c'), colon = sym('_markup_after_3a');
+  const open = sym('_markup_after_7b'), equal = sym('_markup_after_3d');
+  const arrow = sym('_markup_after_3d3e');
+  // The source parser consumes a leading <storage> before binding patterns.
+  // Its distinct zero-width decision keeps a relational bound from stealing
+  // that prefix without restricting relational patterns elsewhere.
+  r.storage_class = seq(sym('_sixth_storage_start'), r.storage_class);
+  const list = rule => seq(rule, rep(seq(comma, rule)), opt(comma));
+  data.externals.splice(data.externals.length - 1, 0,
+    ...['_sixth_set_keyword', '_sixth_without_keyword', '_sixth_get_keyword',
+      '_sixth_defer_outcome', '_sixth_assert_keyword', '_sixth_where_keyword',
+      '_sixth_exit_empty', '_sixth_exit_value', '_sixth_literal_type_start',
+      '_sixth_const_argument_start', '_sixth_raw_string_literal',
+      '_sixth_raw_triple_string_literal', '_sixth_storage_start',
+      '_sixth_loop_label_start'].map(sym));
+
+  // One identifier node covers authored escaping everywhere names are legal.
+  r.identifier = {type: 'PATTERN', value: '(?:[a-zA-Z_][a-zA-Z0-9_]*|`(?:[^`\\\\\\r\\n]|\\\\[`\\\\])+`)'};
+  // Fences are line-oriented in Lexer::lex_fenced_block. A tagged fence is
+  // TaggedStr; only its untagged spelling is a scalar String token in a type.
+  const fenceLine = '[ \\t]*(?:[^` \\t\\r\\n][^\\r\\n]*|`(?:[^`\\r\\n][^\\r\\n]*)?|``(?:[^`\\r\\n][^\\r\\n]*)?)?\\r?\\n';
+  const fence = tag => ({type: 'TOKEN', content: {type: 'PATTERN',
+    value: '```' + tag + '[ \\t]*\\r?\\n(?:' + fenceLine + ')*[ \\t]*```'}});
+  r.fenced_string_literal = fence('[a-zA-Z0-9_]*');
+  // Raw strings are one opaque lexer token, with no expression children.
+  // External tokens retain their public nodes and the lexer's saturated u8
+  // hash count instead of expanding one LR production per supported hash.
+  r.raw_string_literal = sym('_sixth_raw_string_literal');
+  r.raw_triple_string_literal = sym('_sixth_raw_triple_string_literal');
+  const resource = members(r.resource_scope_expression);
+  r._resource_acquisition = seq(...resource.slice(0, -1));
+  resource.splice(0, resource.length - 1, sym('_resource_acquisition'));
+  r.lexical_resource_declaration = prec(0, seq(sym('_resource_acquisition'), opt(sym('_markup_after_3b'))));
+  append('_statement', sym('lexical_resource_declaration'));
+  const deferred = members(r.defer_statement);
+  deferred[0] = choice(deferred[0], seq(str('defer'), field('outcome', {
+    type: 'ALIAS', content: sym('_sixth_defer_outcome'), value: 'defer_outcome', named: true,
+  })));
+
+  const exitValue = choice(sym('_sixth_exit_empty'), seq(sym('_sixth_exit_value'),
+    field('value', sym('_expression')), sym('_pratt_end0')));
+  r.coalescing_exit = prec(0, choice(
+    seq(str('return'), exitValue),
+    seq(str('break'), opt(sym('loop_label_reference')), exitValue),
+    seq(str('continue'), opt(sym('loop_label_reference')), sym('_sixth_exit_empty'))));
+  members(r.loop_label_reference).unshift(sym('_sixth_loop_label_start'));
+  function exits(rule) {
+    if (rule.type === 'SEQ' && rule.members.some(member =>
+      member.type === 'FIELD' && member.name === 'operator' && member.content.type === 'STRING' && member.content.value === '??')) {
+      const right = rule.members.find(member => member.type === 'FIELD' && member.name === 'right');
+      if (right) right.content = choice(right.content, sym('coalescing_exit'));
+    }
+    if (rule.members) rule.members.forEach(exits);
+    if (rule.content) exits(rule.content);
+  }
+  Object.values(r).forEach(exits);
+
+  // A functional patch has the same traversable RHS as a value patch.
+  const patchOperator = members(r.record_update_field.members[0])
+    .find(member => member.type === 'FIELD' && member.name === 'operator');
+  patchOperator.content.members.push(arrow);
+  r.optional_pattern = prec(1, seq(field('binding', sym('identifier')), str('?')), 'PREC');
+  // Match parser::parse_expr_bp(20), including arithmetic in a bound but
+  // finishing before the pattern conjunction/disjunction that follows it.
+  r.relational_pattern = seq(field('operator', choice(...['<', '<=', '>', '>='].map(str))),
+    field('bound', prec(20, sym('_expression'), 'PREC')), sym('_pratt_end20'));
+  for (const name of ['_pattern', '_is_unambiguous_pattern']) {
+    append(name, sym('optional_pattern')); append(name, sym('relational_pattern'));
+  }
+  // Prove a complete scalar lexer token before sharing the ordinary string /
+  // number productions. This keeps their children, escapes and public nodes
+  // without cloning their LR contexts or admitting interpolation/type suffixes.
+  const scalarNumber = choice(sym('integer_literal'), sym('float_literal'));
+  r.literal_type = prec(1, seq(sym('_sixth_literal_type_start'), choice(
+    sym('string_literal'), sym('triple_string_literal'), sym('raw_string_literal'),
+    sym('raw_triple_string_literal'), sym('bytes_literal'), sym('fenced_string_literal'),
+    scalarNumber, str('true'), str('false'), seq(str('-'), scalarNumber))), 'PREC');
+  // The source parser keeps a bare integer generic argument on its established
+  // const branch. Its distinct marker wins before the scalar-type marker while
+  // retaining every old const-expression alternative and the same public tree.
+  r.const_type_argument = choice(r.const_type_argument,
+    seq(sym('_sixth_const_argument_start'), r.const_type_argument));
+  append('_type', sym('literal_type'));
+  r.assert_let_statement = seq(alias('_sixth_assert_keyword', 'assert'), str('let'),
+    field('pattern', sym('_pattern')), equal, field('value', sym('_expression')), opt(sym('_markup_after_3b')));
+  append('_statement', sym('assert_let_statement'));
+  members(r.enum_variant).unshift(rep(sym('decorator')));
+
+  // Empty positional expansion is deliberately narrower than an expression:
+  // call(..()) expands zero positions; a standalone () is still invalid.
+  // All parenthesized atoms enter and restore the same eight expression-flag
+  // profiles. Otherwise the existing scope marker commits to the competing
+  // ordinary expression before an empty expansion or operator can finish.
+  const scopedParens = (name, ...body) => {
+    const inner = `_sixth_${name}_paren_body`;
+    r[inner] = seq(...body, str(')'), sym('_scope_delimited_end'));
+    return seq(sym('_markup_after_28'), choice(...Array.from({length: 8}, (_, flags) => {
+      const scope = `_sixth_${name}_paren_scope${flags}`;
+      r[scope] = seq(sym(`_scope_paren_enter${flags}`), sym(inner), sym(`_scope_paren_restore${flags}`));
+      return sym(scope);
+    })));
+  };
+  r._empty_tuple_expansion = scopedParens('empty');
+  const expansionValue = members(r.named_record_argument).find(part => part.type === 'FIELD' && part.name === 'value');
+  expansionValue.content = choice(expansionValue.content,
+    {type: 'ALIAS', content: sym('_empty_tuple_expansion'), value: 'tuple_expression', named: true});
+
+  r.loop_filter = seq(alias('_sixth_where_keyword', 'where'), field('condition', sym('_scoped_iterator')));
+  members(r._for_iteration).push(opt(sym('loop_filter')));
+  r.builder_binding = seq(str('let'), field('binding', sym('_pattern')), equal, field('value', sym('_scoped_iterator')));
+  r.builder_filter = seq(str('if'), field('condition', sym('_scoped_iterator')));
+  for (const name of ['array_for_entry', 'map_for_entry']) {
+    const parts = members(r[name]);
+    const index = parts.findIndex(member => member.type === 'SYMBOL' && member.name === '_markup_after_3d3e');
+    parts.splice(index, 0, rep(choice(sym('builder_binding'), sym('builder_filter'))));
+  }
+  r.set_expression = seq(alias('_sixth_set_keyword', 'set'), open, opt(list(sym('_array_entry'))), str('}'));
+  r.repeated_array_expression = seq(sym('_markup_after_5b'), field('value', sym('_expression')),
+    sym('_markup_after_3b'), field('count', sym('_expression')), str(']'));
+  r._sixth_binary_operator = choice(...[
+    '+', '-', '*', '/', '~/', '%', '**', '==', '!=', '<', '<=', '>', '>=', '&', '|', '^', '<<', '>>', '&&', '||'
+  ].map(str));
+  r.operator_value = scopedParens('operator', field('operator', sym('_sixth_binary_operator')));
+  for (const name of ['_tier_non_dot_atom', '_handler_atom']) {
+    append(name, sym('set_expression')); append(name, sym('repeated_array_expression')); append(name, sym('operator_value'));
+  }
+
+  r.without_fields = seq(open, opt(list(field('name', sym('identifier')))), str('}'));
+  r.without_expression = prec(0, seq(field('base', sym('_expression')),
+    sym('_pratt_low_tail_start'), alias('_sixth_without_keyword', 'without'), field('fields', sym('without_fields'))), 'PREC_LEFT');
+  append('_expression', sym('without_expression'));
+  const projection = members(r.type_projection);
+  // parse_type applies projection, then one without, then optionality to an
+  // atomic base. Parentheses are required to repeat or reorder the suffixes.
+  // Keep those bases explicit instead of recursively admitting unions/optional
+  // types here, which both forks the grammar and changes suffix association.
+  const sharedTypeNames = [
+    'primitive_type', 'syntax_category_type', 'array_type', 'fixed_array_type',
+    'map_type', 'record_type', 'tuple_type', 'type_query', 'literal_type',
+    'parenthesized_type',
+  ];
+  r._structural_type_base = choice(...sharedTypeNames.map(sym));
+  const typeBase = choice(...projection[0].content.members.filter(part =>
+    !(part.type === 'SYMBOL' && sharedTypeNames.includes(part.name))), sym('_structural_type_base'));
+  r._type.members = r._type.members.filter(part =>
+    !(part.type === 'SYMBOL' && sharedTypeNames.includes(part.name)));
+  r._type.members.unshift(sym('_structural_type_base'));
+  projection[0].content = typeBase;
+  r.without_type = prec(31, seq(field('owner', choice(typeBase, sym('type_projection'))), alias('_sixth_without_keyword', 'without'),
+    field('fields', sym('without_fields'))));
+  append('_type', sym('without_type'));
+  const functionParts = members(r.function_item);
+  const nameIndex = functionParts.findIndex(part => part.type === 'FIELD' && part.name === 'name');
+  r._function_definition_tail = seq(...functionParts.slice(nameIndex));
+  functionParts.splice(nameIndex, functionParts.length - nameIndex, sym('_function_definition_tail'));
+  r.computed_property = seq(rep(sym('decorator')), opt(seq(str('pub'), rep(sym('decorator')))),
+    alias('_sixth_get_keyword', 'get'), sym('_function_definition_tail'));
+  members(r.impl_body)[1].content.members.push(sym('computed_property'));
+}
+extendSixthGrammar(contextGrammarData);
+
 function contextRule($,r){switch(r.type){case 'SYMBOL':return $[r.name];case 'STRING':return r.value;case 'PATTERN':return new RegExp(r.value,r.flags||'');case 'SEQ':return seq(...r.members.map(x=>contextRule($,x)));case 'CHOICE':if(r.members.length===2&&r.members[1].type==='BLANK')return optional(contextRule($,r.members[0]));return choice(...r.members.map(x=>contextRule($,x)));case 'BLANK':throw Error('Standalone blank context');case 'REPEAT':return repeat(contextRule($,r.content));case 'REPEAT1':return repeat1(contextRule($,r.content));case 'FIELD':return field(r.name,contextRule($,r.content));case 'ALIAS':return alias(contextRule($,r.content),r.named?$[r.value]:r.value);case 'PREC':return prec(r.value,contextRule($,r.content));case 'PREC_LEFT':return prec.left(r.value,contextRule($,r.content));case 'PREC_RIGHT':return prec.right(r.value,contextRule($,r.content));case 'PREC_DYNAMIC':return prec.dynamic(r.value,contextRule($,r.content));case 'TOKEN':return token(contextRule($,r.content));case 'IMMEDIATE_TOKEN':return token.immediate(contextRule($,r.content));default:throw Error('Context DSL '+r.type);}}
 module.exports=grammar({name:contextGrammarData.name,word:$=>$[contextGrammarData.word],rules:Object.fromEntries(Object.entries(contextGrammarData.rules).map(([name,rule])=>[name,$=>contextRule($,rule)])),extras:$=>contextGrammarData.extras.map(r=>contextRule($,r)),conflicts:$=>contextGrammarData.conflicts.map(ns=>ns.map(n=>$[n])),precedences:$=>contextGrammarData.precedences,externals:$=>contextGrammarData.externals.map(r=>contextRule($,r)),inline:$=>contextGrammarData.inline.map(n=>$[n]),supertypes:$=>contextGrammarData.supertypes.map(n=>$[n]),reserved:Object.fromEntries(Object.entries(contextGrammarData.reserved).map(([name,rs])=>[name,$=>rs.map(r=>contextRule($,r))]))});

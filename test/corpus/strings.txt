@@ -50,7 +50,9 @@ let d = json#"{ "port": 8080 }"#
 Fenced block string
 ==================
 
-let s = ```sql SELECT 1 ```
+let s = ```sql
+SELECT 1
+```
 
 ---
 

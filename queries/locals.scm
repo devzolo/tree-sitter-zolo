@@ -5,6 +5,8 @@
 (function_item) @local.scope
 (extern_function) @local.scope
 (trait_method) @local.scope
+(computed_property) @local.scope
+(computed_property name: (identifier) @local.definition.function)
 (lambda_expression) @local.scope
 (trailing_lambda) @local.scope
 (block) @local.scope
@@ -143,6 +145,14 @@
 (fold_expression accumulator: (identifier) @local.definition.var)
 (fold_expression binding: (identifier_pattern (identifier) @local.definition.var))
 (resource_binding name: (identifier) @local.definition.var)
+(lexical_resource_declaration name: (identifier) @local.definition.var)
+(optional_pattern binding: (identifier) @local.definition.var)
+; Builder intermediates belong to one element, never the surrounding block.
+(array_for_entry) @local.scope
+(map_for_entry) @local.scope
+(builder_binding binding: (identifier_pattern (identifier) @local.definition.var))
+(assert_let_statement pattern: (identifier_pattern (identifier) @local.definition.var))
+(assert_let_statement pattern: (enum_pattern (identifier_pattern (identifier) @local.definition.var)))
 (markup_element) @local.scope
 (markup_self_closing_tag) @local.scope
 ((markup_attribute
