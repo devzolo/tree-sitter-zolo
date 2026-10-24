@@ -181,9 +181,9 @@ test('opaque raw lexer tokens retain the public nodes and append after all exist
   assert.deepEqual(current.raw_string_literal, {type: 'SYMBOL', name: '_sixth_raw_string_literal'});
   assert.deepEqual(current.raw_triple_string_literal, {type: 'SYMBOL', name: '_sixth_raw_triple_string_literal'});
   const scanner = fs.readFileSync(path.join(__dirname, '..', 'src', 'scanner.c'), 'utf8');
-  const tail = scanner.slice(scanner.indexOf('  SIXTH_SET_KEYWORD,'), scanner.indexOf('\n};', scanner.indexOf('  SIXTH_SET_KEYWORD,')));
+  const tail = scanner.slice(scanner.indexOf('  SIXTH_SET_KEYWORD,'), scanner.indexOf('  TYPE_APPLICATION_START,'));
   const names = tail.match(/\b[A-Z][A-Z_]+\b/g);
-  assert.deepEqual(names, after.externals.slice(-15).map(symbol => symbol.name.slice(1).toUpperCase()));
+  assert.deepEqual(names, after.externals.slice(-15, -1).map(symbol => symbol.name.slice(1).toUpperCase()));
 });
 
 test('new parenthesized atoms preserve all expression flag profiles and storage/label decisions', () => {

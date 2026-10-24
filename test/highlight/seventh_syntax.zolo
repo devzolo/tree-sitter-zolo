@@ -1,0 +1,67 @@
+    let copied = .{ ...account, ...address, active: true }
+//                  ^^^ operator
+    let sale = cart with { items[*].price => _ * 0.9 }
+//                               ^ operator
+    let load = async |id: int| { id + 1 }
+//             ^^^^^ keyword.modifier
+    fn total(n: int) -> int = price * n where { let price = 4 }
+//                                      ^^^^^ keyword.control
+    let indexed = roster.enumerate()
+//                       ^^^^^^^^^ function.method.call
+    let options = #{ ...defaults, "timeout": 200 }
+//                   ^^^ operator
+    let converted = transform::<_, Report>(rows)
+//                              ^ variable.parameter
+    type Reply<Value, Error> = Result<Error: str, Value: int>
+//                                    ^^^^^ type.parameter
+    perform Http::request(method: "GET", url: endpoint)
+//                        ^^^^^^ variable.parameter
+    use extension_fixture::{User, label}
+//  ^^^ keyword
+    fn increase(value: int) -> int ensures result > old(value) { value + 1 }
+//                                                  ^^^ function.call
+    let test = real with { Config::read(key) if key == selected => fallback(key) }
+//                                           ^^ keyword.control
+    let #{ [selected]: value, ...rest } = table
+//                            ^^^ operator
+    let #{ "retry"?: retry = 3 } = options
+//                ^ operator
+    let #{ "retry"?: retry = 3 } = options
+//                         ^ operator
+    type UserKey = keyof User
+//                 ^^^^^ keyword.operator
+    type AccountKey = keyof User
+//                          ^^^^ type
+    type City = User["address"]["city"]
+//                   ^^^^^^^^^ string
+    type UserCity = User["address"]["city"]
+//                  ^^^^ type
+    let port = :resolve { break :resolve 8080 }
+//              ^^^^^^^ label
+    fn identity<T = int>(value: T) -> T = value
+//              ^ type.parameter
+    fn round(value: float) -> int { use std::math::{floor as down}; down(value) as int }
+//                                  ^^^ keyword
+    extern csharp from "./fixture.csproj" {
+        use Fixture::{Client}
+//      ^^^ keyword
+        fn version() -> str = Fixture.Build.Version
+    }
+    use std::math::* except { sin, cos }
+//                   ^^^^^^ keyword.control
+    fn complete() { print("hello") }
+//                  ^^^^^ function.call
+    let keyof = 1
+//      ^^^^^ variable
+    let except = 2
+//      ^^^^^^ variable
+    let old = 3
+//      ^^^ variable
+    let async_value = "async | where { keyof except"
+//                     ^^^^^ string
+    let timeout = 30
+//      ^^^^^^^ variable
+    let equal = timeout == 30
+//              ^^^^^^^ variable
+    let waited = timeout deadline() { work() }
+//               ^^^^^^^ keyword

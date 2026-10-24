@@ -301,5 +301,209 @@ function extendSixthGrammar(data) {
 }
 extendSixthGrammar(contextGrammarData);
 
+// Seventh expansion keeps source forms in the shared expression/type rules;
+// scoped Pratt profiles and the foreign-body scanner remain authoritative.
+function extendSeventhGrammar(data) {
+  const r = data.rules;
+  const sym = name => ({type: 'SYMBOL', name});
+  const str = value => ({type: 'STRING', value});
+  const seq = (...members) => ({type: 'SEQ', members});
+  const choice = (...members) => ({type: 'CHOICE', members});
+  const opt = content => choice(content, {type: 'BLANK'});
+  const rep = content => ({type: 'REPEAT', content});
+  const field = (name, content) => ({type: 'FIELD', name, content});
+  const prec = (value, content, type = 'PREC_RIGHT') => ({type, value, content});
+  const members = rule => rule.type === 'SEQ' ? rule.members : members(rule.content);
+  const append = (name, content) => {
+    if (r[name].type === 'CHOICE') r[name].members.push(content);
+    else r[name] = choice(r[name], content);
+  };
+  const alias = (name, value, named = false) => ({type: 'ALIAS', content: sym(name), value, named});
+  const comma = sym('_markup_after_2c');
+  const colon = sym('_markup_after_3a');
+  const equal = sym('_markup_after_3d');
+  const open = sym('_markup_after_7b');
+  const bracket = sym('_markup_after_5b');
+  const list = content => seq(content, rep(seq(comma, content)), opt(comma));
+
+  // Append the postfix discriminator without shifting any existing real token.
+  // The final sentinel remains last and continues to disable error recovery.
+  data.externals.splice(data.externals.length - 1, 0, sym('_type_application_start'));
+
+  // Each spread retains its own source expression and source-order position.
+  const spread = r.struct_expression_field.members.find(part =>
+    part.type === 'SEQ' && part.members[0].type === 'STRING' && part.members[0].value === '..');
+  spread.members[0] = choice(str('..'), str('...'));
+  r.map_spread_entry = seq(str('...'), field('value', sym('_expression')));
+  function mapEntries(rule) {
+    if (rule.type === 'CHOICE' && rule.members.some(part => part.name === 'map_entry')) {
+      rule.members.push(sym('map_spread_entry'));
+      return;
+    }
+    if (rule.members) rule.members.forEach(mapEntries);
+    if (rule.content) mapEntries(rule.content);
+  }
+  mapEntries(r.map_expression);
+  members(r.record_update_path)[1].content.members.push(
+    seq(bracket, field('traversal', str('*')), str(']')));
+
+  members(r._lambda_header).unshift(opt(field('async', str('async'))));
+  r.local_where_clause = seq(str('where'), field('body', sym('block')));
+  const expressionBody = members(r.function_expression_body);
+  expressionBody.splice(expressionBody.length - 1, 0, opt(sym('local_where_clause')));
+
+  // General application is a postfix operation, preserving ordinary casts and
+  // comparison operators. Named type arguments are confined to generic lists.
+  r.named_type_argument = seq(field('name', sym('identifier')), colon, field('type', sym('_type')));
+  function namedArguments(rule) {
+    if (rule.type === 'CHOICE' && rule.members.some(part => part.name === 'state_index_argument')) {
+      rule.members.push(sym('named_type_argument'));
+      return;
+    }
+    if (rule.members) rule.members.forEach(namedArguments);
+    if (rule.content) namedArguments(rule.content);
+  }
+  namedArguments(r.generic_type);
+  r.type_application_arguments = seq(sym('_type_application_start'), str('::'), str('<'),
+    list(choice(sym('_type'), sym('const_type_argument'), sym('named_type_argument'), str('_'))), str('>'));
+  // A bare identifier needs direct lookahead through `::` before the ordinary
+  // namespace-path reduction commits. Paths and calculated callees already
+  // reduce through the shared expression branch; do not duplicate them.
+  r.type_application_expression = prec(31, seq(field('function', choice(
+    sym('identifier'), sym('_expression'))),
+    field('type_arguments', sym('type_application_arguments'))), 'PREC_LEFT');
+  r._handler_type_application = prec(31, seq(field('function', choice(
+    sym('identifier'), sym('_handler_header'))),
+    field('type_arguments', sym('type_application_arguments'))), 'PREC_LEFT');
+  append('_expression', sym('type_application_expression'));
+  append('_handler_header', alias('_handler_type_application', 'type_application_expression', true));
+  members(r.self_parameter).push(opt(seq(colon, field('type', sym('_type')))));
+
+  // The source parser permits timeout as a value. Keep both interpretations
+  // alive at the shared keyword; the existing BP27 operand and required block
+  // decide the temporal form. Dynamic precedence favors that form when valid.
+  // Contextual names are shared by every static Pratt profile. Keep the fork
+  // here too, so subtraction/calls do not lose the value branch in a profile
+  // that was flattened before this extension ran.
+  const contextual = r._contextual_keyword;
+  const contextualWords = contextual.content.content.members;
+  const timeoutWord = contextualWords.findIndex(part => part.type === 'STRING' && part.value === 'timeout');
+  const timeoutName = contextualWords.splice(timeoutWord, 1)[0];
+  r._contextual_keyword = choice(contextual, prec(27, {
+    type: 'ALIAS', content: timeoutName, value: 'identifier', named: true,
+  }, 'PREC'));
+  r.timeout_expression.type = 'PREC';
+  r.timeout_expression = {type: 'PREC_DYNAMIC', value: 1, content: r.timeout_expression};
+  data.conflicts.push(['_contextual_keyword', 'timeout_expression']);
+
+  // The compiler now calls parse_call_args for perform too. Share its complete
+  // delimited flag profile and shorthand/expansion forms instead of cloning an
+  // unscoped argument list that drifts from ordinary calls and inflates tables.
+  members(r._perform_call)[1].content = sym('argument_list');
+  delete r._perform_argument_list;
+  const arm = members(r.handler_override_arm);
+  arm.splice(2, 0, opt(seq(str('if'), field('guard', sym('_scoped_iterator')))));
+
+  r.map_pattern_key = choice(sym('string_literal'),
+    seq(bracket, field('value', sym('_expression')), str(']')));
+  r.map_pattern_entry = seq(field('key', sym('map_pattern_key')),
+    opt(field('optional', str('?'))), colon, field('pattern', sym('_pattern')),
+    opt(seq(equal, field('default', sym('_expression')))));
+  r.map_pattern_rest = seq(choice(str('..'), str('...')), opt(field('rest', sym('identifier'))));
+  r.map_pattern = seq(str('#{'), opt(list(choice(sym('map_pattern_entry'), sym('map_pattern_rest')))), str('}'));
+
+  // Sharing one hidden owner avoids cloning every atomic type in the suffix
+  // contexts. Public owner/field nodes and the compiler's suffix order stay the
+  // same; the pinned CLI has a 16-bit parse-action table limit.
+  r._projectable_type_owner = members(r.type_projection)[0].content;
+  // Preserve every existing qualified-name fork, including the ordinary owner
+  // pair that does not involve Syntax. Otherwise an `as pkg::Type` can commit
+  // to its first identifier before the namespace separator is read.
+  for (const fork of data.conflicts.slice()) {
+    if (fork.includes('_qualified_type_owner') && !fork.includes('_projectable_type_owner'))
+      data.conflicts.push([...fork, '_projectable_type_owner']);
+  }
+  data.conflicts.push(['_qualified_type_owner', '_qualified_syntax_owner', '_projectable_type_owner']);
+  data.conflicts.push(['type_path', '_projectable_type_owner']);
+  data.conflicts.push(['_type', '_projectable_type_owner']);
+  members(r.type_projection)[0].content = sym('_projectable_type_owner');
+  // `type Alias = Base.{ fields }` also admits a shorter type_path followed by
+  // an inferred record expression. Retain both forks, then prefer the complete
+  // authored type projection without changing its static BP31 precedence.
+  r.type_projection = {type: 'PREC_DYNAMIC', value: 1, content: r.type_projection};
+  members(r.without_type)[0].content.members[0] = sym('_projectable_type_owner');
+  r.keyof_type = prec(31, seq(str('keyof'), field('owner', sym('_projectable_type_owner'))));
+  r.indexed_field_type = prec(31, seq(field('owner', sym('_projectable_type_owner')),
+    {type: 'REPEAT1', content: seq(bracket, field('field', sym('string_literal')), str(']'))}));
+  append('_type', sym('keyof_type'));
+  append('_type', sym('indexed_field_type'));
+  r.labeled_block_expression = seq(
+    {type: 'ALIAS', content: sym('loop_label_declaration'), value: 'loop_label', named: true},
+    field('body', sym('block')));
+  for (const name of ['_tier_non_dot_atom', '_handler_atom']) append(name, sym('labeled_block_expression'));
+
+  // Name the nullable callable suffixes instead of multiplying every optional
+  // guard/effect/return/failure/where/contract combination into one production.
+  // Hidden rules preserve the same public fields and source grammar.
+  const fnTail = r._function_definition_tail.members;
+  r._function_contract_body = seq(...fnTail.slice(8));
+  let fnContinuation = '_function_contract_body';
+  for (const [index, name] of [
+    [7, '_function_where_body'], [6, '_function_fallible_body'],
+    [5, '_function_return_body'], [4, '_function_effect_body'],
+    [3, '_function_guard_body'],
+  ]) {
+    r[name] = seq(fnTail[index], sym(fnContinuation));
+    fnContinuation = name;
+  }
+  fnTail.splice(3, fnTail.length - 3, sym(fnContinuation));
+  r._function_parameters_body = seq(...fnTail.slice(2));
+  fnTail.splice(2, fnTail.length - 2, sym('_function_parameters_body'));
+
+  const externTail = r.extern_function.members;
+  r._extern_return_body = seq(...externTail.slice(5));
+  r._extern_parameters_body = seq(externTail[4], sym('_extern_return_body'));
+  r._extern_name_body = seq(...externTail.slice(2, 4), sym('_extern_parameters_body'));
+  externTail.splice(2, externTail.length - 2, sym('_extern_name_body'));
+
+  const enumTail = members(r.enum_item);
+  r._enum_body_tail = prec(r.enum_item.value, seq(...enumTail.slice(7)), r.enum_item.type);
+  r._enum_where_body = seq(enumTail[6], sym('_enum_body_tail'));
+  r._enum_backing_body = seq(enumTail[5], sym('_enum_where_body'));
+  r._enum_generic_body = seq(enumTail[4], sym('_enum_backing_body'));
+  r._enum_definition_tail = seq(enumTail[3], sym('_enum_generic_body'));
+  enumTail.splice(3, enumTail.length - 3, sym('_enum_definition_tail'));
+
+  const forTail = members(r.for_expression);
+  r._for_body_tail = prec(r.for_expression.value, seq(...forTail.slice(5)), r.for_expression.type);
+  r._for_iteration_body = seq(forTail[4], sym('_for_body_tail'));
+  r._for_binding_body = seq(forTail[3], sym('_for_iteration_body'));
+  // Preserve the existing array-builder/for-expression fork after extracting
+  // the binding carrier, including a regular binder named `case`.
+  data.conflicts.push(['_array_for_binding', '_for_binding_body']);
+  r._for_await_body = seq(forTail[2], sym('_for_binding_body'));
+  forTail.splice(2, forTail.length - 2, sym('_for_await_body'));
+
+  // Local imports use the existing import tree. Provider groups contain real
+  // foreign use declarations, never a Zolo interpretation of an opaque body.
+  // A source file already admits imports as items. Prefer that reduction at
+  // top level while blocks admit the same authored declaration as a statement.
+  append('_statement', prec(-1, sym('use_declaration'), 'PREC'));
+  r.import_exclusion = seq(str('except'), open,
+    list(field('name', sym('identifier'))), str('}'));
+  const use = members(r.use_declaration);
+  use.splice(use.length - 1, 0, opt(sym('import_exclusion')));
+  r.use_glob_item = seq(str('*'), opt(sym('import_exclusion')));
+  const nested = members(r.use_nested_item);
+  nested[nested.length - 1].members = nested[nested.length - 1].members.map(part =>
+    part.type === 'STRING' && part.value === '*' ? sym('use_glob_item') : part);
+  const group = members(r.extern_group);
+  r._extern_group_child = seq(rep(sym('decorator')),
+    opt(seq(str('pub'), rep(sym('decorator')))),
+    choice(sym('extern_use'), sym('extern_function'), sym('extern_module'), sym('extern_group')));
+  group[1] = rep(sym('_extern_group_child'));
+}
+extendSeventhGrammar(contextGrammarData);
+
 function contextRule($,r){switch(r.type){case 'SYMBOL':return $[r.name];case 'STRING':return r.value;case 'PATTERN':return new RegExp(r.value,r.flags||'');case 'SEQ':return seq(...r.members.map(x=>contextRule($,x)));case 'CHOICE':if(r.members.length===2&&r.members[1].type==='BLANK')return optional(contextRule($,r.members[0]));return choice(...r.members.map(x=>contextRule($,x)));case 'BLANK':throw Error('Standalone blank context');case 'REPEAT':return repeat(contextRule($,r.content));case 'REPEAT1':return repeat1(contextRule($,r.content));case 'FIELD':return field(r.name,contextRule($,r.content));case 'ALIAS':return alias(contextRule($,r.content),r.named?$[r.value]:r.value);case 'PREC':return prec(r.value,contextRule($,r.content));case 'PREC_LEFT':return prec.left(r.value,contextRule($,r.content));case 'PREC_RIGHT':return prec.right(r.value,contextRule($,r.content));case 'PREC_DYNAMIC':return prec.dynamic(r.value,contextRule($,r.content));case 'TOKEN':return token(contextRule($,r.content));case 'IMMEDIATE_TOKEN':return token.immediate(contextRule($,r.content));default:throw Error('Context DSL '+r.type);}}
 module.exports=grammar({name:contextGrammarData.name,word:$=>$[contextGrammarData.word],rules:Object.fromEntries(Object.entries(contextGrammarData.rules).map(([name,rule])=>[name,$=>contextRule($,rule)])),extras:$=>contextGrammarData.extras.map(r=>contextRule($,r)),conflicts:$=>contextGrammarData.conflicts.map(ns=>ns.map(n=>$[n])),precedences:$=>contextGrammarData.precedences,externals:$=>contextGrammarData.externals.map(r=>contextRule($,r)),inline:$=>contextGrammarData.inline.map(n=>$[n]),supertypes:$=>contextGrammarData.supertypes.map(n=>$[n]),reserved:Object.fromEntries(Object.entries(contextGrammarData.reserved).map(([name,rs])=>[name,$=>rs.map(r=>contextRule($,r))]))});

@@ -147,6 +147,10 @@
 (resource_binding name: (identifier) @local.definition.var)
 (lexical_resource_declaration name: (identifier) @local.definition.var)
 (optional_pattern binding: (identifier) @local.definition.var)
+(labeled_block_expression) @local.scope
+(labeled_block_expression (loop_label name: (identifier) @local.definition.label))
+(map_pattern_rest rest: (identifier) @local.definition.var)
+(map_pattern_entry pattern: (identifier_pattern (identifier) @local.definition.var))
 ; Builder intermediates belong to one element, never the surrounding block.
 (array_for_entry) @local.scope
 (map_for_entry) @local.scope

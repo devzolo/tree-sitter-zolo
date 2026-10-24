@@ -45,6 +45,7 @@
 (extern_dependencies "deps" @keyword)
 (extern_dependency package: (identifier) @property)
 (extern_dependency_options option: _ @property)
+(extern_native_target_options option: _ @property)
 
 [
   "fn"
@@ -1013,3 +1014,51 @@
 (test_resource_header "using" @keyword)
 (typed_json_expression "json" @keyword.operator)
 (typed_json_literal) @string
+
+; Sixth syntax refinements follow generic keywords: later patterns win.
+(lexical_resource_declaration "using" @keyword)
+(defer_statement outcome: (defer_outcome) @keyword.control)
+(computed_property "get" @keyword.function name: (identifier) @function.method)
+(without_expression "without" @keyword.operator)
+(without_type "without" @keyword.operator)
+(without_fields name: (identifier) @property)
+(set_expression "set" @keyword)
+(operator_value operator: _ @operator)
+(relational_pattern operator: _ @operator)
+(optional_pattern "?" @operator)
+(assert_let_statement "assert" @keyword.control "let" @keyword)
+(loop_filter "where" @keyword.control)
+(builder_binding "let" @keyword)
+(builder_filter "if" @keyword.control)
+(literal_type ["true" "false"] @boolean)
+((type_path (identifier) @type.builtin)
+  (#eq? @type.builtin "nil"))
+
+; Braced parameter owners are nominal unless an authored lowercase public
+; label has an explicit type annotation. Backticks preserve nominal identity.
+(parameter pattern: (struct_pattern name: (identifier) @type))
+(function_clause_parameter pattern: (struct_pattern name: (identifier) @type))
+((parameter pattern: (struct_pattern name: (identifier) @variable.parameter) type: (_))
+ (#match? @variable.parameter "^[a-z_][a-zA-Z0-9_]*$"))
+
+; Seventh surfaces refine authored contexts, leaving ordinary identifiers alone.
+(lambda_expression async: "async" @keyword.modifier)
+(local_where_clause "where" @keyword.control)
+(map_spread_entry "..." @operator)
+(struct_expression_field [".." "..."] @operator)
+(record_update_path traversal: "*" @operator)
+(named_type_argument name: (identifier) @type.parameter)
+(type_application_arguments ["::" "<" ">"] @punctuation.delimiter)
+(type_application_arguments "_" @variable.parameter)
+(handler_override_arm "if" @keyword.control)
+(map_pattern_entry optional: "?" @operator)
+(map_pattern_entry "=" @operator)
+(map_pattern_rest [".." "..."] @operator)
+(map_pattern_rest rest: (identifier) @variable)
+(keyof_type "keyof" @keyword.operator)
+(keyof_type owner: (identifier) @type)
+(indexed_field_type owner: (identifier) @type)
+(indexed_field_type field: (string_literal) @string)
+(labeled_block_expression (loop_label name: (identifier) @label))
+(import_exclusion "except" @keyword.control)
+(import_exclusion name: (identifier) @variable)

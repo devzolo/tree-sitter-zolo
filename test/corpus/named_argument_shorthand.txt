@@ -71,7 +71,7 @@ fn work() {}
     (block)))
 
 ==================
-direct perform shorthand is rejected
+direct perform shorthand shares ordinary call arguments
 ==================
 
 perform IO::read(name:)
@@ -86,9 +86,8 @@ perform IO::read(name:)
           (identifier)
           (identifier))
         (argument_list
-          (call_argument
-            (identifier))
-          (ERROR))))))
+          (named_argument_shorthand
+            (identifier)))))))
 
 ==================
 direct macro shorthand is rejected

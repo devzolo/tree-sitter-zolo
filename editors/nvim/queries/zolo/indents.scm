@@ -26,6 +26,9 @@
   (macro_parameters)
   (use_list)
   (array_expression)
+  (set_expression)
+  (repeated_array_expression)
+  (without_fields)
   (map_expression)
   (tuple_expression)
   (struct_expression_body)
@@ -67,3 +70,4 @@
 ; Typed handler override source scopes.
 (handler_override_body) @indent.begin
 (handler_override_parameter_list) @indent.begin
+(import_exclusion) @indent.begin

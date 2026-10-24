@@ -53,3 +53,6 @@
 
 ; Fold authored titled test headers with their real blocks.
 (titled_test_declaration) @fold
+
+; Wildcard exclusions keep their authored multiline import region.
+(import_exclusion) @fold

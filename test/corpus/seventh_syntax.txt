@@ -1,0 +1,2640 @@
+==================
+Seventh 01-multi-record-spreads
+==================
+
+let identity = .{ id: 7, label: "identity" }
+let metrics = .{ score: 42, label: "metrics" }
+var order = ""
+fn first() { order += "i"; identity }
+fn second() { order += "m"; metrics }
+fn active() -> bool { order += "a"; true }
+let user = .{ ...first(), ...second(), label: "override", active: active() }
+assert(order == "ima")
+assert(user.id == 7 && user.score == 42 && user.label == "override" && user.active)
+assert(identity.label == "identity" && metrics.label == "metrics")
+print(user.id, user.score, user.label, user.active, order)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (inferred_struct_expression
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (inferred_struct_expression
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (integer_literal))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (string_literal
+          (string_content)))
+      (expression_statement
+        (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (string_literal
+          (string_content)))
+      (expression_statement
+        (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (string_literal
+          (string_content)))
+      (expression_statement
+        (bool_literal))))
+  (let_declaration
+    pattern: (identifier)
+    value: (inferred_struct_expression
+      body: (struct_expression_body
+        (struct_expression_field
+          spread: (call_expression
+            function: (identifier)
+            arguments: (argument_list)))
+        (struct_expression_field
+          spread: (call_expression
+            function: (identifier)
+            arguments: (argument_list)))
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content)))
+        (struct_expression_field
+          name: (identifier)
+          value: (call_expression
+            function: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (binary_expression
+                left: (binary_expression
+                  left: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  right: (integer_literal))
+                right: (binary_expression
+                  left: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  right: (integer_literal)))
+              right: (binary_expression
+                left: (field_expression
+                  object: (identifier)
+                  field: (identifier))
+                right: (string_literal
+                  (string_content))))
+            right: (field_expression
+              object: (identifier)
+              field: (identifier)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (field_expression
+                object: (identifier)
+                field: (identifier))
+              right: (string_literal
+                (string_content)))
+            right: (binary_expression
+              left: (field_expression
+                object: (identifier)
+                field: (identifier))
+              right: (string_literal
+                (string_content))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (field_expression
+            object: (identifier)
+            field: (identifier)))
+        (call_argument
+          (field_expression
+            object: (identifier)
+            field: (identifier)))
+        (call_argument
+          (field_expression
+            object: (identifier)
+            field: (identifier)))
+        (call_argument
+          (field_expression
+            object: (identifier)
+            field: (identifier)))
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 02-collection-traversals
+==================
+
+struct Item { price: float }
+struct Cart { items: [Item] }
+var leaves = 0
+fn discount(price: float) -> float { leaves += 1; price * 0.9 }
+let cart = Cart { items: [Item { price: 10.0 }, Item { price: 20.0 }] }
+let sale = cart with { items[*].price => discount(_) }
+assert(leaves == 2)
+assert(sale.items[0].price == 9.0 && sale.items[1].price == 18.0)
+assert(cart.items[0].price == 10.0 && cart.items[1].price == 20.0)
+let empty = Cart { items: [] } with { items[*].price => discount(_) }
+assert(empty.items.len() == 0 && leaves == 2)
+print(sale.items[0].price, sale.items[1].price, leaves)
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (array_type
+          (type_path
+            (identifier))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (binary_expression
+          left: (identifier)
+          right: (float_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (array_expression
+            (struct_expression
+              name: (identifier)
+              body: (struct_expression_body
+                (struct_expression_field
+                  name: (identifier)
+                  value: (float_literal))))
+            (struct_expression
+              name: (identifier)
+              body: (struct_expression_body
+                (struct_expression_field
+                  name: (identifier)
+                  value: (float_literal)))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (record_update_expression
+      base: (identifier)
+      body: (record_update_body
+        (record_update_field
+          path: (record_update_path
+            (identifier)
+            (identifier))
+          value: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (field_expression
+                object: (index_expression
+                  object: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  index: (integer_literal))
+                field: (identifier))
+              right: (float_literal))
+            right: (binary_expression
+              left: (field_expression
+                object: (index_expression
+                  object: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  index: (integer_literal))
+                field: (identifier))
+              right: (float_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (field_expression
+                object: (index_expression
+                  object: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  index: (integer_literal))
+                field: (identifier))
+              right: (float_literal))
+            right: (binary_expression
+              left: (field_expression
+                object: (index_expression
+                  object: (field_expression
+                    object: (identifier)
+                    field: (identifier))
+                  index: (integer_literal))
+                field: (identifier))
+              right: (float_literal)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (record_update_expression
+      base: (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (array_expression))))
+      body: (record_update_body
+        (record_update_field
+          path: (record_update_path
+            (identifier)
+            (identifier))
+          value: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (method_call_expression
+                receiver: (field_expression
+                  object: (identifier)
+                  field: (identifier))
+                method: (identifier)
+                arguments: (argument_list))
+              right: (integer_literal))
+            right: (binary_expression
+              left: (identifier)
+              right: (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (field_expression
+            object: (index_expression
+              object: (field_expression
+                object: (identifier)
+                field: (identifier))
+              index: (integer_literal))
+            field: (identifier)))
+        (call_argument
+          (field_expression
+            object: (index_expression
+              object: (field_expression
+                object: (identifier)
+                field: (identifier))
+              index: (integer_literal))
+            field: (identifier)))
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 03-async-closures
+==================
+
+// Calling an async closure schedules a Future with the async-fn protocol.
+let offset = 40
+let add = async |value: int| -> int {
+    defer print("async cleanup")
+    tick()
+    offset + value
+}
+let future = add(2)
+print("created")
+print(await future)
+
+---
+
+(source_file
+  (line_comment)
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (lambda_expression
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      return_type: (primitive_type)
+      body: (block_expression
+        (block
+          (defer_statement
+            value: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content))))))
+          (expression_statement
+            (call_expression
+              function: (identifier)
+              arguments: (argument_list)))
+          (expression_statement
+            (binary_expression
+              left: (identifier)
+              right: (identifier)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (await_expression
+            (identifier)))))))
+
+==================
+Seventh 04-local-where
+==================
+
+fn total(value: int) -> int = doubled + increment where {
+    let doubled = value * 2
+    let increment = doubled + 1
+}
+print(total(4))
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      (local_where_clause
+        body: (block
+          (let_declaration
+            pattern: (identifier)
+            value: (binary_expression
+              left: (identifier)
+              right: (integer_literal)))
+          (let_declaration
+            pattern: (identifier)
+            value: (binary_expression
+              left: (identifier)
+              right: (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (integer_literal)))))))))
+
+==================
+Seventh 05-typed-collection-transforms
+==================
+
+// Keep each user's type while numbering, pairing and grouping a roster.
+struct User { name: str, team: str }
+let users = [
+    User { name: "Ana", team: "compiler" },
+    User { name: "Bruno", team: "editor" },
+    User { name: "Cris", team: "compiler" },
+]
+
+let numbered: [(int, User)] = users.enumerate()
+for row in numbered {
+    let (index, user) = row
+    print("{index}: {user.name}")
+}
+
+let nicknames = ["ana", "bruno", "cris"]
+let paired: [(User, str)] = users.zip(nicknames)
+for row in paired {
+    let (user, nickname) = row
+    print("@{nickname}: {user.team}")
+}
+
+let by_team: #{str: [User]} = users.group_by(|user| user.team)
+let entries: [(str, [User])] = by_team.entries()
+let counts: #{str: int} = #{}
+for row in entries {
+    let (team, members) = row
+    counts.set(team, members.len())
+}
+assert(counts.get("compiler") == 2)
+assert(counts.get("editor") == 1)
+print("compiler: {counts.get("compiler")}")
+print("editor: {counts.get("editor")}")
+
+let empty_users: [User] = []
+let empty_numbered: [(int, User)] = empty_users.enumerate()
+assert(empty_numbered.len() == 0)
+
+---
+
+(source_file
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))))
+      (struct_expression
+        name: (identifier)
+        body: (struct_expression_body
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))
+          (struct_expression_field
+            name: (identifier)
+            value: (string_literal
+              (string_content)))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (tuple_type
+        (primitive_type)
+        (type_path
+          (identifier))))
+    value: (method_call_expression
+      receiver: (identifier)
+      method: (identifier)
+      arguments: (argument_list)))
+  (expression_statement
+    (for_expression
+      binding: (identifier)
+      iter: (identifier)
+      body: (block
+        (let_declaration
+          pattern: (tuple_pattern_binding
+            (identifier)
+            (identifier))
+          value: (identifier))
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_interpolation
+                    (identifier))
+                  (string_content)
+                  (string_interpolation
+                    (field_expression
+                      object: (identifier)
+                      field: (identifier)))))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (array_expression
+      (string_literal
+        (string_content))
+      (string_literal
+        (string_content))
+      (string_literal
+        (string_content))))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (tuple_type
+        (type_path
+          (identifier))
+        (primitive_type)))
+    value: (method_call_expression
+      receiver: (identifier)
+      method: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (for_expression
+      binding: (identifier)
+      iter: (identifier)
+      body: (block
+        (let_declaration
+          pattern: (tuple_pattern_binding
+            (identifier)
+            (identifier))
+          value: (identifier))
+        (expression_statement
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_content)
+                  (string_interpolation
+                    (identifier))
+                  (string_content)
+                  (string_interpolation
+                    (field_expression
+                      object: (identifier)
+                      field: (identifier)))))))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (map_type
+      (primitive_type)
+      (array_type
+        (type_path
+          (identifier))))
+    value: (method_call_expression
+      receiver: (identifier)
+      method: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (lambda_expression
+            (parameter
+              name: (identifier))
+            body: (field_expression
+              object: (identifier)
+              field: (identifier)))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (tuple_type
+        (primitive_type)
+        (array_type
+          (type_path
+            (identifier)))))
+    value: (method_call_expression
+      receiver: (identifier)
+      method: (identifier)
+      arguments: (argument_list)))
+  (let_declaration
+    pattern: (identifier)
+    type: (map_type
+      (primitive_type)
+      (primitive_type))
+    value: (map_expression))
+  (expression_statement
+    (for_expression
+      binding: (identifier)
+      iter: (identifier)
+      body: (block
+        (let_declaration
+          pattern: (tuple_pattern_binding
+            (identifier)
+            (identifier))
+          value: (identifier))
+        (expression_statement
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))
+              (call_argument
+                (method_call_expression
+                  receiver: (identifier)
+                  method: (identifier)
+                  arguments: (argument_list)))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (string_literal
+                    (string_content)))))
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content)
+            (string_interpolation
+              (method_call_expression
+                receiver: (identifier)
+                method: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (string_literal
+            (string_content)
+            (string_interpolation
+              (method_call_expression
+                receiver: (identifier)
+                method: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (type_path
+        (identifier)))
+    value: (array_expression))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (tuple_type
+        (primitive_type)
+        (type_path
+          (identifier))))
+    value: (method_call_expression
+      receiver: (identifier)
+      method: (identifier)
+      arguments: (argument_list)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (method_call_expression
+              receiver: (identifier)
+              method: (identifier)
+              arguments: (argument_list))
+            right: (integer_literal)))))))
+
+==================
+Seventh 06-map-spreads
+==================
+
+let defaults = #{ accept: "json", mode: "default" }
+let request_headers = #{ mode: "request", origin: "client" }
+let token = "Bearer token"
+var calls = 0
+fn source() -> #{str: str} { calls += 1; request_headers }
+let headers = #{ ...defaults, ...source(), authorization: token, mode: "explicit" }
+assert(calls == 1 && headers["mode"] == "explicit")
+assert(headers["accept"] == "json" && headers["authorization"] == token)
+assert(defaults["mode"] == "default" && request_headers["mode"] == "request")
+print(headers["accept"], headers["mode"], headers["origin"], calls)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (map_expression
+      (map_entry
+        key: (identifier)
+        value: (string_literal
+          (string_content)))
+      (map_entry
+        key: (identifier)
+        value: (string_literal
+          (string_content)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (map_expression
+      (map_entry
+        key: (identifier)
+        value: (string_literal
+          (string_content)))
+      (map_entry
+        key: (identifier)
+        value: (string_literal
+          (string_content)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal
+      (string_content)))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (map_type
+      (primitive_type)
+      (primitive_type))
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (map_expression
+      (map_spread_entry
+        value: (identifier))
+      (map_spread_entry
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      (map_entry
+        key: (identifier)
+        value: (identifier))
+      (map_entry
+        key: (identifier)
+        value: (string_literal
+          (string_content)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (identifier)
+              right: (integer_literal))
+            right: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (string_literal
+                  (string_content)))
+              right: (string_literal
+                (string_content))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (string_literal
+                  (string_content)))
+              right: (string_literal
+                (string_content)))
+            right: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (string_literal
+                  (string_content)))
+              right: (identifier)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (string_literal
+                  (string_content)))
+              right: (string_literal
+                (string_content)))
+            right: (binary_expression
+              left: (index_expression
+                object: (identifier)
+                index: (string_literal
+                  (string_content)))
+              right: (string_literal
+                (string_content))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (index_expression
+            object: (identifier)
+            index: (string_literal
+              (string_content))))
+        (call_argument
+          (index_expression
+            object: (identifier)
+            index: (string_literal
+              (string_content))))
+        (call_argument
+          (index_expression
+            object: (identifier)
+            index: (string_literal
+              (string_content))))
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 07-generic-arguments
+==================
+
+struct Report { value: int }
+type Reply<Value, Error> = Result<Value, Error>
+fn transform<T, U>(rows: [T], convert: fn(T) -> U) -> [U] = rows.map(convert)
+let reports = transform::<_, Report>([3, 4], |value| Report { value })
+let reply: Reply<Error: str, Value: int> = .Ok(reports[1].value)
+print(reports[0].value)
+print(reply.unwrap())
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (type_alias
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier))
+      (type_parameter
+        name: (identifier)))
+    type: (generic_type
+      name: (identifier)
+      (type_path
+        (identifier))
+      (type_path
+        (identifier))))
+  (function_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier))
+      (type_parameter
+        name: (identifier)))
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (array_type
+          (type_path
+            (identifier))))
+      (parameter
+        name: (identifier)
+        type: (function_type
+          (type_path
+            (identifier))
+          (type_path
+            (identifier)))))
+    return_type: (array_type
+      (type_path
+        (identifier)))
+    body: (function_expression_body
+      value: (method_call_expression
+        receiver: (identifier)
+        method: (identifier)
+        arguments: (argument_list
+          (call_argument
+            (identifier))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (type_application_expression
+        function: (identifier)
+        type_arguments: (type_application_arguments
+          (type_path
+            (identifier))))
+      arguments: (argument_list
+        (call_argument
+          (array_expression
+            (integer_literal)
+            (integer_literal)))
+        (call_argument
+          (lambda_expression
+            (parameter
+              name: (identifier))
+            body: (struct_expression
+              name: (identifier)
+              body: (struct_expression_body
+                (struct_expression_field
+                  shorthand: (identifier)))))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (generic_type
+      name: (identifier)
+      (named_type_argument
+        name: (identifier)
+        type: (primitive_type))
+      (named_type_argument
+        name: (identifier)
+        type: (primitive_type)))
+    value: (call_expression
+      function: (enum_shorthand_expression
+        variant: (identifier))
+      arguments: (argument_list
+        (call_argument
+          (field_expression
+            object: (index_expression
+              object: (identifier)
+              index: (integer_literal))
+            field: (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (field_expression
+            object: (index_expression
+              object: (identifier)
+              index: (integer_literal))
+            field: (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Seventh 08-named-effect-arguments
+==================
+
+// expected:
+// bum
+// endpoint|POST|payload
+effect Http {
+    fn request(url: str, method: str, body: str) -> str
+}
+
+var trace = ""
+fn marked(label: str, value: str) -> str {
+    trace = trace + label
+    value
+}
+
+let response = handle perform Http::request(
+    body: marked("b", "payload"),
+    url: marked("u", "endpoint"),
+    method: marked("m", "POST"),
+) with {
+    Http::request(url, method, body) => url + "|" + method + "|" + body,
+}
+assert(trace == "bum")
+assert(response == "endpoint|POST|payload")
+print(trace)
+print(response)
+
+---
+
+(source_file
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (effect_item
+    name: (identifier)
+    body: (effect_body
+      (effect_signature
+        name: (identifier)
+        parameters: (parameter_list
+          (parameter
+            name: (identifier)
+            type: (primitive_type))
+          (parameter
+            name: (identifier)
+            type: (primitive_type))
+          (parameter
+            name: (identifier)
+            type: (primitive_type)))
+        return_type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (string_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type))
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (identifier)))
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (handle_expression
+      value: (perform_expression
+        (call_expression
+          function: (path_expression
+            (identifier)
+            (identifier))
+          arguments: (argument_list
+            (call_argument
+              name: (identifier)
+              value: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))
+                  (call_argument
+                    (string_literal
+                      (string_content))))))
+            (call_argument
+              name: (identifier)
+              value: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))
+                  (call_argument
+                    (string_literal
+                      (string_content))))))
+            (call_argument
+              name: (identifier)
+              value: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))
+      handler: (handle_block
+        (handle_arm
+          pattern: (call_expression
+            function: (path_expression
+              (identifier)
+              (identifier))
+            arguments: (argument_list
+              (call_argument
+                (identifier))
+              (call_argument
+                (identifier))
+              (call_argument
+                (identifier))))
+          body: (binary_expression
+            left: (binary_expression
+              left: (binary_expression
+                left: (binary_expression
+                  left: (identifier)
+                  right: (string_literal
+                    (string_content)))
+                right: (identifier))
+              right: (string_literal
+                (string_content)))
+            right: (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 09-lexical-extensions
+==================
+
+mod extension_fixture;
+use extension_fixture::{User, label}
+let user = User { name: "Ada" }
+print(user.label())
+print(label(user))
+let bound_label = user.label
+print(bound_label())
+let possible: User? = user
+print(possible?.label() ?? "missing")
+let optional_label = possible?.label
+print(optional_label?.() ?? "missing")
+
+---
+
+(source_file
+  (mod_declaration
+    path: (mod_path
+      (identifier)))
+  (use_declaration
+    path: (use_path
+      (identifier)
+      (use_list
+        (use_item
+          name: (identifier))
+        (use_item
+          name: (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body
+        (struct_expression_field
+          name: (identifier)
+          value: (string_literal
+            (string_content))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (field_expression
+      object: (identifier)
+      field: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list))))))
+  (let_declaration
+    pattern: (identifier)
+    type: (optional_type
+      (type_path
+        (identifier)))
+    value: (identifier))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (optional_chain_expression
+                object: (identifier)
+                field: (identifier))
+              arguments: (argument_list))
+            right: (string_literal
+              (string_content)))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (optional_chain_expression
+      object: (identifier)
+      field: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (optional_call_expression
+              function: (identifier)
+              arguments: (argument_list))
+            right: (string_literal
+              (string_content))))))))
+
+==================
+Seventh 10-old-postconditions
+==================
+
+var snapshots = 0
+fn snapshot(value: int) -> int { snapshots += 1; value }
+fn grow(value: int) -> int ensures result == old(snapshot(value)) + 1 {
+    defer print("body cleanup")
+    value + 1
+}
+print(grow(41))
+print(snapshots)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    (function_contract_clause
+      condition: (binary_expression
+        left: (identifier)
+        right: (binary_expression
+          left: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (call_expression
+                  function: (identifier)
+                  arguments: (argument_list
+                    (call_argument
+                      (identifier)))))))
+          right: (integer_literal))))
+    body: (block
+      (defer_statement
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (expression_statement
+        (binary_expression
+          left: (identifier)
+          right: (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (integer_literal))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 11-guarded-handler-overrides
+==================
+
+// expected:
+// test
+// real:other
+// 2
+effect Config { fn read(key: str) -> str }
+var evaluated = 0
+fn argument(value: str) -> str {
+    evaluated += 1
+    value
+}
+let real = handler { Config::read(key) => "real:" + key }
+let test = real with {
+    Config::read(key) if key == "mode" => "test",
+}
+let mode = handle perform Config::read(argument("mode")) with test
+let other = handle perform Config::read(argument("other")) with test
+assert(mode == "test")
+assert(other == "real:other")
+assert(evaluated == 2)
+print(mode)
+print(other)
+print(evaluated)
+
+---
+
+(source_file
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (effect_item
+    name: (identifier)
+    body: (effect_body
+      (effect_signature
+        name: (identifier)
+        parameters: (parameter_list
+          (parameter
+            name: (identifier)
+            type: (primitive_type)))
+        return_type: (primitive_type))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    pattern: (identifier)
+    value: (handler_expression
+      (handle_arm
+        pattern: (call_expression
+          function: (path_expression
+            (identifier)
+            (identifier))
+          arguments: (argument_list
+            (call_argument
+              (identifier))))
+        body: (binary_expression
+          left: (string_literal
+            (string_content))
+          right: (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (handler_override_expression
+      base: (identifier)
+      body: (handler_override_body
+        (handler_override_arm
+          selector: (handler_override_selector
+            effect: (handler_override_effect
+              name: (identifier))
+            operation: (identifier))
+          parameters: (handler_override_parameter_list
+            (handler_override_parameter
+              name: (identifier)))
+          iter: (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))
+          body: (string_literal
+            (string_content))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (handle_expression
+      value: (perform_expression
+        (call_expression
+          function: (path_expression
+            (identifier)
+            (identifier))
+          arguments: (argument_list
+            (call_argument
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))
+      handler: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (handle_expression
+      value: (perform_expression
+        (call_expression
+          function: (path_expression
+            (identifier)
+            (identifier))
+          arguments: (argument_list
+            (call_argument
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))
+      handler: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (identifier)
+            right: (integer_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 12-computed-map-pattern-keys
+==================
+
+var attempts = 0
+fn selected_id() -> int { attempts += 1; 7 }
+
+fn main() {
+    let accounts = #{ [7]: 70, [8]: 80 }
+    let #{ [selected_id()]: account, ...others } = accounts
+    assert(attempts == 1 && account == 70)
+    assert(others.len() == 1 && others[8] == 80)
+    let result = match accounts {
+        #{ [selected_id()]: 99 } => -1,
+        #{ [selected_id()]: found } => found,
+        _ => -2,
+    }
+    assert(result == 70 && attempts == 3)
+    print(account, others[8], result, attempts)
+}
+main()
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (integer_literal))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (map_expression
+          (map_entry
+            key: (integer_literal)
+            value: (integer_literal))
+          (map_entry
+            key: (integer_literal)
+            value: (integer_literal))))
+      (let_declaration
+        pattern: (map_pattern
+          (map_pattern_entry
+            key: (map_pattern_key
+              value: (call_expression
+                function: (identifier)
+                arguments: (argument_list)))
+            pattern: (identifier_pattern
+              (identifier)))
+          (map_pattern_rest
+            rest: (identifier)))
+        value: (identifier))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (binary_expression
+                  left: (identifier)
+                  right: (integer_literal))
+                right: (binary_expression
+                  left: (identifier)
+                  right: (integer_literal)))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (binary_expression
+                  left: (method_call_expression
+                    receiver: (identifier)
+                    method: (identifier)
+                    arguments: (argument_list))
+                  right: (integer_literal))
+                right: (binary_expression
+                  left: (index_expression
+                    object: (identifier)
+                    index: (integer_literal))
+                  right: (integer_literal)))))))
+      (let_declaration
+        pattern: (identifier)
+        value: (match_expression
+          value: (identifier)
+          (match_arm
+            pattern: (map_pattern
+              (map_pattern_entry
+                key: (map_pattern_key
+                  value: (call_expression
+                    function: (identifier)
+                    arguments: (argument_list)))
+                pattern: (literal_pattern
+                  (integer_literal))))
+            body: (unary_expression
+              operand: (integer_literal)))
+          (match_arm
+            pattern: (map_pattern
+              (map_pattern_entry
+                key: (map_pattern_key
+                  value: (call_expression
+                    function: (identifier)
+                    arguments: (argument_list)))
+                pattern: (identifier_pattern
+                  (identifier))))
+            body: (identifier))
+          (match_arm
+            pattern: (wildcard_pattern)
+            body: (unary_expression
+              operand: (integer_literal)))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (binary_expression
+                  left: (identifier)
+                  right: (integer_literal))
+                right: (binary_expression
+                  left: (identifier)
+                  right: (integer_literal)))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (identifier))
+            (call_argument
+              (index_expression
+                object: (identifier)
+                index: (integer_literal)))
+            (call_argument
+              (identifier))
+            (call_argument
+              (identifier)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list))))
+
+==================
+Seventh 13-optional-map-entries
+==================
+
+var fallbacks = 0
+fn fallback() -> int { fallbacks += 1; 30 }
+
+fn main() {
+    let config: #{str: int?} = #{ timeout: nil, keep: 2 }
+    let #{ "timeout"?: timeout = fallback(), ...options } = config
+    assert(timeout == nil && fallbacks == 0 && options.len() == 1)
+    assert(config.has("timeout") && config.len() == 2)
+    let copy = #{ ...config }
+    assert(copy.has("timeout") && copy.len() == 2)
+    copy.remove("timeout")
+    let #{ "timeout"?: missing_timeout = fallback() } = copy
+    assert(missing_timeout == 30 && fallbacks == 1 && !copy.has("timeout"))
+    let wrong = match config { #{ "keep"?: 99 } => true, _ => false }
+    assert(!wrong)
+    print(missing_timeout, fallbacks, config.has("timeout"), copy.has("timeout"))
+}
+main()
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (assignment_statement
+        target: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (integer_literal))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        type: (map_type
+          (primitive_type)
+          (optional_type
+            (primitive_type)))
+        value: (map_expression
+          (map_entry
+            key: (identifier)
+            value: (nil_literal))
+          (map_entry
+            key: (identifier)
+            value: (integer_literal))))
+      (let_declaration
+        pattern: (map_pattern
+          (map_pattern_entry
+            key: (map_pattern_key
+              (string_literal
+                (string_content)))
+            pattern: (identifier_pattern
+              (identifier))
+            default: (call_expression
+              function: (identifier)
+              arguments: (argument_list)))
+          (map_pattern_rest
+            rest: (identifier)))
+        value: (identifier))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (binary_expression
+                  left: (binary_expression
+                    left: (identifier)
+                    right: (nil_literal))
+                  right: (binary_expression
+                    left: (identifier)
+                    right: (integer_literal)))
+                right: (binary_expression
+                  left: (method_call_expression
+                    receiver: (identifier)
+                    method: (identifier)
+                    arguments: (argument_list))
+                  right: (integer_literal)))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (method_call_expression
+                  receiver: (identifier)
+                  method: (identifier)
+                  arguments: (argument_list
+                    (call_argument
+                      (string_literal
+                        (string_content)))))
+                right: (binary_expression
+                  left: (method_call_expression
+                    receiver: (identifier)
+                    method: (identifier)
+                    arguments: (argument_list))
+                  right: (integer_literal)))))))
+      (let_declaration
+        pattern: (identifier)
+        value: (map_expression
+          (map_spread_entry
+            value: (identifier))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (method_call_expression
+                  receiver: (identifier)
+                  method: (identifier)
+                  arguments: (argument_list
+                    (call_argument
+                      (string_literal
+                        (string_content)))))
+                right: (binary_expression
+                  left: (method_call_expression
+                    receiver: (identifier)
+                    method: (identifier)
+                    arguments: (argument_list))
+                  right: (integer_literal)))))))
+      (expression_statement
+        (method_call_expression
+          receiver: (identifier)
+          method: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (string_literal
+                (string_content))))))
+      (let_declaration
+        pattern: (map_pattern
+          (map_pattern_entry
+            key: (map_pattern_key
+              (string_literal
+                (string_content)))
+            pattern: (identifier_pattern
+              (identifier))
+            default: (call_expression
+              function: (identifier)
+              arguments: (argument_list))))
+        value: (identifier))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (binary_expression
+                  left: (binary_expression
+                    left: (identifier)
+                    right: (integer_literal))
+                  right: (binary_expression
+                    left: (identifier)
+                    right: (integer_literal)))
+                right: (unary_expression
+                  operand: (method_call_expression
+                    receiver: (identifier)
+                    method: (identifier)
+                    arguments: (argument_list
+                      (call_argument
+                        (string_literal
+                          (string_content)))))))))))
+      (let_declaration
+        pattern: (identifier)
+        value: (match_expression
+          value: (identifier)
+          (match_arm
+            pattern: (map_pattern
+              (map_pattern_entry
+                key: (map_pattern_key
+                  (string_literal
+                    (string_content)))
+                pattern: (literal_pattern
+                  (integer_literal))))
+            body: (bool_literal))
+          (match_arm
+            pattern: (wildcard_pattern)
+            body: (bool_literal))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (unary_expression
+                operand: (identifier))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (identifier))
+            (call_argument
+              (identifier))
+            (call_argument
+              (method_call_expression
+                receiver: (identifier)
+                method: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content))))))
+            (call_argument
+              (method_call_expression
+                receiver: (identifier)
+                method: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (string_literal
+                      (string_content)))))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list))))
+
+==================
+Seventh 14-field-type-queries
+==================
+
+struct Address { city: str }
+struct User { id: int, address: Address }
+type UserField = keyof User
+type City = User["address"]["city"]
+let field: UserField = "address"
+let city: City = "Recife"
+fn location(value: City) -> str = value
+assert(field == "address" && location(city) == "Recife")
+print(field, location(city))
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        name: (identifier)
+        type: (type_path
+          (identifier)))))
+  (type_alias
+    name: (identifier)
+    type: (keyof_type
+      owner: (identifier)))
+  (type_alias
+    name: (identifier)
+    type: (indexed_field_type
+      owner: (identifier)
+      field: (string_literal
+        (string_content))))
+  (expression_statement
+    (array_expression
+      (string_literal
+        (string_content))))
+  (let_declaration
+    pattern: (identifier)
+    type: (type_path
+      (identifier))
+    value: (string_literal
+      (string_content)))
+  (let_declaration
+    pattern: (identifier)
+    type: (type_path
+      (identifier))
+    value: (string_literal
+      (string_content)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (identifier)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (binary_expression
+              left: (identifier)
+              right: (string_literal
+                (string_content)))
+            right: (binary_expression
+              left: (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (identifier))))
+              right: (string_literal
+                (string_content))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier)))))))))
+
+==================
+Seventh 15-labeled-block-values
+==================
+
+var cleaned = 0
+fn port(raw: str) -> int {
+    :resolve {
+        defer { cleaned += 1 }
+        if raw == "" { break :resolve 8080 }
+        9000
+    }
+}
+print(port(""))
+print(port("configured"))
+print(cleaned)
+
+---
+
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (labeled_block_expression
+          (loop_label
+            name: (identifier))
+          body: (block
+            (defer_statement
+              value: (block_expression
+                (block
+                  (assignment_statement
+                    target: (identifier)
+                    value: (integer_literal)))))
+            (expression_statement
+              (if_expression
+                condition: (binary_expression
+                  left: (identifier)
+                  right: (string_literal))
+                consequence: (block
+                  (break_statement
+                    label: (loop_label
+                      name: (identifier))
+                    value: (integer_literal)))))
+            (expression_statement
+              (integer_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (string_literal
+                  (string_content)))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+Seventh 16-function-generic-defaults
+==================
+
+fn empty<T = str>() -> [T] = []
+fn identity<T = str>(value: T) -> T = value
+let texts = empty()
+let numbers: [int] = empty()
+let flags = empty::<bool>()
+print(texts.len())
+print(numbers.len())
+print(flags.len())
+print(identity(42))
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier)
+        default: (primitive_type)))
+    parameters: (parameter_list)
+    return_type: (array_type
+      (type_path
+        (identifier)))
+    body: (function_expression_body
+      value: (array_expression)))
+  (function_item
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (identifier)
+        default: (primitive_type)))
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    return_type: (type_path
+      (identifier))
+    body: (function_expression_body
+      value: (identifier)))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list)))
+  (let_declaration
+    pattern: (identifier)
+    type: (array_type
+      (primitive_type))
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list)))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (type_application_expression
+        function: (identifier)
+        type_arguments: (type_application_arguments
+          (primitive_type)))
+      arguments: (argument_list)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (method_call_expression
+            receiver: (identifier)
+            method: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (integer_literal)))))))))
+
+==================
+Seventh 17-block-imports
+==================
+
+// expected:
+// 2
+// 13
+fn scoped() -> float {
+    use std::math::{floor as round_value}
+    let first = round_value(2.8)
+    let second = {
+        use std::math::{ceil as round_value}
+        round_value(2.2)
+    }
+    assert(first == 2.0)
+    assert(second == 3.0)
+    round_value(2.8)
+}
+fn independent() -> int {
+    let round_value = 13
+    round_value
+}
+print(scoped())
+print(independent())
+
+---
+
+(source_file
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (use_declaration
+        path: (use_path
+          (identifier)
+          (identifier)
+          (use_list
+            (use_item
+              name: (identifier)
+              alias: (identifier)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (float_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (block_expression
+          (block
+            (use_declaration
+              path: (use_path
+                (identifier)
+                (identifier)
+                (use_list
+                  (use_item
+                    name: (identifier)
+                    alias: (identifier)))))
+            (expression_statement
+              (call_expression
+                function: (identifier)
+                arguments: (argument_list
+                  (call_argument
+                    (float_literal))))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (identifier)
+                right: (float_literal))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (binary_expression
+                left: (identifier)
+                right: (float_literal))))))
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (float_literal)))))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (integer_literal))
+      (expression_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Seventh 18-mixed-extern-groups
+==================
+
+// Requires the dotnet plugin and a .NET 8 SDK on the host.
+// expected:
+// 7
+// seventh
+use plugin dotnet::{csharp}
+
+extern csharp from "./extern-fixtures/Seventh.csproj" {
+    use Seventh::{Client, Event}
+    fn version() -> str = Seventh.Build.Version
+}
+
+let client = Client(7)
+print(client.Value)
+print(version())
+
+---
+
+(source_file
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (use_declaration
+    path: (use_path
+      (identifier)
+      (use_list
+        (use_item
+          name: (identifier)))))
+  (extern_declaration
+    provider: (identifier)
+    source: (string_literal
+      (string_content))
+    (extern_group
+      (extern_use
+        path: (use_path
+          (identifier)
+          (use_list
+            (use_item
+              name: (identifier))
+            (use_item
+              name: (identifier)))))
+      (extern_function
+        name: (identifier)
+        parameters: (parameter_list)
+        return_type: (primitive_type)
+        binding: (extern_binding
+          (identifier)
+          (identifier)
+          (identifier)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (integer_literal)))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (field_expression
+            object: (identifier)
+            field: (identifier))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Seventh 19-import-exclusions
+==================
+
+// expected:
+// 2
+// local
+use std::math::* except { sin, cos }
+fn sin() -> str = "local"
+assert(floor(2.8) == 2.0)
+assert(sin() == "local")
+print(floor(2.8))
+print(sin())
+
+---
+
+(source_file
+  (line_comment)
+  (line_comment)
+  (line_comment)
+  (use_declaration
+    path: (use_path
+      (identifier)
+      (identifier))
+    (import_exclusion
+      name: (identifier)
+      name: (identifier)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (function_expression_body
+      value: (string_literal
+        (string_content))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (float_literal))))
+            right: (float_literal))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (binary_expression
+            left: (call_expression
+              function: (identifier)
+              arguments: (argument_list))
+            right: (string_literal
+              (string_content)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (float_literal))))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Seventh 20-complete-call-context
+==================
+
+// expected:
+// Ada
+struct User { name: str }
+struct Panel {}
+impl Panel { fn show(self, label: str, suffix: str) { print(label + suffix) } }
+let panel = Panel {}
+fn render(user: User) {
+    let label = user.name
+    // While editing `panel.show(label, }`, the editor retains this function,
+    // user, label and the show signature. Compilation requires the close `)`.
+    panel.show(label, "")
+}
+render(User { name: "Ada" })
+
+---
+
+(source_file
+  (line_comment)
+  (line_comment)
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        name: (identifier)
+        type: (primitive_type))))
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list))
+  (impl_item
+    type: (type_path
+      (identifier))
+    body: (impl_body
+      (function_item
+        name: (identifier)
+        parameters: (parameter_list
+          (self_parameter)
+          (parameter
+            name: (identifier)
+            type: (primitive_type))
+          (parameter
+            name: (identifier)
+            type: (primitive_type)))
+        body: (block
+          (expression_statement
+            (call_expression
+              function: (identifier)
+              arguments: (argument_list
+                (call_argument
+                  (binary_expression
+                    left: (identifier)
+                    right: (identifier))))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (struct_expression
+      name: (identifier)
+      body: (struct_expression_body)))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type_path
+          (identifier))))
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (field_expression
+          object: (identifier)
+          field: (identifier)))
+      (line_comment)
+      (line_comment)
+      (expression_statement
+        (method_call_expression
+          receiver: (identifier)
+          method: (identifier)
+          arguments: (argument_list
+            (call_argument
+              (identifier))
+            (call_argument
+              (string_literal)))))))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      arguments: (argument_list
+        (call_argument
+          (struct_expression
+            name: (identifier)
+            body: (struct_expression_body
+              (struct_expression_field
+                name: (identifier)
+                value: (string_literal
+                  (string_content))))))))))

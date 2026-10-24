@@ -1,0 +1,513 @@
+==================
+Named applications preserve scoped expression and handler headers
+==================
+
+fn applied(value: int) -> int {
+    if check::<Value: int>(value) {
+        return transform::<_, int>(value)
+    }
+    handle perform IO::read(name: value) with selected_handler
+    with handler_for::<Value: int>() {
+        perform IO::read(name: value)
+    }
+    perform IO::read(value:)
+}
+let precedence = 1 + calculate::<Value: int>(3) * 2
+let returned = (factory::<Value: int>)(7)
+let calculated = (factory())::<Value: int>(7)
+let spaced = calculate:: /* outer /* inner */ */ <Value: int>(3)
+let empty_async = async || { 42 }
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (expression_statement
+        (if_expression
+          condition: (call_expression
+            function: (type_application_expression
+              function: (identifier)
+              type_arguments: (type_application_arguments
+                (named_type_argument
+                  name: (identifier)
+                  type: (primitive_type))))
+            arguments: (argument_list
+              (call_argument
+                (identifier))))
+          consequence: (block
+            (return_statement
+              (call_expression
+                function: (type_application_expression
+                  function: (identifier)
+                  type_arguments: (type_application_arguments
+                    (primitive_type)))
+                arguments: (argument_list
+                  (call_argument
+                    (identifier))))))))
+      (expression_statement
+        (handle_expression
+          value: (perform_expression
+            (call_expression
+              function: (path_expression
+                (identifier)
+                (identifier))
+              arguments: (argument_list
+                (call_argument
+                  name: (identifier)
+                  value: (identifier)))))
+          handler: (identifier)))
+      (expression_statement
+        (lexical_handle_expression
+          handler: (call_expression
+            function: (type_application_expression
+              function: (identifier)
+              type_arguments: (type_application_arguments
+                (named_type_argument
+                  name: (identifier)
+                  type: (primitive_type))))
+            arguments: (argument_list))
+          body: (block
+            (expression_statement
+              (perform_expression
+                (call_expression
+                  function: (path_expression
+                    (identifier)
+                    (identifier))
+                  arguments: (argument_list
+                    (call_argument
+                      name: (identifier)
+                      value: (identifier)))))))))
+      (expression_statement
+        (perform_expression
+          (call_expression
+            function: (path_expression
+              (identifier)
+              (identifier))
+            arguments: (argument_list
+              (named_argument_shorthand
+                name: (identifier))))))))
+  (let_declaration
+    pattern: (identifier)
+    value: (binary_expression
+      left: (integer_literal)
+      right: (binary_expression
+        left: (call_expression
+          function: (type_application_expression
+            function: (identifier)
+            type_arguments: (type_application_arguments
+              (named_type_argument
+                name: (identifier)
+                type: (primitive_type))))
+          arguments: (argument_list
+            (call_argument
+              (integer_literal))))
+        right: (integer_literal))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (parenthesized_expression
+        (type_application_expression
+          function: (identifier)
+          type_arguments: (type_application_arguments
+            (named_type_argument
+              name: (identifier)
+              type: (primitive_type)))))
+      arguments: (argument_list
+        (call_argument
+          (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (type_application_expression
+        function: (parenthesized_expression
+          (call_expression
+            function: (identifier)
+            arguments: (argument_list)))
+        type_arguments: (type_application_arguments
+          (named_type_argument
+            name: (identifier)
+            type: (primitive_type))))
+      arguments: (argument_list
+        (call_argument
+          (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (call_expression
+      function: (type_application_expression
+        function: (identifier)
+        type_arguments: (type_application_arguments
+          (block_comment)
+          (named_type_argument
+            name: (identifier)
+            type: (primitive_type))))
+      arguments: (argument_list
+        (call_argument
+          (integer_literal)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (lambda_expression
+      body: (block_expression
+        (block
+          (expression_statement
+            (integer_literal)))))))
+
+==================
+Mixed extern groups preserve decorated public imports and adapters
+==================
+
+extern python from "fixture" { pub use fixture::{identity}
+    {}
+    { fn nested() -> int { return 1 } }
+    mod Opaque {
+        def answer():
+            return 7
+    }
+    @doc("version")
+    pub fn version() -> int { return 7 }
+    pub @doc("twice") fn twice(value: int) -> int {
+        return identity(value) * 2
+    }
+}
+let after = 1
+
+---
+
+(source_file
+  (extern_declaration
+    provider: (identifier)
+    source: (string_literal
+      (string_content))
+    (extern_group
+      (extern_use
+        path: (use_path
+          (identifier)
+          (use_list
+            (use_item
+              name: (identifier)))))
+      (extern_group)
+      (extern_group
+        (extern_function
+          name: (identifier)
+          parameters: (parameter_list)
+          return_type: (primitive_type)
+          body: (extern_body
+            content: (foreign_content))))
+      (extern_module
+        name: (identifier)
+        body: (extern_body
+          content: (foreign_content)))
+      (decorator
+        name: (identifier)
+        arguments: (decorator_arguments
+          (call_argument
+            (string_literal
+              (string_content)))))
+      (extern_function
+        name: (identifier)
+        parameters: (parameter_list)
+        return_type: (primitive_type)
+        body: (extern_body
+          content: (foreign_content)))
+      (decorator
+        name: (identifier)
+        arguments: (decorator_arguments
+          (call_argument
+            (string_literal
+              (string_content)))))
+      (extern_function
+        name: (identifier)
+        parameters: (parameter_list
+          (parameter
+            name: (identifier)
+            type: (primitive_type)))
+        return_type: (primitive_type)
+        body: (extern_body
+          content: (foreign_content)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal)))
+
+==================
+Computed optional map entries and nested wildcard exclusions
+==================
+
+fn use_options(options, selected) {
+    let #{ [selected + 1]?: value = fallback(), ...rest } = options
+}
+fn round(value: float) -> int {
+    use std::{math::* except { sin, cos }}
+    floor(value) as int
+}
+let keyof = 1
+let except = 2
+let old = 3
+fn temporal_names(timeout, deadline) {
+    let equal = timeout == 30
+    let difference = timeout - 1
+    let reference = timeout
+    let called = timeout()
+    let member = timeout.duration
+    let measured = timeout.duration()
+    let indexed = timeout[0]
+    let less = timeout < deadline
+    let period = timeout deadline { 42 }
+    let computed = timeout (deadline) { 42 }
+    let negative = timeout -deadline() { 42 }
+    let inferred = timeout .Duration(2) { 42 }
+    let labeled = timeout :retry loop { break :retry 2ms } { 42 }
+    let selected = timeout if ready { 2ms } else { 3ms } { 42 }
+    let matched = timeout match ready { true => 2ms, _ => 3ms } { 42 }
+    let boolean = timeout !ready { 42 }
+    let inverted = timeout ~deadline { 42 }
+    let array = timeout [2ms][0] { 42 }
+    let block = timeout { 2ms } { 42 }
+    let literal = timeout "2ms" { 42 }
+    let character = timeout 'a' { 42 }
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier))
+      (parameter
+        name: (identifier)))
+    body: (block
+      (let_declaration
+        pattern: (map_pattern
+          (map_pattern_entry
+            key: (map_pattern_key
+              value: (binary_expression
+                left: (identifier)
+                right: (integer_literal)))
+            pattern: (identifier_pattern
+              (identifier))
+            default: (call_expression
+              function: (identifier)
+              arguments: (argument_list)))
+          (map_pattern_rest
+            rest: (identifier)))
+        value: (identifier))))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (primitive_type)))
+    return_type: (primitive_type)
+    body: (block
+      (use_declaration
+        path: (use_path
+          (identifier)
+          (use_list
+            (use_nested_item
+              name: (identifier)
+              (use_glob_item
+                (import_exclusion
+                  name: (identifier)
+                  name: (identifier)))))))
+      (expression_statement
+        (cast_expression
+          value: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (call_argument
+                (identifier))))
+          type: (primitive_type)))))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (let_declaration
+    pattern: (identifier)
+    value: (integer_literal))
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier))
+      (parameter
+        name: (identifier)))
+    body: (block
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (integer_literal)))
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (integer_literal)))
+      (let_declaration
+        pattern: (identifier)
+        value: (identifier))
+      (let_declaration
+        pattern: (identifier)
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list)))
+      (let_declaration
+        pattern: (identifier)
+        value: (field_expression
+          object: (identifier)
+          field: (identifier)))
+      (let_declaration
+        pattern: (identifier)
+        value: (method_call_expression
+          receiver: (identifier)
+          method: (identifier)
+          arguments: (argument_list)))
+      (let_declaration
+        pattern: (identifier)
+        value: (index_expression
+          object: (identifier)
+          index: (integer_literal)))
+      (let_declaration
+        pattern: (identifier)
+        value: (binary_expression
+          left: (identifier)
+          right: (identifier)))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (identifier)
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (parenthesized_expression
+            (identifier))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (unary_expression
+            operand: (call_expression
+              function: (identifier)
+              arguments: (argument_list)))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (call_expression
+            function: (enum_shorthand_expression
+              variant: (identifier))
+            arguments: (argument_list
+              (call_argument
+                (integer_literal))))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (loop_expression
+            label: (loop_label
+              name: (identifier))
+            body: (block
+              (break_statement
+                label: (loop_label
+                  name: (identifier))
+                value: (duration_literal))))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (if_expression
+            condition: (identifier)
+            consequence: (block
+              (expression_statement
+                (duration_literal)))
+            alternative: (block
+              (expression_statement
+                (duration_literal))))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (match_expression
+            value: (identifier)
+            (match_arm
+              pattern: (literal_pattern
+                (bool_literal))
+              body: (duration_literal))
+            (match_arm
+              pattern: (wildcard_pattern)
+              body: (duration_literal)))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (unary_expression
+            operand: (identifier))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (unary_expression
+            operand: (identifier))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (index_expression
+            object: (array_expression
+              (duration_literal))
+            index: (integer_literal))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (block_expression
+            (block
+              (expression_statement
+                (duration_literal))))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (string_literal
+            (string_content))
+          body: (block
+            (expression_statement
+              (integer_literal)))))
+      (let_declaration
+        pattern: (identifier)
+        value: (timeout_expression
+          duration: (char_literal)
+          body: (block
+            (expression_statement
+              (integer_literal))))))))

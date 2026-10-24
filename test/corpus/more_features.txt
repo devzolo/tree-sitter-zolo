@@ -24,15 +24,22 @@ fn t() {
         (map_expression (map_entry (identifier)))))))
 
 ==================
-Map literal rejects general spread
-:error
+Map literal accepts ordered general spreads
 ==================
 
 let bad = #{...base, extra: 1}
 
 ---
 
-(ERROR)
+(source_file
+  (let_declaration
+    pattern: (identifier)
+    value: (map_expression
+      (map_spread_entry
+        value: (identifier))
+      (map_entry
+        key: (identifier)
+        value: (integer_literal)))))
 
 ==================
 map literal numeric keys

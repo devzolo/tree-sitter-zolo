@@ -31,20 +31,44 @@ fn* parent() { yield take(value: ...values) }
 (ERROR)
 
 ==================
-Reject map entry
-:error
+Generator yield accepts a map spread value
 ==================
 fn* parent() { yield #{ ...values } }
 ---
-(ERROR)
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (expression_statement
+        (yield_expression
+          value: (map_expression
+            (map_spread_entry
+              value: (identifier))))))))
 
 ==================
-Reject effect argument
-:error
+Generator yield accepts an expanded effect argument
 ==================
 fn* parent() { yield perform IO::write(...values) }
 ---
-(ERROR)
+
+(source_file
+  (function_item
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block
+      (expression_statement
+        (yield_expression
+          value: (perform_expression
+            (call_expression
+              function: (path_expression
+                (identifier)
+                (identifier))
+              arguments: (argument_list
+                (call_argument
+                  (spread_expression
+                    (identifier)))))))))))
 
 ==================
 Reject empty delegation

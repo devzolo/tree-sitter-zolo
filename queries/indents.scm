@@ -70,3 +70,4 @@
 ; Typed handler override source scopes.
 (handler_override_body) @indent.begin
 (handler_override_parameter_list) @indent.begin
+(import_exclusion) @indent.begin

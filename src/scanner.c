@@ -250,6 +250,7 @@ enum TokenType {
   SIXTH_RAW_TRIPLE_STRING_LITERAL,
   SIXTH_STORAGE_START,
   SIXTH_LOOP_LABEL_START,
+  TYPE_APPLICATION_START,
   ERROR_SENTINEL,
 };
 
@@ -416,22 +417,22 @@ static bool scan_word(TSLexer *lexer, const char *word) {
   return !is_label_continue(lexer->lookahead);
 }
 
+static bool skip_yield_trivia(TSLexer *lexer);
+
 /// Scan only the `:` that starts a loop-label declaration, while validating
-/// the complete `:name loop|for|while` prefix through lookahead. The token's
+/// the complete `:name loop|for|while|{` prefix through lookahead. The token's
 /// marked end remains after the colon, so the identifier is still a normal
 /// named syntax node and can participate in highlight/local queries. Looking
-/// for the following loop keyword distinguishes a new `:search loop`
+/// for the following loop keyword or block distinguishes a new `:search loop`
 /// expression from a type annotation such as `let value: Type`.
-static bool scan_loop_label_decl_colon(TSLexer *lexer) {
-  if (lexer->lookahead != ':') {
-    return false;
-  }
-  lexer->advance(lexer, false);
+static bool scan_loop_label_after_colon(TSLexer *lexer) {
   lexer->mark_end(lexer);
   if (!skip_zolo_name(lexer)) return false;
 
-  skip_ascii_ws(lexer);
+  if (!skip_yield_trivia(lexer)) return false;
   switch (lexer->lookahead) {
+  case '{':
+    return true;
   case 'l':
     return scan_word(lexer, "loop");
   case 'f':
@@ -1476,6 +1477,67 @@ static bool scan_capture_payload_start(TSLexer *lexer) {
   return lexer->lookahead == '|';
 }
 
+// Probe the unambiguous BP27 atom/postfix forms used after timeout's ambiguous
+// '(' and '-' heads. A zero-width temporal marker must not steal an ordinary
+// timeout() call or timeout - 1 before the grammar can see its operator.
+// Unknown prefix forms retain the old temporal path; this probe only makes a
+// negative decision after recognizing a complete atom and its postfixes.
+typedef enum { TIMEOUT_PROBE_NO, TIMEOUT_PROBE_YES, TIMEOUT_PROBE_UNKNOWN } TimeoutProbe;
+static TimeoutProbe peek_timeout_operand(TSLexer *lexer, unsigned depth) {
+  if (depth > 128 || !skip_yield_trivia(lexer)) return TIMEOUT_PROBE_UNKNOWN;
+  if (lexer->lookahead=='-' || lexer->lookahead=='!' || lexer->lookahead=='~') {
+    lexer->advance(lexer,false);
+    return peek_timeout_operand(lexer,depth+1);
+  }
+  if (lexer->lookahead=='.') {
+    lexer->advance(lexer,false);
+    if (!skip_yield_trivia(lexer) || !skip_zolo_name(lexer)) return TIMEOUT_PROBE_UNKNOWN;
+  } else if (lexer->lookahead=='(' || lexer->lookahead=='[') {
+    const int32_t closer=lexer->lookahead=='('?')':']';
+    lexer->advance(lexer,false);
+    if (!peek_capture_group(lexer,closer,0)) return TIMEOUT_PROBE_UNKNOWN;
+  } else if (lexer->lookahead=='"' || lexer->lookahead=='\'') {
+    if (!peek_capture_quote(lexer,lexer->lookahead,0)) return TIMEOUT_PROBE_UNKNOWN;
+  } else if (is_zolo_name_start(lexer->lookahead)) {
+    char word[128]; bool escaped;
+    if (!peek_zolo_name(lexer,word,sizeof(word),&escaped)) return TIMEOUT_PROBE_UNKNOWN;
+    if (!escaped && is_reserved_word(word) && strcmp(word,"self") && strcmp(word,"true") && strcmp(word,"false") && strcmp(word,"nil"))
+      return TIMEOUT_PROBE_UNKNOWN;
+  } else if (lexer->lookahead>='0' && lexer->lookahead<='9') {
+    do { lexer->advance(lexer,false); }
+    while (is_label_continue(lexer->lookahead));
+    if (lexer->lookahead=='.') {
+      lexer->advance(lexer,false);
+      if (!(lexer->lookahead>='0' && lexer->lookahead<='9')) return TIMEOUT_PROBE_UNKNOWN;
+      do { lexer->advance(lexer,false); } while (is_label_continue(lexer->lookahead));
+    }
+  } else return TIMEOUT_PROBE_UNKNOWN;
+
+  for (;;) {
+    if (!skip_yield_trivia(lexer)) return TIMEOUT_PROBE_UNKNOWN;
+    if (lexer->lookahead=='(' || lexer->lookahead=='[') {
+      const int32_t closer=lexer->lookahead=='('?')':']';
+      lexer->advance(lexer,false);
+      if (!peek_capture_group(lexer,closer,0)) return TIMEOUT_PROBE_UNKNOWN;
+      continue;
+    }
+    if (lexer->lookahead=='.') {
+      lexer->advance(lexer,false);
+      if (lexer->lookahead=='{' || lexer->lookahead=='!' || lexer->lookahead=='?') return TIMEOUT_PROBE_UNKNOWN;
+      if (!skip_yield_trivia(lexer) || !skip_zolo_name(lexer)) return TIMEOUT_PROBE_UNKNOWN;
+      continue;
+    }
+    if (lexer->lookahead==':' || lexer->lookahead=='?') return TIMEOUT_PROBE_UNKNOWN;
+    if (lexer->lookahead=='*') {
+      lexer->advance(lexer,false);
+      if (lexer->lookahead!='*') return TIMEOUT_PROBE_NO;
+      lexer->advance(lexer,false);
+      return peek_timeout_operand(lexer,depth+1);
+    }
+    return lexer->lookahead=='{'?TIMEOUT_PROBE_YES:TIMEOUT_PROBE_NO;
+  }
+}
+
 // View has its own peek: capture/provider peeks intentionally use different
 // dialect rules. Ordinary, raw, tagged, and fenced Zolo strings hide arrows.
 static bool peek_view_content(TSLexer *lexer,int32_t closer,bool arrow,unsigned recursion);
@@ -2356,6 +2418,13 @@ static bool scan_static_pratt_end(Scanner *scanner, TSLexer *lexer, const bool *
   // Closing an already parsed call suffix is independent of closing its
   // enclosing Pratt payload. Admitted callback starts were dispatched above.
   if (valid_symbols[CALLBACK_END]) { scanner->comment_callback_newline=0;lexer->result_symbol = CALLBACK_END; return true; }
+  // The complete :: < discriminator belongs to a postfix application. A
+  // namespace ::Name must stay inside a qualified cast/type-test owner. Keep
+  // this proof independent of the existing contextual `within` suffix marker.
+  if (first==':' && second==':' && valid_symbols[TYPE_APPLICATION_START] &&
+      skip_yield_trivia(lexer) && lexer->lookahead=='<') {
+    lexer->result_symbol=TYPE_APPLICATION_START;return true;
+  }
   // Admitted named callbacks and their call-ending decision retain the old
   // dispatch priority. A remaining real suffix cannot be preempted by END
   // through the optional approximation tail (e.g. yield a ~= b within c).
@@ -2713,7 +2782,28 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   if(valid_symbols[TIMEOUT_OPERAND_START]) {
     lexer->mark_end(lexer);
     if(!skip_yield_trivia(lexer) || lexer->eof(lexer))return false;
-    if(lexer->lookahead==':') {
+    // A value named timeout can continue with an ordinary operator or closing
+    // delimiter. Those tokens cannot start the compiler's temporal operand.
+    const int32_t timeout_head = lexer->lookahead;
+    // Reject only definite infix/end tokens. Other prefix forms belong to the
+    // shared operand grammar, including unary, literal, array and block heads.
+    if(timeout_head=='=' || timeout_head=='+' || timeout_head=='*' || timeout_head=='/' ||
+       timeout_head=='%' || timeout_head=='^' || timeout_head=='&' || timeout_head=='>' ||
+       timeout_head==')' || timeout_head==']' || timeout_head=='}' || timeout_head==',' ||
+       timeout_head==';' || timeout_head=='?')return false;
+    if(is_zolo_name_start(timeout_head)) {
+      char word[128];bool escaped;
+      if(!peek_zolo_name(lexer,word,sizeof(word),&escaped))return false;
+      if(!escaped && strcmp(word,"self") && strcmp(word,"async") && !fifth_word_is_expression_start(word))return false;
+    }
+    if((timeout_head=='(' || timeout_head=='-' || timeout_head=='.' || timeout_head=='!' ||
+        timeout_head=='~' || timeout_head=='[' || timeout_head=='"' || timeout_head=='\'') &&
+       peek_timeout_operand(lexer,0)==TIMEOUT_PROBE_NO)return false;
+    if(timeout_head=='<') {
+      lexer->advance(lexer,false);
+      if(!opens_a_tag(lexer->lookahead))return false;
+    }
+    if(timeout_head==':') {
       // A colon can also begin the compiler's labeled loop expression.
       // Keep that operand viable; every other colon is an argument label.
       lexer->advance(lexer,false);
@@ -3067,6 +3157,26 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     lexer->advance(lexer, false);
     lexer->mark_end(lexer);
     if (!skip_foreign_group_trivia(lexer)) return false;
+    // A mixed group starts with an import, a declaration modifier, a decorator
+    // or a function. The opaque extern-mod/function body path stays separate.
+    if (lexer->lookahead == 'p') {
+      if (!scan_word(lexer, "pub")) return false;
+      if (!skip_foreign_group_trivia(lexer)) return false;
+    }
+    if (lexer->lookahead == '@' || lexer->lookahead == '{' || lexer->lookahead == '}') {
+      lexer->result_symbol = FOREIGN_GROUP_OPEN;
+      return true;
+    }
+    if (lexer->lookahead == 'u') {
+      if (!scan_word(lexer, "use")) return false;
+      lexer->result_symbol = FOREIGN_GROUP_OPEN;
+      return true;
+    }
+    if (lexer->lookahead == 'm') {
+      if (!scan_word(lexer, "mod")) return false;
+      lexer->result_symbol = FOREIGN_GROUP_OPEN;
+      return true;
+    }
     if (lexer->lookahead == 'a') {
       if (!scan_word(lexer, "async")) return false;
       if (!skip_foreign_group_trivia(lexer)) return false;
@@ -3113,6 +3223,7 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   const bool wants_handle = valid_symbols[HANDLE_SEPARATOR];
   const bool wants_recover = valid_symbols[RECOVER_KEYWORD];
   const bool wants_suffix = valid_symbols[CONTEXTUAL_SUFFIX_START];
+  const bool wants_type_application = valid_symbols[TYPE_APPLICATION_START];
   const bool wants_mode = valid_symbols[APPROX_MODE_START];
   const bool wants_else = valid_symbols[IF_ELSE_KEYWORD];
   const bool wants_import = valid_symbols[FOREIGN_IMPORT];
@@ -3121,7 +3232,7 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   const bool wants_low_tail = valid_symbols[PRATT_LOW_TAIL_START];
   const bool wants_args_end = valid_symbols[SCOPE_ARGS_END];
   const bool wants_raw = valid_symbols[SIXTH_RAW_STRING_LITERAL] || valid_symbols[SIXTH_RAW_TRIPLE_STRING_LITERAL];
-  if (!wants_label && !wants_markup && !wants_convention && !wants_without && !wants_dependencies && !wants_update && !wants_handle && !wants_recover && !wants_suffix && !wants_import && !wants_range && !wants_nominal && !wants_low_tail && !wants_args_end && !wants_mode && !wants_else && !wants_raw) {
+  if (!wants_label && !wants_markup && !wants_convention && !wants_without && !wants_dependencies && !wants_update && !wants_handle && !wants_recover && !wants_suffix && !wants_type_application && !wants_import && !wants_range && !wants_nominal && !wants_low_tail && !wants_args_end && !wants_mode && !wants_else && !wants_raw) {
     return false;
   }
 
@@ -3176,8 +3287,15 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
-  if (wants_label && lexer->lookahead == ':') {
-    if (scan_loop_label_decl_colon(lexer)) {
+  if ((wants_label || wants_type_application) && lexer->lookahead == ':') {
+    lexer->mark_end(lexer);
+    lexer->advance(lexer,false);
+    if (wants_type_application && lexer->lookahead==':') {
+      lexer->advance(lexer,false);
+      if(!skip_yield_trivia(lexer) || lexer->lookahead!='<')return false;
+      lexer->result_symbol=TYPE_APPLICATION_START;return true;
+    }
+    if (wants_label && scan_loop_label_after_colon(lexer)) {
       lexer->result_symbol = LOOP_LABEL_DECL_COLON;
       return true;
     }

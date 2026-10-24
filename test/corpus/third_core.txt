@@ -127,7 +127,8 @@ use helpers::{math::{twice as double}, text::{label}, http::*}
             (use_item
               (identifier))))
         (use_nested_item
-          (identifier))))))
+          (identifier)
+          (use_glob_item))))))
 
 ==================
 Grouped record updates preserve nested paths and operations
