@@ -2590,6 +2590,16 @@
             "named": true
           }
         ]
+      },
+      "parameters": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "mixin_parameters",
+            "named": true
+          }
+        ]
       }
     }
   },
@@ -8144,6 +8154,57 @@
     }
   },
   {
+    "type": "mixin_parameter",
+    "named": true,
+    "fields": {
+      "default": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_expression",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "mixin_parameters",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "mixin_parameter",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "mod_body",
     "named": true,
     "fields": {},
@@ -9578,6 +9639,16 @@
     "type": "record_type",
     "named": true,
     "fields": {
+      "default": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "_expression",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": true,
         "required": false,

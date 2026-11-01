@@ -1,0 +1,64 @@
+================================================================================
+Record field defaults
+================================================================================
+
+fn header(props: { title: str = "Untitled", level: int = 1 }) -> str = props.title
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (record_type
+          (identifier)
+          (primitive_type)
+          (string_literal
+            (string_content))
+          (identifier)
+          (primitive_type)
+          (integer_literal))))
+    (primitive_type)
+    (function_expression_body
+      (field_expression
+        (identifier)
+        (identifier)))))
+
+================================================================================
+Mixin parameter lists
+================================================================================
+
+@mixin(heading: str = "Teste 1", props: { lang: str = "pt-BR" }, count)
+fn layout() -> str { super() }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_item
+    (decorator
+      (identifier)
+      (mixin_parameters
+        (mixin_parameter
+          (identifier)
+          (primitive_type)
+          (string_literal
+            (string_content)))
+        (mixin_parameter
+          (identifier)
+          (record_type
+            (identifier)
+            (primitive_type)
+            (string_literal
+              (string_content))))
+        (mixin_parameter
+          (identifier))))
+    (identifier)
+    (parameter_list)
+    (primitive_type)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list))))))

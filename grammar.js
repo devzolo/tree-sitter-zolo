@@ -505,5 +505,40 @@ function extendSeventhGrammar(data) {
 }
 extendSeventhGrammar(contextGrammarData);
 
+// Record field defaults (`{ title: str = "x" }`) and `@mixin(name: Type =
+// default)` parameter lists. The parameter type reuses the record field's own
+// type rule, so both spell types identically.
+function extendRecordDefaults(data) {
+  const r = data.rules;
+  const sym = name => ({type: 'SYMBOL', name});
+  const str = value => ({type: 'STRING', value});
+  const seq = (...members) => ({type: 'SEQ', members});
+  const choice = (...members) => ({type: 'CHOICE', members});
+  const opt = content => choice(content, {type: 'BLANK'});
+  const rep = content => ({type: 'REPEAT', content});
+  const field = (name, content) => ({type: 'FIELD', name, content});
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const assign = sym('_markup_after_3d');
+  const comma = sym('_markup_after_2c');
+  const colon = sym('_markup_after_3a');
+  const alternatives = r._record_type_field.type === 'CHOICE' ? r._record_type_field.members : [r._record_type_field];
+  let fieldType = null;
+  for (const alternative of alternatives) {
+    if (alternative.type !== 'SEQ') continue;
+    fieldType = fieldType || alternative.members.find(member => member.type === 'FIELD' && member.name === 'type');
+    alternative.members.push(opt(seq(assign, field('default', sym('_expression')))));
+  }
+  r.mixin_parameter = seq(
+    field('name', sym('identifier')),
+    opt(seq(colon, clone(fieldType))),
+    opt(seq(assign, field('default', sym('_expression')))));
+  r.mixin_parameters = seq(sym('_markup_after_28'),
+    opt(seq(sym('mixin_parameter'), rep(seq(comma, sym('mixin_parameter'))), opt(comma))), str(')'));
+  const decorator = r.decorator.content;
+  decorator.members.unshift(seq(str('@'), field('name', {type: 'ALIAS', content: str('mixin'), named: true, value: 'identifier'}),
+    opt(field('parameters', sym('mixin_parameters')))));
+}
+extendRecordDefaults(contextGrammarData);
+
 function contextRule($,r){switch(r.type){case 'SYMBOL':return $[r.name];case 'STRING':return r.value;case 'PATTERN':return new RegExp(r.value,r.flags||'');case 'SEQ':return seq(...r.members.map(x=>contextRule($,x)));case 'CHOICE':if(r.members.length===2&&r.members[1].type==='BLANK')return optional(contextRule($,r.members[0]));return choice(...r.members.map(x=>contextRule($,x)));case 'BLANK':throw Error('Standalone blank context');case 'REPEAT':return repeat(contextRule($,r.content));case 'REPEAT1':return repeat1(contextRule($,r.content));case 'FIELD':return field(r.name,contextRule($,r.content));case 'ALIAS':return alias(contextRule($,r.content),r.named?$[r.value]:r.value);case 'PREC':return prec(r.value,contextRule($,r.content));case 'PREC_LEFT':return prec.left(r.value,contextRule($,r.content));case 'PREC_RIGHT':return prec.right(r.value,contextRule($,r.content));case 'PREC_DYNAMIC':return prec.dynamic(r.value,contextRule($,r.content));case 'TOKEN':return token(contextRule($,r.content));case 'IMMEDIATE_TOKEN':return token.immediate(contextRule($,r.content));default:throw Error('Context DSL '+r.type);}}
 module.exports=grammar({name:contextGrammarData.name,word:$=>$[contextGrammarData.word],rules:Object.fromEntries(Object.entries(contextGrammarData.rules).map(([name,rule])=>[name,$=>contextRule($,rule)])),extras:$=>contextGrammarData.extras.map(r=>contextRule($,r)),conflicts:$=>contextGrammarData.conflicts.map(ns=>ns.map(n=>$[n])),precedences:$=>contextGrammarData.precedences,externals:$=>contextGrammarData.externals.map(r=>contextRule($,r)),inline:$=>contextGrammarData.inline.map(n=>$[n]),supertypes:$=>contextGrammarData.supertypes.map(n=>$[n]),reserved:Object.fromEntries(Object.entries(contextGrammarData.reserved).map(([name,rs])=>[name,$=>rs.map(r=>contextRule($,r))]))});

@@ -221,6 +221,7 @@
 (decorator
   "@" @attribute
   name: (identifier) @attribute)
+(mixin_parameter name: (identifier) @variable.parameter)
 
 ; -- Items ------------------------------------------------------------------
 (function_item name: (identifier) @function)
