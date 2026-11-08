@@ -8,10 +8,10 @@ static void mark_test(TSLexer *base){TestLexer*l=(TestLexer*)base;l->end=l->posi
 static bool eof_test(const TSLexer *base){return !base->lookahead;}
 static uint32_t column_test(TSLexer *base){TestLexer*l=(TestLexer*)base;size_t start=l->position;while(start && l->text[start-1]!='\n')start--;return (uint32_t)(l->position-start)+(start==0?l->initial_column:0);}
 static TestLexer input(const char*text){TestLexer l={0};l.text=text;l.lexer.lookahead=(unsigned char)text[0];l.lexer.advance=advance_test;l.lexer.mark_end=mark_test;l.lexer.eof=eof_test;l.lexer.get_column=column_test;return l;}
-static void boundary(const char*import,const char*name,const char*body,unsigned token){Scanner s={0};bool valid[ERROR_SENTINEL + 1]={0};TestLexer l=input(import);valid[FOREIGN_IMPORT]=true;assert(tree_sitter_zolo_external_scanner_scan(&s,&l.lexer,valid));memset(valid,0,sizeof valid);valid[FOREIGN_PROVIDER]=true;l=input(name);assert(tree_sitter_zolo_external_scanner_scan(&s,&l.lexer,valid));memset(valid,0,sizeof valid);valid[FOREIGN_BODY]=true;l=input(body);assert(tree_sitter_zolo_external_scanner_scan(&s,&l.lexer,valid));if(l.lexer.result_symbol!=token||strcmp(body+l.end,"} print(42)")!=0){fprintf(stderr,"boundary token %u expected %u: %s\n",l.lexer.result_symbol,token,body+l.end);assert(0);}}
+static void boundary(const char*import,const char*name,const char*body,unsigned token){Scanner s={0};bool valid[SCANNER_TOKEN_COUNT]={0};TestLexer l=input(import);valid[FOREIGN_IMPORT]=true;assert(tree_sitter_zolo_external_scanner_scan(&s,&l.lexer,valid));memset(valid,0,sizeof valid);valid[FOREIGN_PROVIDER]=true;l=input(name);assert(tree_sitter_zolo_external_scanner_scan(&s,&l.lexer,valid));memset(valid,0,sizeof valid);valid[FOREIGN_BODY]=true;l=input(body);assert(tree_sitter_zolo_external_scanner_scan(&s,&l.lexer,valid));if(l.lexer.result_symbol!=token||strcmp(body+l.end,"} print(42)")!=0){fprintf(stderr,"boundary token %u expected %u: %s\n",l.lexer.result_symbol,token,body+l.end);assert(0);}}
 static void dependency_header(const char *text, bool expected) {
   Scanner scanner = {0};
-  bool valid[ERROR_SENTINEL + 1] = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
   valid[DEPENDENCIES_KEYWORD] = true;
   TestLexer lexer = input(text);
   assert(tree_sitter_zolo_external_scanner_scan(&scanner, &lexer.lexer, valid) == expected);
@@ -23,7 +23,7 @@ static void dependency_header(const char *text, bool expected) {
 
 static void with_boundary(const char *text, bool update, bool handle, bool recovery, bool expected, unsigned token) {
   Scanner scanner = {0};
-  bool valid[ERROR_SENTINEL + 1] = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
   valid[RECORD_UPDATE_WITH] = update;
   valid[HANDLE_SEPARATOR] = handle;
   valid[ERROR_SENTINEL] = recovery;
@@ -40,7 +40,7 @@ static void with_boundary(const char *text, bool update, bool handle, bool recov
 
 static void callback_boundary(const char *text, bool expected, size_t marker_end) {
   Scanner scanner = {0};
-  bool valid[ERROR_SENTINEL + 1] = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
   valid[NAMED_CALLBACK_START] = true;
   valid[RECORD_UPDATE_WITH] = true;
   valid[DEPENDENCIES_KEYWORD] = true; // Callback lookahead must not lose d-labels.
@@ -56,7 +56,7 @@ static void callback_boundary(const char *text, bool expected, size_t marker_end
 
 static void callback_finish(const char *text, unsigned token) {
   Scanner scanner = {0};
-  bool valid[ERROR_SENTINEL + 1] = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
   valid[NAMED_CALLBACK_START] = true;
   valid[TRAILING_CALLBACK_PIPE] = true;
   valid[CALLBACK_END] = true;
@@ -71,7 +71,7 @@ static void callback_finish(const char *text, unsigned token) {
 static void fourth_prefix(const char *text, uint8_t flags, bool expected, unsigned token) {
   Scanner scanner = {0};
   scanner.expr_flags = flags;
-  bool valid[ERROR_SENTINEL + 1] = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
   valid[PARTIAL_KEYWORD] = true;
   valid[CAPTURE_KEYWORD] = true;
   valid[PARALLEL_COLLECTION_KEYWORD] = true;
@@ -90,7 +90,7 @@ static unsigned fifth_prefix_count;
 static void fifth_prefix(const char *text, uint8_t flags, bool expected, unsigned token) {
   fifth_prefix_count++;
   Scanner scanner={0};scanner.expr_flags=flags;
-  bool valid[ERROR_SENTINEL+1]={0};
+  bool valid[SCANNER_TOKEN_COUNT]={0};
   valid[PATCH_KEYWORD]=valid[FOLD_KEYWORD]=valid[FREEZE_KEYWORD]=valid[TYPED_JSON_START]=true;
   // All prefix candidates may be valid together in the actual LR state.
   valid[PARTIAL_KEYWORD]=valid[CAPTURE_KEYWORD]=valid[FAIL_KEYWORD]=valid[ITER_BUILDER_KEYWORD]=true;
@@ -114,7 +114,7 @@ static void mark_codepoint(TSLexer *base){CodepointLexer*l=(CodepointLexer*)base
 static uint32_t column_codepoint(TSLexer *base){CodepointLexer*l=(CodepointLexer*)base;size_t start=l->position;while(start && l->text[start-1]!='\n')start--;return (uint32_t)(l->position-start);}
 static void fourth_prefix_codepoints(const int32_t *text,uint8_t flags,bool expected,unsigned token) {
   Scanner scanner={0};scanner.expr_flags=flags;
-  bool valid[ERROR_SENTINEL+1]={0};
+  bool valid[SCANNER_TOKEN_COUNT]={0};
   valid[PARTIAL_KEYWORD]=true;valid[CAPTURE_KEYWORD]=true;valid[PARALLEL_COLLECTION_KEYWORD]=true;valid[FAIL_KEYWORD]=true;valid[ITER_BUILDER_KEYWORD]=true;
   CodepointLexer lexer={0};lexer.text=text;lexer.lexer.lookahead=text[0];lexer.lexer.advance=advance_codepoint;lexer.lexer.mark_end=mark_codepoint;lexer.lexer.eof=eof_test;lexer.lexer.get_column=column_codepoint;
   assert(tree_sitter_zolo_external_scanner_scan(&scanner,&lexer.lexer,valid)==expected);
@@ -125,7 +125,7 @@ static void fourth_prefix_codepoints(const int32_t *text,uint8_t flags,bool expe
 static void timeout_operand(const char *text, bool expected) {
   Scanner scanner = {0};
   scanner.expr_flags = 3;
-  bool valid[ERROR_SENTINEL + 1] = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
   valid[TIMEOUT_OPERAND_START] = true;
   TestLexer lexer = input(text);
   assert(tree_sitter_zolo_external_scanner_scan(&scanner, &lexer.lexer, valid) == expected);
@@ -138,7 +138,7 @@ static void timeout_operand(const char *text, bool expected) {
 
 static void view_pattern_start(const char *text,bool expected) {
   Scanner scanner={0};scanner.expr_flags=3;
-  bool valid[ERROR_SENTINEL+1]={0};valid[VIEW_PATTERN_START]=true;
+  bool valid[SCANNER_TOKEN_COUNT]={0};valid[VIEW_PATTERN_START]=true;
   TestLexer lexer=input(text);
   assert(tree_sitter_zolo_external_scanner_scan(&scanner,&lexer.lexer,valid)==expected);
   if(expected){assert(lexer.lexer.result_symbol==VIEW_PATTERN_START);assert(lexer.end==0);}
@@ -147,7 +147,7 @@ static void view_pattern_start(const char *text,bool expected) {
 
 static void view_pattern_codepoints(const int32_t *text,bool expected) {
   Scanner scanner={0};scanner.expr_flags=3;
-  bool valid[ERROR_SENTINEL+1]={0};valid[VIEW_PATTERN_START]=true;
+  bool valid[SCANNER_TOKEN_COUNT]={0};valid[VIEW_PATTERN_START]=true;
   CodepointLexer lexer={0};lexer.text=text;lexer.lexer.lookahead=text[0];lexer.lexer.advance=advance_codepoint;lexer.lexer.mark_end=mark_codepoint;lexer.lexer.eof=eof_test;lexer.lexer.get_column=column_codepoint;
   assert(tree_sitter_zolo_external_scanner_scan(&scanner,&lexer.lexer,valid)==expected);
   if(expected){assert(lexer.lexer.result_symbol==VIEW_PATTERN_START);assert(lexer.end==0);}
@@ -156,7 +156,7 @@ static void view_pattern_codepoints(const int32_t *text,bool expected) {
 
 static void block_triple(const char *text,uint32_t column,bool raw,unsigned hashes,unsigned token,size_t end) {
   Scanner scanner={0};scanner.expr_flags=3;
-  bool valid[ERROR_SENTINEL+1]={0};
+  bool valid[SCANNER_TOKEN_COUNT]={0};
   valid[raw?RAW_BLOCK_TRIPLE_CONTENT0+hashes:BLOCK_TRIPLE_CONTENT]=true;
   valid[BLOCK_TRIPLE_END0+hashes]=true;
   TestLexer lexer=input(text);lexer.initial_column=column;
@@ -166,7 +166,36 @@ static void block_triple(const char *text,uint32_t column,bool raw,unsigned hash
   assert(scanner.expr_flags==3&&scanner.count==0&&scanner.scope==0);
 }
 
+static void callable_query_prefix(const char *text, bool type_context, bool expected,
+                                  unsigned token, size_t end) {
+  Scanner scanner = {0};
+  bool valid[SCANNER_TOKEN_COUNT] = {0};
+  valid[PARAMOF_KEYWORD] = valid[RETURNOF_KEYWORD] = type_context;
+  valid[SIXTH_LITERAL_TYPE_START] = type_context;
+  TestLexer lexer = input(text);
+  assert(tree_sitter_zolo_external_scanner_scan(&scanner, &lexer.lexer, valid) == expected);
+  if (expected) {
+    assert(lexer.lexer.result_symbol == token);
+    assert(lexer.end == end);
+  }
+  assert(scanner.count == 0 && scanner.scope == 0);
+}
+
 int main(void){
+  callable_query_prefix("paramof(Handler, 0)",true,true,PARAMOF_KEYWORD,7);
+  callable_query_prefix("returnof(Handler)",true,true,RETURNOF_KEYWORD,8);
+  callable_query_prefix("paramof /* note */\n (Handler, 0)",true,true,PARAMOF_KEYWORD,7);
+  callable_query_prefix("returnof // note\n (Handler)",true,true,RETURNOF_KEYWORD,8);
+  callable_query_prefix("paramof(Handler, 0)",false,false,0,0);
+  callable_query_prefix("returnof(Handler)",false,false,0,0);
+  callable_query_prefix("paramof",true,false,0,0);
+  callable_query_prefix("returnof<int>",true,false,0,0);
+  callable_query_prefix("paramof::Output",true,false,0,0);
+  callable_query_prefix("`returnof`(Handler)",true,false,0,0);
+  callable_query_prefix("paramof_extra(Handler, 0)",true,false,0,0);
+  callable_query_prefix("r\"plain\"",true,true,SIXTH_LITERAL_TYPE_START,0);
+  callable_query_prefix("r#\"{opaque}\"#",true,true,SIXTH_LITERAL_TYPE_START,0);
+  callable_query_prefix("r\"\"\"\nraw\n\"\"\"",true,true,SIXTH_LITERAL_TYPE_START,0);
   const char *ordinary_prefixes[]={"patch(1)","patch .name","patch.name","patch[0]","patch?","patch::run", "fold(1)","fold(name: 1)","fold(value == 1)","fold.name","fold[0]","fold", "freeze(1)","freeze[0]","freeze.name","freeze::run","freeze;","freeze}","freeze]","freeze?","freeze != 1","freeze -= 1","freeze & 1","freeze * 1", "json(1)","json.name","json[0]","json::run","json#\"{}\"#","json<int>(1)","json < 1"};
   for(size_t i=0;i<sizeof(ordinary_prefixes)/sizeof(ordinary_prefixes[0]);i++)fifth_prefix(ordinary_prefixes[i],0,false,0);
   fifth_prefix("patch Cart { total: 1 }",0,true,PATCH_KEYWORD);
@@ -409,5 +438,5 @@ int main(void){
   dependency_header("deps_more { rust {} }", false);
   dependency_header("deps {\n field\n}", false);
   dependency_header("deps {\n field // ordinary field }\n}", false);
-  printf("%u fifth-prefix, 10 scanner dialect boundaries, 21 dependency headers, 10 with, 15 callback, 10 call-end, 17 fourth-prefix, 15 timeout-operand, 8 Unicode-prefix, 74 View and 27 BLOCK triple boundaries passed\n",fifth_prefix_count);return 0;
+  printf("%u fifth-prefix, 14 callable-query prefixes, 10 scanner dialect boundaries, 21 dependency headers, 10 with, 15 callback, 10 call-end, 17 fourth-prefix, 15 timeout-operand, 8 Unicode-prefix, 74 View and 27 BLOCK triple boundaries passed\n",fifth_prefix_count);return 0;
 }

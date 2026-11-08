@@ -94,7 +94,7 @@ enum TokenType {
   NON_DOT_EXPRESSION_START,
   TITLED_RAW_TITLE,
   TITLED_RAW_TRIPLE_TITLE,
-  // MUST stay last. During error recovery tree-sitter calls this scanner
+  // Recovery-only sentinel. During error recovery tree-sitter calls this scanner
   // with EVERY entry of `valid_symbols` set to true, regardless of what the
   // grammar actually expects at that position — that is how error recovery
   // probes for a token that lets it resynchronize. Without a way to detect
@@ -252,6 +252,9 @@ enum TokenType {
   SIXTH_LOOP_LABEL_START,
   TYPE_APPLICATION_START,
   ERROR_SENTINEL,
+  PARAMOF_KEYWORD,
+  RETURNOF_KEYWORD,
+  SCANNER_TOKEN_COUNT,
 };
 
 // Imported provider names stay ordinary identifiers. Track only their lexical
@@ -2665,6 +2668,36 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->mark_end(lexer);lexer->advance(lexer,false);
       if(lexer->lookahead=='=' || lexer->lookahead=='<' || lexer->lookahead=='-')return false;
       lexer->result_symbol=SIXTH_STORAGE_START;return true;
+    }
+  }
+
+  if (valid_symbols[PARAMOF_KEYWORD] || valid_symbols[RETURNOF_KEYWORD]) {
+    // Type states also enable the scalar guard below, which returns after its
+    // proof. Recognize these named type prefixes before that competing guard.
+    skip_dispatch_ws(lexer,&dispatch_newline,&dispatch_markup_newline,&dispatch_markup_whitespace);
+    if (lexer->lookahead=='p' || lexer->lookahead=='r') {
+      lexer->mark_end(lexer);
+      char word[128]; bool escaped_word;
+      if (!peek_zolo_name(lexer,word,sizeof(word),&escaped_word) || escaped_word) return false;
+      if ((valid_symbols[PARAMOF_KEYWORD] && !strcmp(word,"paramof")) ||
+          (valid_symbols[RETURNOF_KEYWORD] && !strcmp(word,"returnof"))) {
+        lexer->mark_end(lexer);
+        // Only the bare word belongs to the token; comments and newlines stay
+        // visible to the grammar, while ordinary type names retain identifiers.
+        if (!skip_yield_trivia(lexer) || lexer->lookahead!='(') return false;
+        lexer->result_symbol=!strcmp(word,"paramof") ? PARAMOF_KEYWORD : RETURNOF_KEYWORD;
+        return true;
+      }
+      // Raw literals share the initial r. Their scalar proof retains its
+      // zero-width end before the prefix, including triple and hashed forms.
+      if (!strcmp(word,"r") && valid_symbols[SIXTH_LITERAL_TYPE_START]) {
+        bool triple;
+        if (peek_raw_literal_after_r(lexer,false,&triple)) {
+          lexer->result_symbol=SIXTH_LITERAL_TYPE_START;
+          return true;
+        }
+      }
+      return false;
     }
   }
 

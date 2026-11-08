@@ -71,3 +71,7 @@
 (handler_override_body) @indent.begin
 (handler_override_parameter_list) @indent.begin
 (import_exclusion) @indent.begin
+
+; Parenthesized static queries have the same authored delimiter indentation.
+(parameter_type_query) @indent.begin
+(return_type_query) @indent.begin

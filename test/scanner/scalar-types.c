@@ -28,7 +28,7 @@ static Probe make_probe(const char *text) {
 }
 static void check(const char *text,bool accepted) {
   Scanner scanner={0};scanner.expr_flags=9;
-  bool valid[ERROR_SENTINEL+1]={0};valid[SIXTH_LITERAL_TYPE_START]=true;
+  bool valid[SCANNER_TOKEN_COUNT]={0};valid[SIXTH_LITERAL_TYPE_START]=true;
   Probe p=make_probe(text);
   const bool actual=tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid);
   if(actual!=accepted)fprintf(stderr,"scalar guard: %s; expected %d, got %d\n",text,(int)accepted,(int)actual);
@@ -64,7 +64,7 @@ int main(void) {
     {"1.25",SIXTH_LITERAL_TYPE_START},{"\"GET\"",SIXTH_LITERAL_TYPE_START}
   };
   for(unsigned i=0;i<sizeof(generic)/sizeof(generic[0]);i++) {
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
     valid[SIXTH_LITERAL_TYPE_START]=valid[SIXTH_CONST_ARGUMENT_START]=true;
     Probe p=make_probe(generic[i].text);
     assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
@@ -79,7 +79,7 @@ int main(void) {
     {"r#\"\"\"\r# ) \"#",false,0}
   };
   for(unsigned i=0;i<sizeof(raw)/sizeof(raw[0]);i++) {
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
     valid[SIXTH_RAW_STRING_LITERAL]=valid[SIXTH_RAW_TRIPLE_STRING_LITERAL]=true;
     Probe p=make_probe(raw[i].text);
     assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
@@ -97,7 +97,7 @@ int main(void) {
     const unsigned close=hashes[i]>255?255:hashes[i];
     for(unsigned j=0;j<close;j++)text[n++]='#';text[n]=0;
     check(text,true);count++;
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
     valid[SIXTH_RAW_STRING_LITERAL]=valid[SIXTH_RAW_TRIPLE_STRING_LITERAL]=true;
     Probe p=make_probe(text);
     assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
@@ -113,7 +113,7 @@ int main(void) {
       {"r\"raw\"",RECOVER_KEYWORD,SIXTH_RAW_STRING_LITERAL}
     };
     for(unsigned i=0;i<sizeof(combined)/sizeof(combined[0]);i++) {
-      Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+      Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
       valid[SIXTH_RAW_STRING_LITERAL]=valid[SIXTH_RAW_TRIPLE_STRING_LITERAL]=true;
       valid[combined[i].valid]=true;Probe p=make_probe(combined[i].text);
       assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
@@ -121,14 +121,14 @@ int main(void) {
     }
   }
   {
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
     valid[SIXTH_DEFER_OUTCOME]=valid[IF_ELSE_KEYWORD]=true;
     Probe p=make_probe("else {}");
     assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
     assert(p.lexer.result_symbol==IF_ELSE_KEYWORD);count++;
   }
   {
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
     valid[SIXTH_LITERAL_TYPE_START]=valid[BLOCK_COMMENT]=true;
     Probe p=make_probe(" /* owner */ .Running");
     assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
@@ -141,13 +141,13 @@ int main(void) {
       {"// label\n:outer 42",SIXTH_LOOP_LABEL_START}
     };
     for(unsigned i=0;i<sizeof(headers)/sizeof(headers[0]);i++) {
-      Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+      Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
       valid[headers[i].selected]=valid[SIXTH_EXIT_VALUE]=true;
       Probe p=make_probe(headers[i].text);
       assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
       assert(p.lexer.result_symbol==headers[i].selected && p.mark==0);count++;
     }
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1]={0};
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT]={0};
     valid[SIXTH_STORAGE_START]=valid[SIXTH_ASSERT_KEYWORD]=true;
     Probe p=make_probe("assert let .Ok(value) = input");
     assert(tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));
@@ -159,7 +159,7 @@ int main(void) {
     assert(p.lexer.result_symbol==SIXTH_EXIT_EMPTY && p.mark==p.token_start);count++;
   }
   {
-    Scanner scanner={0};bool valid[ERROR_SENTINEL+1];memset(valid,1,sizeof(valid));
+    Scanner scanner={0};bool valid[SCANNER_TOKEN_COUNT];memset(valid,1,sizeof(valid));
     Probe p=make_probe("r\"\"\"\n  {raw}\n  \"\"\"");
     assert(!tree_sitter_zolo_external_scanner_scan(&scanner,&p.lexer,valid));count++;
   }

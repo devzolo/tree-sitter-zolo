@@ -1,0 +1,17 @@
+type Input = paramof(typeof process, 0)
+//   ^^^^^ type
+//           ^^^^^^^ keyword.operator
+type Output = returnof(Handler)
+//            ^^^^^^^^ keyword.operator
+fn setup() {
+  type Request = paramof(Handler, "request")
+//     ^^^^^^^ type
+//               ^^^^^^^ keyword.operator
+}
+fn paramof(type: str) -> str { type }
+// ^^^^^^^ function
+//         ^^^^ variable.parameter
+let returnof = paramof
+//  ^^^^^^^^ variable
+let result = returnof("api")
+//           ^^^^^^^^ function.call

@@ -221,6 +221,7 @@
 (decorator
   "@" @attribute
   name: (identifier) @attribute)
+(mixin_parameter name: (identifier) @variable.parameter)
 
 ; -- Items ------------------------------------------------------------------
 (function_item name: (identifier) @function)
@@ -233,6 +234,8 @@
 (enum_item name: (identifier) @type)
 (trait_item name: (identifier) @type)
 (type_alias name: (identifier) @type)
+(parameter_type_query "paramof" @keyword.operator)
+(return_type_query "returnof" @keyword.operator)
 (newtype_item name: (identifier) @type)
 (newtype_item "transparent" @keyword.modifier)
 (newtype_deriving_clause "deriving" @keyword)

@@ -1,0 +1,255 @@
+==================
+Callable queries retain static owners and public-label selectors
+==================
+type Input = paramof(typeof process, 0)
+type Output = returnof(typeof process)
+type Named = paramof(Handler, "request")
+---
+
+(source_file
+  (type_alias
+    (identifier)
+    (parameter_type_query
+      (type_query
+        (identifier))
+      (integer_literal)))
+  (type_alias
+    (identifier)
+    (return_type_query
+      (type_query
+        (identifier))))
+  (type_alias
+    (identifier)
+    (parameter_type_query
+      (type_path
+        (identifier))
+      (string_literal
+        (string_content)))))
+
+==================
+Local aliases remain declarations inside function and nested blocks
+==================
+fn make() {
+  type Handler = typeof process
+  type Input = paramof(Handler, 0)
+  {
+    type Input = returnof(Handler)
+  }
+}
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (type_alias
+        (identifier)
+        (type_query
+          (identifier)))
+      (type_alias
+        (identifier)
+        (parameter_type_query
+          (type_path
+            (identifier))
+          (integer_literal)))
+      (expression_statement
+        (block_expression
+          (block
+            (type_alias
+              (identifier)
+              (return_type_query
+                (type_path
+                  (identifier))))))))))
+
+==================
+Generic callable aliases and field projections retain type boundaries
+==================
+type InputOf<F> = paramof(F, 1 - 1)
+type OutputOf<F> = returnof(F)
+type Address = paramof(Handler, 0)["address"]
+---
+
+(source_file
+  (type_alias
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (parameter_type_query
+      (type_path
+        (identifier))
+      (binary_expression
+        (integer_literal)
+        (integer_literal))))
+  (type_alias
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (return_type_query
+      (type_path
+        (identifier))))
+  (type_alias
+    (identifier)
+    (indexed_field_type
+      (parameter_type_query
+        (type_path
+          (identifier))
+        (integer_literal))
+      (string_literal
+        (string_content)))))
+
+==================
+Queries and aliases compose with lambda headers and multiline bodies
+==================
+let invoke = |value: paramof(Handler, 0)| -> returnof(Handler) {
+  type Output = returnof(
+    Handler
+  )
+  value
+}
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (lambda_expression
+      (parameter
+        (identifier)
+        (parameter_type_query
+          (type_path
+            (identifier))
+          (integer_literal)))
+      (return_type_query
+        (type_path
+          (identifier)))
+      (block_expression
+        (block
+          (type_alias
+            (identifier)
+            (return_type_query
+              (type_path
+                (identifier))))
+          (expression_statement
+            (identifier)))))))
+
+==================
+Callable owners include function types and nested queries with optional suffixes
+==================
+type Direct = returnof(fn(int) -> str)
+type Nested = paramof(returnof(Factory), 0)
+type Maybe = returnof(Handler)?
+---
+
+(source_file
+  (type_alias
+    (identifier)
+    (return_type_query
+      (function_type
+        (primitive_type)
+        (primitive_type))))
+  (type_alias
+    (identifier)
+    (parameter_type_query
+      (return_type_query
+        (type_path
+          (identifier)))
+      (integer_literal)))
+  (type_alias
+    (identifier)
+    (optional_type
+      (return_type_query
+        (type_path
+          (identifier))))))
+
+==================
+Query spellings and type remain ordinary value names
+==================
+fn paramof(type: str) -> str { type }
+let returnof = paramof
+let result = returnof("api")
+type paramof = int
+type returnof = str
+type Input = paramof
+type Output = returnof
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (primitive_type)
+    (block
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (identifier))
+  (let_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (string_literal
+            (string_content))))))
+  (type_alias
+    (identifier)
+    (primitive_type))
+  (type_alias
+    (identifier)
+    (primitive_type))
+  (type_alias
+    (identifier)
+    (type_path
+      (identifier)))
+  (type_alias
+    (identifier)
+    (type_path
+      (identifier))))
+
+==================
+Contextual query prefixes retain trivia generic qualified and escaped type names
+==================
+type Input = paramof /* note */ (
+  Handler, 0
+)
+type Output = returnof // note
+  (Handler)
+type Generic = paramof<int>
+type Qualified = returnof::Value
+type Escaped = `paramof`
+---
+
+(source_file
+  (type_alias
+    (identifier)
+    (parameter_type_query
+      (block_comment)
+      (type_path
+        (identifier))
+      (integer_literal)))
+  (type_alias
+    (identifier)
+    (return_type_query
+      (line_comment)
+      (type_path
+        (identifier))))
+  (type_alias
+    (identifier)
+    (generic_type
+      (identifier)
+      (primitive_type)))
+  (type_alias
+    (identifier)
+    (type_path
+      (identifier)
+      (identifier)))
+  (type_alias
+    (identifier)
+    (type_path
+      (identifier))))

@@ -56,3 +56,7 @@
 
 ; Wildcard exclusions keep their authored multiline import region.
 (import_exclusion) @fold
+
+; Callable type queries may span multiple lines inside local aliases.
+(parameter_type_query) @fold
+(return_type_query) @fold

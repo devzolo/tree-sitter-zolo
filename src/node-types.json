@@ -656,6 +656,10 @@
         "named": true
       },
       {
+        "type": "type_alias",
+        "named": true
+      },
+      {
         "type": "use_declaration",
         "named": true
       }
@@ -706,6 +710,10 @@
         "named": true
       },
       {
+        "type": "parameter_type_query",
+        "named": true
+      },
+      {
         "type": "parenthesized_type",
         "named": true
       },
@@ -715,6 +723,10 @@
       },
       {
         "type": "record_type",
+        "named": true
+      },
+      {
+        "type": "return_type_query",
         "named": true
       },
       {
@@ -5352,6 +5364,10 @@
             "named": true
           },
           {
+            "type": "parameter_type_query",
+            "named": true
+          },
+          {
             "type": "parenthesized_type",
             "named": true
           },
@@ -5361,6 +5377,10 @@
           },
           {
             "type": "record_type",
+            "named": true
+          },
+          {
+            "type": "return_type_query",
             "named": true
           },
           {
@@ -5559,6 +5579,10 @@
             "named": true
           },
           {
+            "type": "parameter_type_query",
+            "named": true
+          },
+          {
             "type": "parenthesized_type",
             "named": true
           },
@@ -5568,6 +5592,10 @@
           },
           {
             "type": "record_type",
+            "named": true
+          },
+          {
+            "type": "return_type_query",
             "named": true
           },
           {
@@ -9054,6 +9082,32 @@
     }
   },
   {
+    "type": "parameter_type_query",
+    "named": true,
+    "fields": {
+      "owner": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_type",
+            "named": true
+          }
+        ]
+      },
+      "selector": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "parenthesized_expression",
     "named": true,
     "fields": {},
@@ -10168,6 +10222,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "return_type_query",
+    "named": true,
+    "fields": {
+      "owner": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_type",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -11768,6 +11838,10 @@
             "named": true
           },
           {
+            "type": "parameter_type_query",
+            "named": true
+          },
+          {
             "type": "parenthesized_type",
             "named": true
           },
@@ -11777,6 +11851,10 @@
           },
           {
             "type": "record_type",
+            "named": true
+          },
+          {
+            "type": "return_type_query",
             "named": true
           },
           {
@@ -12422,6 +12500,10 @@
             "named": true
           },
           {
+            "type": "parameter_type_query",
+            "named": true
+          },
+          {
             "type": "parenthesized_type",
             "named": true
           },
@@ -12431,6 +12513,10 @@
           },
           {
             "type": "record_type",
+            "named": true
+          },
+          {
+            "type": "return_type_query",
             "named": true
           },
           {
@@ -13280,6 +13366,10 @@
     "named": false
   },
   {
+    "type": "paramof",
+    "named": false
+  },
+  {
     "type": "partial",
     "named": false
   },
@@ -13341,6 +13431,10 @@
   },
   {
     "type": "return",
+    "named": false
+  },
+  {
+    "type": "returnof",
     "named": false
   },
   {

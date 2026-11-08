@@ -540,5 +540,31 @@ function extendRecordDefaults(data) {
 }
 extendRecordDefaults(contextGrammarData);
 
+// Lexical aliases reuse the existing declaration tree, and callable queries
+// are atomic types. They do not alter the expression Pratt precedence table.
+function extendLocalTypeQueries(data) {
+  const r = data.rules;
+  const sym = name => ({type: 'SYMBOL', name});
+  const str = value => ({type: 'STRING', value});
+  const seq = (...members) => ({type: 'SEQ', members});
+  const field = (name, content) => ({type: 'FIELD', name, content});
+  const prec = (value, content, type = 'PREC_RIGHT') => ({type, value, content});
+  const contextual = (name, word) => ({type: 'ALIAS', content: sym(name), value: word, named: false});
+
+  // Items retain their preferred source-file reduction, just like lexical use.
+  r._statement.members.push(prec(-1, sym('type_alias'), 'PREC'));
+  // Positive lookahead keeps these names usable as ordinary types unless an
+  // opening parenthesis follows. Append tokens to preserve existing scanner IDs.
+  data.externals.push(sym('_paramof_keyword'), sym('_returnof_keyword'));
+  r.parameter_type_query = prec(31, seq(
+    contextual('_paramof_keyword', 'paramof'), sym('_markup_after_28'), field('owner', sym('_type')),
+    sym('_markup_after_2c'), field('selector', sym('_expression')), str(')')));
+  r.return_type_query = prec(31, seq(
+    contextual('_returnof_keyword', 'returnof'), sym('_markup_after_28'), field('owner', sym('_type')), str(')')));
+  r._structural_type_base.members.push(
+    sym('parameter_type_query'), sym('return_type_query'));
+}
+extendLocalTypeQueries(contextGrammarData);
+
 function contextRule($,r){switch(r.type){case 'SYMBOL':return $[r.name];case 'STRING':return r.value;case 'PATTERN':return new RegExp(r.value,r.flags||'');case 'SEQ':return seq(...r.members.map(x=>contextRule($,x)));case 'CHOICE':if(r.members.length===2&&r.members[1].type==='BLANK')return optional(contextRule($,r.members[0]));return choice(...r.members.map(x=>contextRule($,x)));case 'BLANK':throw Error('Standalone blank context');case 'REPEAT':return repeat(contextRule($,r.content));case 'REPEAT1':return repeat1(contextRule($,r.content));case 'FIELD':return field(r.name,contextRule($,r.content));case 'ALIAS':return alias(contextRule($,r.content),r.named?$[r.value]:r.value);case 'PREC':return prec(r.value,contextRule($,r.content));case 'PREC_LEFT':return prec.left(r.value,contextRule($,r.content));case 'PREC_RIGHT':return prec.right(r.value,contextRule($,r.content));case 'PREC_DYNAMIC':return prec.dynamic(r.value,contextRule($,r.content));case 'TOKEN':return token(contextRule($,r.content));case 'IMMEDIATE_TOKEN':return token.immediate(contextRule($,r.content));default:throw Error('Context DSL '+r.type);}}
 module.exports=grammar({name:contextGrammarData.name,word:$=>$[contextGrammarData.word],rules:Object.fromEntries(Object.entries(contextGrammarData.rules).map(([name,rule])=>[name,$=>contextRule($,rule)])),extras:$=>contextGrammarData.extras.map(r=>contextRule($,r)),conflicts:$=>contextGrammarData.conflicts.map(ns=>ns.map(n=>$[n])),precedences:$=>contextGrammarData.precedences,externals:$=>contextGrammarData.externals.map(r=>contextRule($,r)),inline:$=>contextGrammarData.inline.map(n=>$[n]),supertypes:$=>contextGrammarData.supertypes.map(n=>$[n]),reserved:Object.fromEntries(Object.entries(contextGrammarData.reserved).map(([name,rs])=>[name,$=>rs.map(r=>contextRule($,r))]))});
