@@ -1,0 +1,9 @@
+    let result = make<int>(1)
+//               ^^^^ function.call
+    let output = Store::open<Item>(path)
+//                      ^^^^ function.call
+    let value = repo.read<Item>(path)
+//                   ^^^^ function.method.call
+    let less = left < item > (right)
+//                  ^ operator
+//                         ^ operator

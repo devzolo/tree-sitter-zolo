@@ -528,15 +528,14 @@ function extendRecordDefaults(data) {
     fieldType = fieldType || alternative.members.find(member => member.type === 'FIELD' && member.name === 'type');
     alternative.members.push(opt(seq(assign, field('default', sym('_expression')))));
   }
-  r.mixin_parameter = seq(
-    field('name', sym('identifier')),
-    opt(seq(colon, clone(fieldType))),
-    opt(seq(assign, field('default', sym('_expression')))));
-  r.mixin_parameters = seq(sym('_markup_after_28'),
-    opt(seq(sym('mixin_parameter'), rep(seq(comma, sym('mixin_parameter'))), opt(comma))), str(')'));
   const decorator = r.decorator.content;
-  decorator.members.unshift(seq(str('@'), field('name', {type: 'ALIAS', content: str('mixin'), named: true, value: 'identifier'}),
-    opt(field('parameters', sym('mixin_parameters')))));
+  // A decorator by path, `@marks::audit::tracked`: zero or more `module::`
+  // segments before the name, in both the `@` and the `#[...]` forms. The name
+  // stays the last segment, so a decorator by plain name parses as before.
+  for (const form of decorator.members) {
+    const at = form.members.findIndex(m => m.type === 'FIELD' && m.name === 'name');
+    form.members[at] = seq(rep(seq(field('module', sym('identifier')), str('::'))), form.members[at]);
+  }
 }
 extendRecordDefaults(contextGrammarData);
 
@@ -565,6 +564,232 @@ function extendLocalTypeQueries(data) {
     sym('parameter_type_query'), sym('return_type_query'));
 }
 extendLocalTypeQueries(contextGrammarData);
+
+// A named call can put its type arguments directly against the callee.
+// Share the list with the long form to stay within tree-sitter's 16-bit
+// parse action table. Only a name, field or path admits the short form.
+function extendShortCallTypeArguments(data) {
+  const r = data.rules;
+  const sym = name => ({type: 'SYMBOL', name});
+  const seq = (...members) => ({type: 'SEQ', members});
+  const choice = (...members) => ({type: 'CHOICE', members});
+  const field = (name, content) => ({type: 'FIELD', name, content});
+  const alias = (rule, value, named) => ({type: 'ALIAS', content: sym(rule), value, named});
+
+  // Share the binding prefix across all typed, initialized and fallback
+  // declarations. Expanding each combination exceeds the 16-bit action table.
+  const declaration = r.let_declaration.members;
+  const start = declaration.findIndex(part => part.type === 'CHOICE' &&
+    part.members.some(member => member.value === 'let'));
+  const pattern = declaration.findIndex(part => part.type === 'FIELD' && part.name === 'pattern');
+  r._let_binding_head = seq(...declaration.splice(start, pattern - start + 1, sym('_let_binding_head')));
+  data.conflicts.push(['identifier_pattern', '_let_binding_head']);
+
+  const [, , open, list, close] = r.type_application_arguments.members;
+  r._call_type_arguments_list = list;
+  r.type_application_arguments = seq(alias('_type_application_start', '::', false), open, sym('_call_type_arguments_list'), close);
+  data.externals.push(sym('_short_call_type_start'), {type: 'STRING', value: '<'});
+  r.short_type_application_arguments = seq(sym('_short_call_type_start'), open, sym('_call_type_arguments_list'), close);
+  const groupedName = alias('_short_grouped_callee', 'parenthesized_expression', true);
+  const namedCallee = choice(sym('identifier'), sym('field_expression'), sym('path_expression'), groupedName);
+  r._short_group_end = seq(sym('_short_callee'), {type: 'STRING', value: ')'}, sym('_scope_delimited_end'));
+  r._short_grouped_callee = seq(sym('_markup_after_28'), choice(...Array.from({length: 8}, (_, i) =>
+    seq(sym('_scope_paren_enter' + i), sym('_short_group_end'), sym('_scope_paren_restore' + i)))));
+  r._short_callee = namedCallee;
+  data.conflicts.push(['_expression', '_short_callee']);
+
+  r._short_type_application = {type: 'PREC_LEFT', value: 31, content: seq(
+    field('function', sym('_short_callee')),
+    field('type_arguments', alias('short_type_application_arguments', 'type_application_arguments', true)))};
+  // Both parses can finish for (name)<T>(value). The scanner proved a
+  // tight type list, so prefer that branch over the comparison chain.
+  r._short_type_application = {type: 'PREC_DYNAMIC', value: 1, content: r._short_type_application};
+  r.type_application_expression = choice(r.type_application_expression, sym('_short_type_application'));
+  r._handler_header.members.push(alias('_short_type_application', 'type_application_expression', true));
+}
+extendShortCallTypeArguments(contextGrammarData);
+
+// `deriving` request options, the `derive` block and the `decorator`
+// declaration. All three are items. The contextual words are ordinary
+// identifiers everywhere else, so the ones that compete with an expression
+// statement (`derive(x)`, `once()`, `check(x)`, a `requires` directive on the
+// next line) are scanner-selected tokens that mirror the Rust parser's
+// lookahead (`is_derive_block_start`, `is_decorator_decl_start`,
+// `is_clause_word`, `continues_the_line`). The rest are plain keywords, which
+// tree-sitter only lexes where the parse state accepts them.
+//
+// The parse table is indexed with 16 bits (65535 actions) and this grammar is
+// close to it (about 65165 after this extension), which shapes what is covered: the
+// `where type:` patterns are a small language (a name, a primitive, a list of
+// one, optional), a `requires` constraint must share its line with the clause
+// (also inside a block), and the shared `_method_name` / `_function_return_body`
+// rules accept slightly more than the Rust parser does. Check the count after
+// any change: `tree-sitter generate` reports it when it overflows.
+function extendDeriveAndDecoratorDeclarations(data) {
+  const r = data.rules;
+  const sym = name => ({type: 'SYMBOL', name});
+  const str = value => ({type: 'STRING', value});
+  const seq = (...members) => ({type: 'SEQ', members});
+  const choice = (...members) => ({type: 'CHOICE', members});
+  const opt = content => choice(content, {type: 'BLANK'});
+  const rep = content => ({type: 'REPEAT', content});
+  const rep1 = content => ({type: 'REPEAT1', content});
+  const field = (name, content) => ({type: 'FIELD', name, content});
+  const alias = (content, value) => ({type: 'ALIAS', content, value, named: false});
+  const comma = sym('_markup_after_2c');
+  // One scanner token for both `derive` and `decorator`: a second token would
+  // add a shift action to every state that can start an item, and the action
+  // table is nearly full. The two items are told apart by their own nodes.
+  const declarationKeyword = {type: 'ALIAS', content: sym('_declaration_keyword'), value: 'declaration_keyword', named: true};
+  const colon = sym('_markup_after_3a');
+  const open = sym('_markup_after_7b');
+  const paren = sym('_markup_after_28');
+  const appendChoice = (name, rule) => {
+    if (r[name].type === 'CHOICE') r[name].members.push(rule);
+    else r[name] = choice(r[name], rule);
+  };
+
+  // The scanner enum lists these between SHORT_CALL_TYPE_START and LESS_THAN.
+  data.externals.splice(data.externals.length - 1, 0,
+    sym('_declaration_keyword'), sym('_decorator_once'),
+    sym('_decorator_repeatable'), sym('_decorator_conflicts'), sym('_decorator_check'),
+    sym('_decorator_requires'));
+
+  // Request options: `Model(table: "users", strict: true)`. The clause stays
+  // flat (identifier, deriving_arguments, identifier, ...) so trees without
+  // options are unchanged.
+  const right = content => ({type: 'PREC_RIGHT', value: 0, content});
+  const request = right(seq(sym('identifier'), opt(sym('deriving_arguments'))));
+  const callArgument = sym('call_argument');
+  r.deriving_arguments = seq(paren, opt(seq(callArgument, rep(seq(comma, callArgument)), opt(comma))), str(')'));
+  // An opening parenthesis after a request name is that request's options.
+  r._deriving_requests = choice(request, seq(sym('_deriving_requests'), comma, request));
+  r.deriving_clause = right(seq(str('deriving'), sym('_deriving_requests')));
+
+  // The header form, `enum State deriving Eq { ... }` and
+  // `struct User deriving Eq { ... }`. A struct's body, suffix and `;` move
+  // into one hidden tail rule: a second deriving position added to the flat
+  // `struct_item` multiplied with every prefix state and overflowed the
+  // 16-bit parse table (about 230 actions), while the same alternatives in a
+  // tail rule leave the table smaller than before. The header form requires a
+  // body, so a bodyless `struct A deriving Eq` is still the suffix form.
+  const structMembers = r.struct_item.members;
+  const structBody = structMembers[6].members[0];
+  const structSuffix = structMembers[7];
+  const structEnd = structMembers[8];
+  const headerClause = field('deriving', sym('deriving_clause'));
+  r._struct_tail = choice(
+    seq(structBody, structSuffix, structEnd),
+    seq(headerClause, structEnd),
+    structMembers[8].members[0],
+    seq(headerClause, structBody, structSuffix, structEnd));
+  r._struct_tail = {type: 'PREC_RIGHT', value: 0, content: r._struct_tail};
+  structMembers.splice(6, 3, opt(sym('_struct_tail')));
+  const enumBody = r._enum_body_tail.content;
+  enumBody.members.unshift(opt(field('deriving', sym('deriving_clause'))));
+  // `schema Settings deriving Columns(prefix: "cfg_"), Eq { ... }`: the same
+  // header clause, between the name (and generics) and the body. A schema has
+  // no suffix form: its own `where` clauses follow the body.
+  const schemaMembers = r.schema_item.content.members;
+  schemaMembers.splice(5, 0, opt(headerClause));
+
+  // `uses marks::join, column`: a decorator, or a module of decorators.
+  r.decorator_path = seq(sym('identifier'), rep(seq(str('::'), sym('identifier'))));
+
+  r.derive_item = seq(
+    rep(sym('decorator')), opt(str('pub')), declarationKeyword,
+    // Shares its prefix with `decorator`, whose name may be a keyword.
+    field('name', sym('_method_name')),
+    opt(field('parameters', sym('parameter_list'))),
+    // The Rust parser takes the three header clauses each at most once and
+    // in any order; the grammar accepts them in any order and any number.
+    rep(choice(sym('derive_vocabulary'), sym('derive_requires'), sym('derive_emits'))),
+    field('body', sym('derive_body')));
+  r.derive_vocabulary = seq(
+    field('kind', choice(str('uses'), str('owns'))),
+    sym('decorator_path'), rep(seq(comma, sym('decorator_path'))));
+  // The generators this one builds on. The paths reuse `decorator_path`; the
+  // parent node tells them apart from a vocabulary.
+  r.derive_requires = seq(
+    str('requires'), sym('decorator_path'), rep(seq(comma, sym('decorator_path'))));
+  r.derive_emits = seq(str('emits'), field('scope', sym('identifier')));
+  r.derive_body = seq(open, rep1(sym('expand_clause')), str('}'));
+  const kind = choice(str('struct'), str('enum'), str('newtype'), str('schema'));
+  r.expand_clause = seq(
+    choice(str('expand'), str('describe')), field('kind', kind), rep(seq(comma, field('kind', kind))),
+    paren, field('binding', sym('identifier')), str(')'),
+    // The return type and the body are a function's, so their parse states
+    // are shared with function items (the action table is nearly full).
+    sym('_function_return_body'));
+
+  // `decorator name(params) [required] mark contexts ...`, or the same with
+  // a block of `mark` clauses. After the short form a `requires` token only
+  // continues the clause on its own line (`_decorator_requires`).
+  r.decorator_item = seq(
+    opt(str('pub')), declarationKeyword,
+    field('name', sym('_method_name')),
+    opt(field('parameters', sym('parameter_list'))),
+    opt(str('required')),
+    choice(
+      seq(sym('mark_clause'), opt(sym('decorator_check'))),
+      sym('wrap_clause'),
+      sym('decorator_expand_clause'),
+      seq(open, rep(choice(sym('decorator_state'), sym('mark_clause'), sym('wrap_clause'), sym('decorator_expand_clause'), sym('decorator_check'))), str('}'))));
+  // `expand let(binding) [-> T] { ... }`: the decorator rewrites the `let`
+  // it is applied to. Its own rule: a derive block's `expand` clause after
+  // the same keyword would be read either way. The return type takes the
+  // small type language of `where type:` and the body is a block, as in a
+  // wrap clause: a function's return and body overflowed the action table.
+  r.decorator_expand_clause = seq(
+    str('expand'), str('let'), paren, field('binding', sym('identifier')), str(')'),
+    opt(seq(str('->'), field('return_type', sym('type_pattern')))),
+    field('body', sym('block')));
+  // `var name [: T] = value` in the block: the wrap clause's state. The value
+  // takes literals, a name, a list or a map: an expression in this position
+  // overflowed the 16-bit action table, as the statement rule did.
+  r.decorator_state = seq(
+    str('var'), field('name', sym('identifier')),
+    opt(seq(colon, field('type', sym('type_pattern')))),
+    str('='),
+    field('value', choice(sym('_literal'), sym('identifier'), sym('array_expression'), sym('map_expression'))));
+  // `wrap fn [-> T] { ... }` / `wrap method ...` / `wrap fn, method ...`.
+  // The return type takes the small type language of `where type:` (a name,
+  // a primitive, a list of one, optional): a function's return types
+  // overflowed the 16-bit action table.
+  const wrapContext = field('context', choice(str('fn'), sym('identifier')));
+  r.wrap_clause = seq(
+    str('wrap'), wrapContext, rep(seq(comma, wrapContext)),
+    opt(field('with_clause', sym('with_clause'))),
+    opt(seq(str('->'), field('return_type', sym('type_pattern')))),
+    field('body', sym('block')));
+  const contexts = choice(sym('identifier'), str('struct'), str('enum'), str('newtype'), str('schema'), str('fn'), str('mod'));
+  const markHead = seq(
+    str('mark'), field('context', contexts), rep(seq(comma, field('context', contexts))),
+    opt(field('parameters', sym('parameter_list'))));
+  const modifiers = requires => rep(choice(
+    alias(sym('_decorator_once'), 'once'),
+    alias(sym('_decorator_repeatable'), 'repeatable'),
+    sym('mark_where_type'),
+    seq(requires, sym('decorator_path')),
+    seq(alias(sym('_decorator_conflicts'), 'conflicts'), sym('decorator_path'))));
+  // A modifier that can continue the clause is always taken: `where type:`
+  // never starts anything else after a clause.
+  const greedy = content => ({type: 'PREC_RIGHT', value: 0, content});
+  r.mark_clause = greedy(seq(markHead, modifiers(alias(sym('_decorator_requires'), 'requires'))));
+  // `|` after the pattern continues it as a union, never a lambda statement.
+  r.mark_where_type = greedy(seq(str('where'), str('type'), colon, sym('type_pattern'), rep(seq(str('|'), sym('type_pattern')))));
+  // A deliberately small type language (a name, a primitive, a list of one,
+  // optional): general types would add parse states for every follow set.
+  // `[Syntax<.Stmt>]`: what a decorator's `expand let` clause returns. Only
+  // in brackets: the bare form overflowed the action table by 18.
+  const syntaxType = seq(sym('identifier'), str('<'), str('.'), sym('identifier'), str('>'));
+  const patternAtom = choice(sym('primitive_type'), sym('identifier'), seq(sym('_markup_after_5b'), choice(sym('primitive_type'), sym('identifier'), syntaxType), str(']')));
+  r.type_pattern = seq(patternAtom, rep(str('?')));
+  r.decorator_check = seq(alias(sym('_decorator_check'), 'check'), field('body', sym('block')));
+  appendChoice('_item', sym('derive_item'));
+  appendChoice('_item', sym('decorator_item'));
+}
+extendDeriveAndDecoratorDeclarations(contextGrammarData);
 
 function contextRule($,r){switch(r.type){case 'SYMBOL':return $[r.name];case 'STRING':return r.value;case 'PATTERN':return new RegExp(r.value,r.flags||'');case 'SEQ':return seq(...r.members.map(x=>contextRule($,x)));case 'CHOICE':if(r.members.length===2&&r.members[1].type==='BLANK')return optional(contextRule($,r.members[0]));return choice(...r.members.map(x=>contextRule($,x)));case 'BLANK':throw Error('Standalone blank context');case 'REPEAT':return repeat(contextRule($,r.content));case 'REPEAT1':return repeat1(contextRule($,r.content));case 'FIELD':return field(r.name,contextRule($,r.content));case 'ALIAS':return alias(contextRule($,r.content),r.named?$[r.value]:r.value);case 'PREC':return prec(r.value,contextRule($,r.content));case 'PREC_LEFT':return prec.left(r.value,contextRule($,r.content));case 'PREC_RIGHT':return prec.right(r.value,contextRule($,r.content));case 'PREC_DYNAMIC':return prec.dynamic(r.value,contextRule($,r.content));case 'TOKEN':return token(contextRule($,r.content));case 'IMMEDIATE_TOKEN':return token.immediate(contextRule($,r.content));default:throw Error('Context DSL '+r.type);}}
 module.exports=grammar({name:contextGrammarData.name,word:$=>$[contextGrammarData.word],rules:Object.fromEntries(Object.entries(contextGrammarData.rules).map(([name,rule])=>[name,$=>contextRule($,rule)])),extras:$=>contextGrammarData.extras.map(r=>contextRule($,r)),conflicts:$=>contextGrammarData.conflicts.map(ns=>ns.map(n=>$[n])),precedences:$=>contextGrammarData.precedences,externals:$=>contextGrammarData.externals.map(r=>contextRule($,r)),inline:$=>contextGrammarData.inline.map(n=>$[n]),supertypes:$=>contextGrammarData.supertypes.map(n=>$[n]),reserved:Object.fromEntries(Object.entries(contextGrammarData.reserved).map(([name,rs])=>[name,$=>rs.map(r=>contextRule($,r))]))});

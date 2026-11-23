@@ -254,6 +254,17 @@ enum TokenType {
   ERROR_SENTINEL,
   PARAMOF_KEYWORD,
   RETURNOF_KEYWORD,
+  SHORT_CALL_TYPE_START,
+  // Contextual words of the `derive` block and the `decorator` declaration.
+  // They must stay in the order grammar.js splices them in, between
+  // `_short_call_type_start` and the final `<` token.
+  DECLARATION_KEYWORD,
+  DECORATOR_ONCE,
+  DECORATOR_REPEATABLE,
+  DECORATOR_CONFLICTS,
+  DECORATOR_CHECK,
+  DECORATOR_REQUIRES,
+  LESS_THAN,
   SCANNER_TOKEN_COUNT,
 };
 
@@ -273,6 +284,7 @@ typedef struct {
   uint16_t scope;
   uint8_t dialect;
   uint8_t expr_flags, scope_heartbeat, comment_callback_newline, markup_first;
+  bool comment_before_angle;
 } Scanner;
 
 void *tree_sitter_zolo_external_scanner_create(void) {
@@ -288,7 +300,8 @@ unsigned tree_sitter_zolo_external_scanner_serialize(void *payload,
   buffer[length++] = scanner->scope & 0xff;
   buffer[length++] = scanner->scope >> 8;
   buffer[length++] = scanner->dialect;
-  buffer[length++] = scanner->count;
+  // Binding counts fit in seven bits (MAX_FOREIGN_BINDINGS is 90).
+  buffer[length++] = scanner->count | (scanner->comment_before_angle ? 0x80 : 0);
   for (unsigned i = 0; i < scanner->count; i++) {
     ForeignBinding *binding = &scanner->bindings[i];
     buffer[length++] = binding->scope & 0xff;
@@ -313,6 +326,8 @@ void tree_sitter_zolo_external_scanner_deserialize(void *payload,
   scanner->scope |= (uint16_t)(uint8_t)buffer[offset++] << 8;
   scanner->dialect = buffer[offset++];
   unsigned count = (uint8_t)buffer[offset++];
+  scanner->comment_before_angle = (count & 0x80) != 0;
+  count &= 0x7f;
   if (count > MAX_FOREIGN_BINDINGS) return;
   for (unsigned i = 0; i < count; i++) {
     if (offset + 11 > length - 1) return;
@@ -1366,8 +1381,7 @@ static bool scan_non_dot_expression_start(TSLexer *lexer) {
 // provider-qualified or opens a provider group. Mark only `deps`: braces,
 // comments, providers and packages remain ordinary grammar nodes.
 // `deps()`, `deps {}`, and multiline constructors with unqualified fields.
-static bool scan_dependencies_keyword(TSLexer *lexer) {
-  if (!scan_word(lexer, "deps")) return false;
+static bool scan_dependencies_after_word(TSLexer *lexer) {
   lexer->mark_end(lexer);
   if (!skip_foreign_group_trivia(lexer) || lexer->lookahead != '{') return false;
   lexer->advance(lexer, false);
@@ -1382,6 +1396,10 @@ static bool scan_dependencies_keyword(TSLexer *lexer) {
   if (lexer->lookahead != ':') return false;
   lexer->advance(lexer, false);
   return lexer->lookahead == ':';
+}
+static bool scan_dependencies_keyword(TSLexer *lexer) {
+  if (!scan_word(lexer, "deps")) return false;
+  return scan_dependencies_after_word(lexer);
 }
 
 // Declaration keywords still have keyword TokenKinds, so the compiler's
@@ -2424,9 +2442,11 @@ static bool scan_static_pratt_end(Scanner *scanner, TSLexer *lexer, const bool *
   // The complete :: < discriminator belongs to a postfix application. A
   // namespace ::Name must stay inside a qualified cast/type-test owner. Keep
   // this proof independent of the existing contextual `within` suffix marker.
-  if (first==':' && second==':' && valid_symbols[TYPE_APPLICATION_START] &&
-      skip_yield_trivia(lexer) && lexer->lookahead=='<') {
-    lexer->result_symbol=TYPE_APPLICATION_START;return true;
+  if (first == ':' && second == ':' && valid_symbols[TYPE_APPLICATION_START]) {
+    lexer->mark_end(lexer);
+    if (!skip_yield_trivia(lexer) || lexer->lookahead != '<') return false;
+    lexer->result_symbol = TYPE_APPLICATION_START;
+    return true;
   }
   // Admitted named callbacks and their call-ending decision retain the old
   // dispatch priority. A remaining real suffix cannot be preempted by END
@@ -2643,6 +2663,137 @@ static bool scan_typed_json_start(TSLexer *lexer) {
   return true;
 }
 
+// The source parser accepts the short form only for a type-shaped list
+// followed immediately by a call. The grammar parses the types themselves.
+static bool short_call_type_start(TSLexer *lexer) {
+  unsigned angles = 1, brackets = 0;
+  bool nonempty = false;
+  lexer->mark_end(lexer);
+  lexer->advance(lexer, false);
+  if (lexer->lookahead == '<') return false;
+  while (skip_yield_trivia(lexer) && !lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '>') {
+      lexer->advance(lexer, false);
+      if (--angles == 0) return nonempty && brackets == 0 && lexer->lookahead == '(';
+    } else if (c == '<') {
+      ++angles;
+      lexer->advance(lexer, false);
+    } else if (c == '(' || c == '[') {
+      ++brackets;
+      lexer->advance(lexer, false);
+    } else if (c == ')' || c == ']') {
+      if (brackets == 0) return false;
+      --brackets;
+      lexer->advance(lexer, false);
+    } else if (c == '-' || c == ':') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead != (c == '-' ? '>' : ':')) return false;
+      lexer->advance(lexer, false);
+    } else if (c == ',' || c == '?' || c == '|' || c == '.') {
+      lexer->advance(lexer, false);
+      int32_t next = lexer->lookahead;
+      // These pairs form expression operators in the source lexer.
+      if ((c == '?' && (next == '?' || next == '.')) ||
+          (c == '|' && (next == '|' || next == '>')) ||
+          (c == '.' && (next == '.' || next == '*'))) return false;
+    } else if (is_zolo_name_start(c)) {
+      char word[64]; bool escaped = false;
+      if (!peek_zolo_name(lexer, word, sizeof(word), &escaped)) return false;
+      if (!escaped && callback_keyword(word) && strcmp(word, "fn") && strcmp(word, "nil")) return false;
+    } else {
+      return false;
+    }
+    nonempty = true;
+  }
+  return false;
+}
+
+// Contextual words of `derive` blocks and `decorator` declarations. Each is a
+// plain identifier unless the Rust parser's lookahead says otherwise
+// (`is_derive_block_start`, `is_decorator_decl_start`, `is_clause_word`,
+// `continues_the_line`), so the scanner answers that lookahead and otherwise
+// lets the ordinary lexer produce an identifier. The word is the whole token;
+// the lookahead past it is only a peek.
+typedef struct {
+  bool derive, decorator, once, repeatable, conflicts, check, requires;
+} DeclWords;
+
+static DeclWords read_decl_words(const bool *valid_symbols) {
+  DeclWords words = {
+    valid_symbols[DECLARATION_KEYWORD], valid_symbols[DECLARATION_KEYWORD],
+    valid_symbols[DECORATOR_ONCE], valid_symbols[DECORATOR_REPEATABLE],
+    valid_symbols[DECORATOR_CONFLICTS], valid_symbols[DECORATOR_CHECK],
+    valid_symbols[DECORATOR_REQUIRES],
+  };
+  return words;
+}
+
+static bool any_decl_word(const DeclWords *words) {
+  return words->derive || words->decorator || words->once || words->repeatable ||
+         words->conflicts || words->check || words->requires;
+}
+
+enum DeclDecision { DECL_NOT_MINE, DECL_TOKEN, DECL_REJECTED };
+
+// `word` has been read completely; the lexer sits right after it.
+static enum DeclDecision decide_declaration_word(TSLexer *lexer, const DeclWords *wants,
+                                                 const char *word, bool newline_before) {
+  int symbol = -1;
+  if (wants->derive && !strcmp(word, "derive")) symbol = DECLARATION_KEYWORD;
+  else if (wants->decorator && !strcmp(word, "decorator")) symbol = DECLARATION_KEYWORD;
+  else if (wants->once && !strcmp(word, "once")) symbol = DECORATOR_ONCE;
+  else if (wants->repeatable && !strcmp(word, "repeatable")) symbol = DECORATOR_REPEATABLE;
+  else if (wants->conflicts && !strcmp(word, "conflicts")) symbol = DECORATOR_CONFLICTS;
+  else if (wants->check && !strcmp(word, "check")) symbol = DECORATOR_CHECK;
+  else if (wants->requires && !strcmp(word, "requires")) symbol = DECORATOR_REQUIRES;
+  if (symbol < 0) return DECL_NOT_MINE;
+  lexer->mark_end(lexer);
+
+  if (symbol == DECLARATION_KEYWORD) {
+    // `derive Name` / `decorator name`: a name on the same line. `derive(x)`,
+    // `derive = 1` and a binary-operator word such as `is` stay ordinary. A
+    // decorator name may be any word, even a keyword such as `test`.
+    if (lexer->lookahead != ' ' && lexer->lookahead != '	') return DECL_REJECTED;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '	') lexer->advance(lexer, false);
+    if (!is_label_start(lexer->lookahead)) return DECL_REJECTED;
+    char next[8];
+    unsigned next_length = 0;
+    while (is_label_continue(lexer->lookahead)) {
+      if (next_length + 1 < sizeof(next)) next[next_length++] = (char)lexer->lookahead;
+      else next[0] = 0;
+      lexer->advance(lexer, false);
+    }
+    next[next_length] = 0;
+    static const char *const operator_words[] = {"as", "is", "in", "and", "or", "if", "else"};
+    for (size_t i = 0; i < sizeof(operator_words) / sizeof(operator_words[0]); i++) {
+      if (!strcmp(next, operator_words[i])) return DECL_REJECTED;
+    }
+  } else {
+    while (is_ascii_ws(lexer->lookahead)) lexer->advance(lexer, false);
+    if (symbol == DECORATOR_REQUIRES) {
+      // After the short form a line that starts with `requires` is the
+      // unrelated `requires` directive, not a constraint.
+      if (newline_before) return DECL_REJECTED;
+    } else if (symbol == DECORATOR_CONFLICTS) {
+      if (!is_zolo_name_start(lexer->lookahead)) return DECL_REJECTED;
+    } else if (symbol == DECORATOR_CHECK) {
+      if (lexer->lookahead != '{') return DECL_REJECTED;
+    } else {
+      // `once` / `repeatable`: not a call, member access, index, path,
+      // annotation or plain assignment of that name.
+      const int32_t c = lexer->lookahead;
+      if (c == '(' || c == '.' || c == '[' || c == ':') return DECL_REJECTED;
+      if (c == '=') {
+        lexer->advance(lexer, false);
+        if (lexer->lookahead != '=' && lexer->lookahead != '>') return DECL_REJECTED;
+      }
+    }
+  }
+  lexer->result_symbol = (TSSymbol)symbol;
+  return DECL_TOKEN;
+}
+
 bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
                                             const bool *valid_symbols) {
   Scanner *scanner = payload;
@@ -2657,6 +2808,26 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   // position and consumed to the next `</style`/`</script` or EOF.
   if (valid_symbols[ERROR_SENTINEL]) {
     return false;
+  }
+
+  // Read before the expression-scope copy below, which only carries the
+  // entries up to ERROR_SENTINEL.
+  const DeclWords decl_words = read_decl_words(valid_symbols);
+  const bool wants_decl = any_decl_word(&decl_words);
+
+  // Tree-sitter may already have consumed the preceding block comment as
+  // an extra. Return the ordinary comparison token once at that position.
+  if (scanner->comment_before_angle && lexer->lookahead == '<' && valid_symbols[LESS_THAN]) {
+    lexer->advance(lexer, false);
+    lexer->mark_end(lexer);
+    lexer->result_symbol = LESS_THAN;
+    scanner->comment_before_angle = false;
+    return true;
+  }
+  if (!scanner->comment_before_angle && valid_symbols[SHORT_CALL_TYPE_START] && lexer->lookahead == '<') {
+    if (!short_call_type_start(lexer)) return false;
+    lexer->result_symbol = SHORT_CALL_TYPE_START;
+    return true;
   }
 
   // These authored prefixes win before optional relational/value branches.
@@ -2866,13 +3037,18 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   // `dialog() set { ... }` uses a callback named set; a next-line set literal
   // becomes a prefix only after the previous call's boundary has closed.
   const bool callback_prefix_boundary = valid_symbols[NAMED_CALLBACK_START] || valid_symbols[AWAIT_NAMED_CALLBACK_START] || valid_symbols[CALLBACK_END] || valid_symbols[AWAIT_WITHIN_CALL_END];
-  if (!callback_prefix_boundary && (valid_symbols[PARTIAL_KEYWORD] || valid_symbols[CAPTURE_KEYWORD] || valid_symbols[PARALLEL_COLLECTION_KEYWORD] || valid_symbols[FAIL_KEYWORD] || valid_symbols[ITER_BUILDER_KEYWORD] || valid_symbols[PATCH_KEYWORD] || valid_symbols[FOLD_KEYWORD] || valid_symbols[FREEZE_KEYWORD] || valid_symbols[SIXTH_SET_KEYWORD] || valid_symbols[SIXTH_GET_KEYWORD] || valid_symbols[SIXTH_DEFER_OUTCOME] || valid_symbols[SIXTH_ASSERT_KEYWORD] || valid_symbols[SIXTH_WHERE_KEYWORD] || valid_symbols[CONVENTION])) {
+  if (!callback_prefix_boundary && (wants_decl || valid_symbols[PARTIAL_KEYWORD] || valid_symbols[CAPTURE_KEYWORD] || valid_symbols[PARALLEL_COLLECTION_KEYWORD] || valid_symbols[FAIL_KEYWORD] || valid_symbols[ITER_BUILDER_KEYWORD] || valid_symbols[PATCH_KEYWORD] || valid_symbols[FOLD_KEYWORD] || valid_symbols[FREEZE_KEYWORD] || valid_symbols[SIXTH_SET_KEYWORD] || valid_symbols[SIXTH_GET_KEYWORD] || valid_symbols[SIXTH_DEFER_OUTCOME] || valid_symbols[SIXTH_ASSERT_KEYWORD] || valid_symbols[SIXTH_WHERE_KEYWORD] || valid_symbols[CONVENTION])) {
     skip_dispatch_ws(lexer,&dispatch_newline,&dispatch_markup_newline,&dispatch_markup_whitespace);
     if (lexer->lookahead == '`' || lexer->lookahead == 'c' || lexer->lookahead == 'p' || lexer->lookahead == 'f' || lexer->lookahead == 'i' || lexer->lookahead == 's' || lexer->lookahead == 'g' || lexer->lookahead == 'a' || lexer->lookahead == 'o' || lexer->lookahead == 'e' || (valid_symbols[SIXTH_WHERE_KEYWORD] && lexer->lookahead == 'w')) {
       lexer->mark_end(lexer);
       char word[128]; bool escaped_word;
       if (!peek_zolo_name(lexer, word, sizeof(word), &escaped_word)) return false;
       if (escaped_word) return false;
+      if (wants_decl) {
+        const enum DeclDecision decision = decide_declaration_word(lexer, &decl_words, word, dispatch_newline);
+        if (decision == DECL_TOKEN) return true;
+        if (decision == DECL_REJECTED) return false;
+      }
       if(valid_symbols[IF_ELSE_KEYWORD] && !strcmp(word,"else")) {
         lexer->mark_end(lexer);lexer->result_symbol=IF_ELSE_KEYWORD;return true;
       }
@@ -3080,7 +3256,14 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
         while(depth&&!lexer->eof(lexer)) {const int32_t c=lexer->lookahead;if(c=='\n')comment_newline=true;lexer->advance(lexer,false);if(c=='/'&&lexer->lookahead=='*'){lexer->advance(lexer,false);depth++;}else if(c=='*'&&lexer->lookahead=='/'){lexer->advance(lexer,false);depth--;}}
         if(depth)return false;
         scanner->comment_callback_newline=callback_phase&&comment_newline;
-        lexer->mark_end(lexer);lexer->result_symbol=BLOCK_COMMENT;return true;
+        lexer->mark_end(lexer);
+        scanner->comment_before_angle = false;
+        if (valid_symbols[SHORT_CALL_TYPE_START] && lexer->lookahead == '<') {
+          lexer->advance(lexer, false);
+          scanner->comment_before_angle = lexer->lookahead != '=' && lexer->lookahead != '<' && lexer->lookahead != '-';
+        }
+        lexer->result_symbol = BLOCK_COMMENT;
+        return true;
       }
       // A division peek must still close a higher-BP operand or a call suffix.
       if(wants_pratt_end)return scan_static_pratt_end(scanner,lexer,valid_symbols,dispatch_newline,dispatch_markup_newline,true);
@@ -3265,7 +3448,7 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   const bool wants_low_tail = valid_symbols[PRATT_LOW_TAIL_START];
   const bool wants_args_end = valid_symbols[SCOPE_ARGS_END];
   const bool wants_raw = valid_symbols[SIXTH_RAW_STRING_LITERAL] || valid_symbols[SIXTH_RAW_TRIPLE_STRING_LITERAL];
-  if (!wants_label && !wants_markup && !wants_convention && !wants_without && !wants_dependencies && !wants_update && !wants_handle && !wants_recover && !wants_suffix && !wants_type_application && !wants_import && !wants_range && !wants_nominal && !wants_low_tail && !wants_args_end && !wants_mode && !wants_else && !wants_raw) {
+  if (!wants_decl && !wants_label && !wants_markup && !wants_convention && !wants_without && !wants_dependencies && !wants_update && !wants_handle && !wants_recover && !wants_suffix && !wants_type_application && !wants_import && !wants_range && !wants_nominal && !wants_low_tail && !wants_args_end && !wants_mode && !wants_else && !wants_raw) {
     return false;
   }
 
@@ -3312,6 +3495,21 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
   // Labelled loops and markup expressions can both begin an expression. Test
   // the first non-extra byte once, then dispatch without starving markup when
   // the label token is also valid in the same parser state.
+  if (wants_decl && (decl_words.derive || decl_words.decorator) && lexer->lookahead == 'd') {
+    // `derive Name` and `decorator name` share FIRST(d) with `deps`; read the
+    // word once and hand `deps` its remaining lookahead.
+    char word[16]; bool escaped_word;
+    lexer->mark_end(lexer);
+    if (!peek_zolo_name(lexer, word, sizeof(word), &escaped_word) || escaped_word) return false;
+    const enum DeclDecision decision = decide_declaration_word(lexer, &decl_words, word, saw_newline);
+    if (decision == DECL_TOKEN) return true;
+    if (decision == DECL_REJECTED) return false;
+    if (wants_dependencies && !strcmp(word, "deps") && scan_dependencies_after_word(lexer)) {
+      lexer->result_symbol = DEPENDENCIES_KEYWORD;
+      return true;
+    }
+    return false;
+  }
   if (wants_dependencies && lexer->lookahead == 'd') {
     if (scan_dependencies_keyword(lexer)) {
       lexer->result_symbol = DEPENDENCIES_KEYWORD;
@@ -3325,6 +3523,7 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
     lexer->advance(lexer,false);
     if (wants_type_application && lexer->lookahead==':') {
       lexer->advance(lexer,false);
+      lexer->mark_end(lexer);
       if(!skip_yield_trivia(lexer) || lexer->lookahead!='<')return false;
       lexer->result_symbol=TYPE_APPLICATION_START;return true;
     }
@@ -3345,7 +3544,8 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
 
   // Read overlapping contextual words once; failed peeks must not starve
   // either within/relative/ulps or the existing with/recover tokens.
-  if ((wants_else && lexer->lookahead=='e') ||
+  if ((wants_decl && (lexer->lookahead == 'o' || lexer->lookahead == 'r' || lexer->lookahead == 'c')) ||
+      (wants_else && lexer->lookahead=='e') ||
       (wants_raw && lexer->lookahead=='r') ||
       (wants_without && lexer->lookahead=='w') ||
       (wants_low_tail && (lexer->lookahead == 'w' || lexer->lookahead == 'r')) ||
@@ -3356,9 +3556,14 @@ bool tree_sitter_zolo_external_scanner_scan(void *payload, TSLexer *lexer,
       ((wants_update || wants_handle) && lexer->lookahead == 'w') ||
       ((wants_without || wants_low_tail || wants_recover || wants_suffix || wants_mode) && lexer->lookahead == '`')) {
     lexer->mark_end(lexer); // suffix marker remains zero-width after whitespace
-    char word[10]; bool escaped_word;
+    char word[16]; bool escaped_word;
     if (!peek_zolo_name(lexer, word, sizeof(word), &escaped_word)) return false;
     if (escaped_word) return false;
+    if (wants_decl) {
+      const enum DeclDecision decision = decide_declaration_word(lexer, &decl_words, word, saw_newline);
+      if (decision == DECL_TOKEN) return true;
+      if (decision == DECL_REJECTED) return false;
+    }
     // Raw literals share FIRST(r) with recover/relative and must not preempt
     // scope, Pratt or callback decisions. Read their common word once here;
     // only the exact bare r followed by its delimiter enters opaque mode.

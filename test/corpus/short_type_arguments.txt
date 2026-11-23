@@ -1,0 +1,459 @@
+==================
+Short type arguments on names, paths and fields
+==================
+fn main() {
+    let a = make<int?>()
+    let b = Store::open<Map<str, int>>(path)
+    let c = service.read<[int | str]>(path)
+    let d = apply<fn(int) -> str>(callback)
+    let e = make<(int, str)>()
+    let f = make<
+        Map<str, int>
+    >()
+    let g = make</* nested /* comment */ */ int>()
+}
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (optional_type
+                (primitive_type))))
+          (argument_list)))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (path_expression
+              (identifier)
+              (identifier))
+            (type_application_arguments
+              (generic_type
+                (identifier)
+                (primitive_type)
+                (primitive_type))))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (field_expression
+              (identifier)
+              (identifier))
+            (type_application_arguments
+              (array_type
+                (union_type
+                  (primitive_type)
+                  (primitive_type)))))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (function_type
+                (primitive_type)
+                (primitive_type))))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (tuple_type
+                (primitive_type)
+                (primitive_type))))
+          (argument_list)))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (generic_type
+                (identifier)
+                (primitive_type)
+                (primitive_type))))
+          (argument_list)))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (block_comment)
+              (primitive_type)))
+          (argument_list))))))
+
+==================
+Short type arguments on grouped callees depend on their expression
+==================
+fn main() {
+    let a = ((make))<int>(x)
+    let b = (factory().read)<T>(x)
+    let c = (Store::open)<T>(x)
+    let d = (factory())<T>(x)
+    let e = items[0]<T>(x)
+    let f = (first + second)<T>(x)
+}
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (parenthesized_expression
+              (parenthesized_expression
+                (identifier)))
+            (type_application_arguments
+              (primitive_type)))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (parenthesized_expression
+              (field_expression
+                (call_expression
+                  (identifier)
+                  (argument_list))
+                (identifier)))
+            (type_application_arguments
+              (type_path
+                (identifier))))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (parenthesized_expression
+              (path_expression
+                (identifier)
+                (identifier)))
+            (type_application_arguments
+              (type_path
+                (identifier))))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (parenthesized_expression
+              (call_expression
+                (identifier)
+                (argument_list)))
+            (identifier))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (index_expression
+              (identifier)
+              (integer_literal))
+            (identifier))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (parenthesized_expression
+              (binary_expression
+                (identifier)
+                (identifier)))
+            (identifier))
+          (parenthesized_expression
+            (identifier)))))))
+
+==================
+Short type arguments and comparison boundaries
+==================
+fn main() {
+    let a = make<T>(x)
+    let b = make < T > (x)
+    let c = make <T>(x)
+    let d = make<T> (x)
+    let e = make<T>/*gap*/(x)
+    let f = make/*gap*/<T>(x)
+    let g = a<3>(x)
+    let h = a<false>(x)
+    let i = a<b + 1>(x)
+    let j = a/*gap*/<
+                  id<int>(2)
+}
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (type_path
+                (identifier))))
+          (argument_list
+            (call_argument
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (block_comment)
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (block_comment)
+            (identifier))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (integer_literal))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (bool_literal))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (binary_expression
+              (identifier)
+              (integer_literal)))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (identifier)
+          (block_comment)
+          (call_expression
+            (type_application_expression
+              (identifier)
+              (type_application_arguments
+                (primitive_type)))
+            (argument_list
+              (call_argument
+                (integer_literal)))))))))
+
+==================
+Short type arguments coexist with declarations and explicit applications
+==================
+fn identity<T>(x: T) -> T { x }
+fn main() {
+    let a = identity::<int>
+    let b = make::<3>()
+    let c = make::<N: int>()
+    let d = identity<int>(1)
+}
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (parameter_list
+      (parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (type_path
+      (identifier))
+    (block
+      (expression_statement
+        (identifier))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (type_application_expression
+          (identifier)
+          (type_application_arguments
+            (primitive_type))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (const_type_argument
+                (integer_literal))))
+          (argument_list)))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (named_type_argument
+                (identifier)
+                (primitive_type))))
+          (argument_list)))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (primitive_type)))
+          (argument_list
+            (call_argument
+              (integer_literal))))))))
+
+==================
+Short type arguments exclude compound expression operators
+==================
+fn f() {
+ let a = left<first || last>(x)
+ let b = left<first ?? last>(x)
+ let c = left<first..last>(x)
+ let d = left<first?.last>(x)
+ let e = left<count |> dbl>(x)
+ let f = left<`type`>(x)
+}
+---
+
+(source_file
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (binary_expression
+            (identifier)
+            (parenthesized_expression
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (binary_expression
+            (identifier)
+            (parenthesized_expression
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (range_expression
+              (identifier)
+              (identifier)))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (optional_chain_expression
+              (identifier)
+              (identifier)))
+          (parenthesized_expression
+            (identifier))))
+      (let_declaration
+        (identifier)
+        (pipe_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (binary_expression
+            (identifier)
+            (parenthesized_expression
+              (identifier)))))
+      (let_declaration
+        (identifier)
+        (call_expression
+          (type_application_expression
+            (identifier)
+            (type_application_arguments
+              (type_path
+                (identifier))))
+          (argument_list
+            (call_argument
+              (identifier))))))))

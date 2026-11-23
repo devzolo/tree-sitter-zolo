@@ -221,7 +221,9 @@
 (decorator
   "@" @attribute
   name: (identifier) @attribute)
-(mixin_parameter name: (identifier) @variable.parameter)
+; A decorator by path, `@marks::audit::tracked`: the module segments are
+; namespaces, the last segment is the decorator.
+(decorator module: (identifier) @module)
 
 ; -- Items ------------------------------------------------------------------
 (function_item name: (identifier) @function)
@@ -1065,3 +1067,58 @@
 (labeled_block_expression (loop_label name: (identifier) @label))
 (import_exclusion "except" @keyword.control)
 (import_exclusion name: (identifier) @variable)
+
+; Specialized call captures follow the ordinary field and path captures.
+(type_application_expression
+  function: (identifier) @function.call)
+(type_application_expression
+  function: (path_expression (identifier) @function.call .))
+(type_application_expression
+  function: (field_expression field: (identifier) @function.method.call))
+(type_application_expression
+  function: (parenthesized_expression (identifier) @function.call))
+
+; Deriving request options: `Model(table: "users")`. Labels are parameters;
+; values keep their ordinary expression captures.
+(deriving_arguments (call_argument name: (identifier) @variable.parameter))
+
+; `derive` and `decorator` share one scanner token, the declaration keyword.
+(declaration_keyword) @keyword
+
+; The `derive` block. Its name is type-like, its options are ordinary
+; parameters, `uses`/`owns` take decorator paths and `emits` takes a scope.
+(derive_item name: (identifier) @type)
+(derive_vocabulary kind: _ @keyword.modifier)
+(derive_emits "emits" @keyword.modifier)
+(derive_emits scope: (identifier) @constant.builtin)
+(derive_requires "requires" @keyword.modifier)
+(expand_clause ["expand" "describe"] @keyword)
+(expand_clause kind: _ @constant.builtin)
+(expand_clause binding: (identifier) @variable.parameter)
+
+; The `decorator` declaration. Its name is scoped like a name after `@`.
+(decorator_item name: (identifier) @attribute)
+(decorator_item "required" @keyword.modifier)
+(mark_clause "mark" @keyword)
+(mark_clause context: _ @constant.builtin)
+(mark_clause ["once" "repeatable" "requires" "conflicts"] @keyword.modifier)
+(mark_where_type "where" @keyword "type" @keyword)
+(type_pattern (identifier) @type)
+((type_pattern (identifier) @variable.builtin)
+  (#eq? @variable.builtin "_"))
+(decorator_check "check" @keyword)
+(wrap_clause "wrap" @keyword)
+(wrap_clause context: _ @constant.builtin)
+(decorator_expand_clause "expand" @keyword)
+(decorator_expand_clause "let" @constant.builtin)
+(decorator_expand_clause binding: (identifier) @variable.parameter)
+
+; A decorator or module path: leading segments are namespaces, the last is a
+; decorator.
+(decorator_path (identifier) @module . "::")
+(decorator_path (identifier) @attribute .)
+
+; After `requires` the paths name generators, which are type-like: the last
+; segment is a type. These come after the decorator captures and win.
+(derive_requires (decorator_path (identifier) @module . "::"))
+(derive_requires (decorator_path (identifier) @type .))

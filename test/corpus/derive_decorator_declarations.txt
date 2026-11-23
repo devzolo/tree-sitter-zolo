@@ -1,0 +1,1104 @@
+==================
+Deriving requests take options
+==================
+struct Note { id: int } deriving Model("notes"), Tagged(1, strict: true), Eq
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type)))
+    (deriving_clause
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (string_literal
+            (string_content))))
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (integer_literal))
+        (call_argument
+          (identifier)
+          (bool_literal)))
+      (identifier))))
+
+==================
+Newtype deriving requests take options
+==================
+newtype Id(int) deriving Model(table: "ids"), Eq
+---
+
+(source_file
+  (newtype_item
+    (identifier)
+    (primitive_type)
+    (newtype_deriving_clause
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (identifier)
+          (string_literal
+            (string_content))))
+      (identifier))))
+
+==================
+A derive block declares a generator with options, vocabulary and emit scope
+==================
+pub derive Model(table: str = "", strict: bool = false) owns marks emits siblings {
+  expand struct, newtype(info) -> Syntax<.Items> {
+    quote items { impl ${info.ref} {} }
+  }
+  expand enum(choices) -> Syntax<.Items> { nil }
+}
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)
+        (string_literal))
+      (parameter
+        (identifier)
+        (primitive_type)
+        (bool_literal)))
+    (derive_vocabulary
+      (decorator_path
+        (identifier)))
+    (derive_emits
+      (identifier))
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (quote_expression
+              (quote_body
+                (quote_text)
+                (quote_hole
+                  (field_expression
+                    (identifier)
+                    (identifier)))
+                (quote_text)
+                (quote_body)
+                (quote_text))))))
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal)))))))
+
+==================
+A derive block uses paths and may be written on one line
+==================
+derive Query uses marks::join, column { expand struct(info) -> Syntax<.Items> { nil } }
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_vocabulary
+      (decorator_path
+        (identifier)
+        (identifier))
+      (decorator_path
+        (identifier)))
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal)))))))
+
+==================
+Short decorator declarations
+==================
+pub decorator column(name: str) mark field
+decorator unique mark field
+decorator deprecated(message: str = "") mark fn, method, struct, enum, field
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (mark_clause
+      (identifier)))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)
+        (string_literal)))
+    (mark_clause
+      (identifier)
+      (identifier))))
+
+==================
+Decorator clauses continue after the mark contexts
+==================
+pub decorator version mark field once where type: int conflicts key
+decorator length(min: int, max: int) mark field where type: [_] | [_]?
+decorator storage(kind: str) mark field requires marks::codec
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)
+      (mark_where_type
+        (type_pattern
+          (primitive_type)))
+      (decorator_path
+        (identifier))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type))
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (mark_clause
+      (identifier)
+      (mark_where_type
+        (type_pattern
+          (identifier))
+        (type_pattern
+          (identifier)))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (mark_clause
+      (identifier)
+      (decorator_path
+        (identifier)
+        (identifier)))))
+
+==================
+A line that starts with requires after a short form is the directive
+==================
+decorator unique mark field
+requires foo
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)))
+  (requires_directive
+    (directive_name
+      (identifier))))
+
+==================
+A decorator block holds mark clauses and a check block
+==================
+pub decorator key required {
+  mark field(generated: bool = false)
+  mark struct(fields: [str])
+  check { nil }
+}
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type)
+          (bool_literal))))
+    (mark_clause
+      (parameter_list
+        (parameter
+          (identifier)
+          (array_type
+            (primitive_type)))))
+    (decorator_check
+      (block
+        (expression_statement
+          (nil_literal))))))
+
+==================
+A clause continues on the lines after the name
+==================
+pub decorator range(min: int, max: int)
+  mark field
+  check {
+    if min > max { error("min must be <= max", at: min) }
+  }
+decorator test mark fn
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type))
+      (parameter
+        (identifier)
+        (primitive_type)))
+    (mark_clause
+      (identifier))
+    (decorator_check
+      (block
+        (expression_statement
+          (if_expression
+            (binary_expression
+              (identifier)
+              (identifier))
+            (block
+              (expression_statement
+                (call_expression
+                  (identifier)
+                  (argument_list
+                    (call_argument
+                      (string_literal
+                        (string_content)))
+                    (call_argument
+                      (identifier)
+                      (identifier)))))))))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause)))
+
+==================
+A derive block and a decorator declaration follow an ordinary call
+==================
+foo()
+derive Foo { expand struct(info) -> Syntax<.Items> { nil } }
+decorator d mark field
+---
+
+(source_file
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal))))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier))))
+
+==================
+The contextual words stay ordinary identifiers
+==================
+let derive = 2
+derive(x)
+let decorator = 1
+print(decorator)
+fn mark(decorator) { decorator }
+let check = 1
+check(x)
+once()
+decorator = 3
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)))))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)))))
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)))
+    (block
+      (expression_statement
+        (identifier))))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (assignment_statement
+    (identifier)
+    (integer_literal)))
+
+==================
+Calls named like clause words after a short form are statements
+==================
+decorator u mark field
+once()
+decorator v mark field
+check(x)
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier))))))
+
+==================
+An enum takes deriving requests in its header
+==================
+enum State deriving Model(table: "states"), Eq { Ready, Busy }
+---
+
+(source_file
+  (enum_item
+    (identifier)
+    (deriving_clause
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (identifier)
+          (string_literal
+            (string_content))))
+      (identifier))
+    (enum_variant_list
+      (enum_variant
+        (identifier))
+      (enum_variant
+        (identifier)))))
+
+==================
+An enum suffix still follows its body
+==================
+enum Color: u8 { Red = 1 } deriving Eq
+---
+
+(source_file
+  (enum_item
+    (identifier)
+    (primitive_type)
+    (enum_variant_list
+      (enum_variant
+        (identifier)
+        (integer_literal)))
+    (deriving_clause
+      (identifier))))
+
+==================
+Repeatable and once modifiers in short and block forms
+==================
+decorator tag mark field repeatable
+pub decorator index {
+  mark struct(name: str, unique: bool = false) repeatable
+  mark field once
+}
+decorator note mark field
+repeatable()
+decorator other mark field
+once
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (parameter_list
+        (parameter
+          (identifier)
+          (primitive_type))
+        (parameter
+          (identifier)
+          (primitive_type)
+          (bool_literal))))
+    (mark_clause
+      (identifier)))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause
+      (identifier))))
+
+==================
+Clause words stay ordinary names in bindings and fields
+==================
+let expand = 1
+let uses = 2
+let owns = 3
+let emits = 4
+let required = 5
+let conflicts = 6
+let repeatable = 7
+struct Row { mark: int, check: int }
+print(expand, uses, owns, emits, required, conflicts, repeatable)
+---
+
+(source_file
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (let_declaration
+    (identifier)
+    (integer_literal))
+  (struct_item
+    (identifier)
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type))
+      (field_declaration
+        (identifier)
+        (primitive_type))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))
+        (call_argument
+          (identifier))))))
+
+==================
+A struct takes deriving requests in its header
+==================
+struct User deriving Model(table: "users", strict: true), Tagged(1, "a"), Eq {
+  id: int,
+}
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (deriving_clause
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (identifier)
+          (string_literal
+            (string_content)))
+        (call_argument
+          (identifier)
+          (bool_literal)))
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (integer_literal))
+        (call_argument
+          (string_literal
+            (string_content))))
+      (identifier))
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (primitive_type)))))
+
+==================
+A struct header with generics and a where clause
+==================
+pub struct Box<T> where T: traits::Clone deriving Eq { value: T }
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (where_clause
+      (where_predicate
+        (type_path
+          (identifier))
+        (type_path
+          (identifier)
+          (identifier))))
+    (deriving_clause
+      (identifier))
+    (field_declaration_list
+      (field_declaration
+        (identifier)
+        (type_path
+          (identifier))))))
+
+==================
+A bodyless struct with a suffix request stays the suffix form
+==================
+pub struct Opaque deriving Debug
+fn take(value: Opaque) {}
+---
+
+(source_file
+  (struct_item
+    (identifier)
+    (deriving_clause
+      (identifier)))
+  (function_item
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type_path
+          (identifier))))
+    (block)))
+
+==================
+A decorated derive block and items inside a module
+==================
+@deprecated
+derive Marker { expand struct(info) -> Syntax<.Items> { nil } }
+mod marks {
+  decorator unique mark field
+  derive Inner { expand enum(e) -> Syntax<.Items> { nil } }
+}
+---
+
+(source_file
+  (derive_item
+    (decorator
+      (identifier))
+    (declaration_keyword)
+    (identifier)
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal))))))
+  (mod_declaration
+    (mod_path
+      (identifier))
+    (mod_body
+      (decorator_item
+        (declaration_keyword)
+        (identifier)
+        (mark_clause
+          (identifier)))
+      (derive_item
+        (declaration_keyword)
+        (identifier)
+        (derive_body
+          (expand_clause
+            (identifier)
+            (syntax_category_type
+              (identifier)
+              (syntax_category_argument
+                (identifier)))
+            (block
+              (expression_statement
+                (nil_literal)))))))))
+
+==================
+A schema takes deriving requests in its header
+==================
+pub schema Settings deriving Columns(prefix: "cfg_"), Eq {
+  @column("listen_port")
+  port: int = 8080,
+}
+where port > 0
+---
+
+(source_file
+  (schema_item
+    (identifier)
+    (deriving_clause
+      (identifier)
+      (deriving_arguments
+        (call_argument
+          (identifier)
+          (string_literal
+            (string_content))))
+      (identifier))
+    (field_declaration_list
+      (field_declaration
+        (decorator
+          (identifier)
+          (decorator_arguments
+            (call_argument
+              (string_literal
+                (string_content)))))
+        (identifier)
+        (primitive_type)
+        (integer_literal)))
+    (schema_invariant_clause
+      (binary_expression
+        (identifier)
+        (integer_literal)))))
+
+==================
+A derive block holds describe and expand clauses
+==================
+derive Shape {
+  describe struct(info) -> Schema { nil }
+  expand struct, enum(info) -> Syntax<.Items> { nil }
+}
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_body
+      (expand_clause
+        (identifier)
+        (type_path
+          (identifier))
+        (block
+          (expression_statement
+            (nil_literal))))
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal)))))))
+
+==================
+A derive header takes owns, requires and emits
+==================
+derive Soft owns deleted_at requires A, lib::B emits siblings {
+  expand struct(info) -> Syntax<.Items> { nil }
+}
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_vocabulary
+      (decorator_path
+        (identifier)))
+    (derive_requires
+      (decorator_path
+        (identifier))
+      (decorator_path
+        (identifier)
+        (identifier)))
+    (derive_emits
+      (identifier))
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal)))))))
+
+==================
+A derive header with only requires
+==================
+derive Audit requires Model { expand struct(info) -> Syntax<.Items> { nil } }
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_requires
+      (decorator_path
+        (identifier)))
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal)))))))
+
+==================
+A derive header accepts its clauses in any order
+==================
+derive Audit emits siblings requires Model uses marks { expand struct(info) -> Syntax<.Items> { nil } }
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_emits
+      (identifier))
+    (derive_requires
+      (decorator_path
+        (identifier)))
+    (derive_vocabulary
+      (decorator_path
+        (identifier)))
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal)))))))
+
+==================
+The requires directive still parses after a derive block
+==================
+derive Foo { expand struct(info) -> Syntax<.Items> { nil } }
+requires fs
+---
+
+(source_file
+  (derive_item
+    (declaration_keyword)
+    (identifier)
+    (derive_body
+      (expand_clause
+        (identifier)
+        (syntax_category_type
+          (identifier)
+          (syntax_category_argument
+            (identifier)))
+        (block
+          (expression_statement
+            (nil_literal))))))
+  (requires_directive
+    (directive_name
+      (identifier))))
+
+==================
+The requires directive at the top level
+==================
+requires fs
+---
+
+(source_file
+  (requires_directive
+    (directive_name
+      (identifier))))
+
+==================
+A decorator wraps a function, and a method beside a mark clause
+==================
+decorator scaled(factor: int = 2) wrap fn -> int {
+  return inner() * factor
+}
+
+decorator logged {
+  mark struct
+  wrap method {
+    return inner()
+  }
+}
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)
+        (integer_literal)))
+    (wrap_clause
+      (type_pattern
+        (primitive_type))
+      (block
+        (return_statement
+          (binary_expression
+            (call_expression
+              (identifier)
+              (argument_list))
+            (identifier))))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (mark_clause)
+    (wrap_clause
+      (identifier)
+      (block
+        (return_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
+
+==================
+One wrap clause wraps a function and a method
+==================
+decorator logged wrap fn, method {
+  return inner()
+}
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (wrap_clause
+      (identifier)
+      (block
+        (return_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
+
+==================
+A decorator keeps state for its wrap clause
+==================
+decorator counted(start: int = 0) {
+  var calls = start
+
+  wrap fn -> int {
+    calls += 1
+    return inner()
+  }
+}
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (primitive_type)
+        (integer_literal)))
+    (decorator_state
+      (identifier)
+      (identifier))
+    (wrap_clause
+      (type_pattern
+        (primitive_type))
+      (block
+        (assignment_statement
+          (identifier)
+          (integer_literal))
+        (return_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))
+
+==================
+A decorator rewrites the let it is applied to
+==================
+decorator cleanup expand let(b) -> [Syntax<.Stmt>] {
+  return []
+}
+
+decorator traced {
+  expand let(binding) {
+    return []
+  }
+}
+
+fn main() {
+  @cleanup
+  var x = 1
+}
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (decorator_expand_clause
+      (identifier)
+      (type_pattern
+        (identifier)
+        (identifier))
+      (block
+        (return_statement
+          (array_expression)))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (decorator_expand_clause
+      (identifier)
+      (block
+        (return_statement
+          (array_expression)))))
+  (function_item
+    (identifier)
+    (parameter_list)
+    (block
+      (let_declaration
+        (decorator
+          (identifier))
+        (identifier)
+        (integer_literal)))))
+
+==================
+A wrap clause declares its effects
+==================
+decorator logged wrap fn with Log -> int {
+  return inner()
+}
+decorator audited wrap fn, method with A + B -> int {
+  return inner()
+}
+---
+
+(source_file
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (wrap_clause
+      (with_clause
+        (type_path
+          (identifier)))
+      (type_pattern
+        (primitive_type))
+      (block
+        (return_statement
+          (call_expression
+            (identifier)
+            (argument_list))))))
+  (decorator_item
+    (declaration_keyword)
+    (identifier)
+    (wrap_clause
+      (identifier)
+      (with_clause
+        (type_path
+          (identifier))
+        (type_path
+          (identifier)))
+      (type_pattern
+        (primitive_type))
+      (block
+        (return_statement
+          (call_expression
+            (identifier)
+            (argument_list)))))))

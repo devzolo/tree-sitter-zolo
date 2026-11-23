@@ -58,52 +58,6 @@ fn list_users() -> str {
           (string_content))))))
 
 ==================
-Derive on struct
-==================
-
-@derive(Eq, Hash)
-struct Id {
-    value: int,
-}
-
----
-
-(source_file
-  (struct_item
-    (decorator
-      name: (identifier)
-      arguments: (decorator_arguments
-        (call_argument
-          (identifier))
-        (call_argument
-          (identifier))))
-    name: (identifier)
-    body: (field_declaration_list
-      (field_declaration
-        name: (identifier)
-        type: (primitive_type)))))
-
-==================
-Decorator exported by macro_rules
-==================
-
-@let_decorator
-pub macro_rules! cleanup {
-  () => { 1 }
-}
-
----
-
-(source_file
-  (macro_rules_item
-    (decorator
-      name: (identifier))
-    name: (identifier)
-    body: (macro_rules_body
-      (macro_rule
-        transcriber: (integer_literal)))))
-
-==================
 Decorator applied to local let
 ==================
 
@@ -131,8 +85,7 @@ fn main() {
 Typed attribute type, field and action references
 ==================
 
-@derive(Model)
-struct Member {
+struct Member deriving Model {
   @model(belongs_to: Team, references: Team.code, on_delete: .Cascade, on_update: Action::Restrict)
   team_code: str,
 }
@@ -141,12 +94,9 @@ struct Member {
 
 (source_file
   (struct_item
-    (decorator
-      (identifier)
-      (decorator_arguments
-        (call_argument
-          (identifier))))
     (identifier)
+    (deriving_clause
+      (identifier))
     (field_declaration_list
       (field_declaration
         (decorator
@@ -252,3 +202,72 @@ struct User { id: int, name: str }
       (field_declaration
         (identifier)
         (primitive_type)))))
+
+==================
+Decorator by path
+==================
+
+@marks::audit::tracked
+@marks::column("id")
+fn run() -> int {
+    return 1
+}
+
+---
+
+(source_file
+  (function_item
+    (decorator
+      module: (identifier)
+      module: (identifier)
+      name: (identifier))
+    (decorator
+      module: (identifier)
+      name: (identifier)
+      arguments: (decorator_arguments
+        (call_argument
+          (string_literal
+            (string_content)))))
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (primitive_type)
+    body: (block
+      (return_statement
+        (integer_literal)))))
+
+==================
+Decorator by path on a field
+==================
+
+struct Event {
+    @marks::audit::tracked(by: "import")
+    created: int,
+    @marks::audit::tracked
+    name: str,
+}
+
+---
+
+(source_file
+  (struct_item
+    name: (identifier)
+    body: (field_declaration_list
+      (field_declaration
+        (decorator
+          module: (identifier)
+          module: (identifier)
+          name: (identifier)
+          arguments: (decorator_arguments
+            (call_argument
+              name: (identifier)
+              value: (string_literal
+                (string_content)))))
+        name: (identifier)
+        type: (primitive_type))
+      (field_declaration
+        (decorator
+          module: (identifier)
+          module: (identifier)
+          name: (identifier))
+        name: (identifier)
+        type: (primitive_type)))))

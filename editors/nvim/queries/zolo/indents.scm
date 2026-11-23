@@ -14,6 +14,8 @@
   (extern_dependency_options)
   (trailing_lambda)
   (declaration_body)
+  (derive_body)
+  (decorator_item)
   (field_declaration_list)
   (compact_field_list)
   (enum_variant_list)

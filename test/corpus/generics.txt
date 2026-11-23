@@ -81,3 +81,52 @@ enum Maybe<T> {
             (identifier))))
       (enum_variant
         name: (identifier)))))
+
+==================
+Type bounds on methods and a nonliteral default
+==================
+
+impl Reader {
+    fn value<T: int?, U: [T]>(self, first: T = initial(), rest: U = []) -> T {
+        first
+    }
+}
+
+---
+
+(source_file
+  (impl_item
+    (type_path
+      (identifier))
+    (impl_body
+      (function_item
+        (identifier)
+        (type_parameters
+          (type_parameter
+            (identifier)
+            (optional_type
+              (primitive_type)))
+          (type_parameter
+            (identifier)
+            (array_type
+              (type_path
+                (identifier)))))
+        (parameter_list
+          (self_parameter)
+          (parameter
+            (identifier)
+            (type_path
+              (identifier))
+            (call_expression
+              (identifier)
+              (argument_list)))
+          (parameter
+            (identifier)
+            (type_path
+              (identifier))
+            (array_expression)))
+        (type_path
+          (identifier))
+        (block
+          (expression_statement
+            (identifier)))))))

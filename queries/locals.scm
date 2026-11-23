@@ -20,6 +20,9 @@
 (try_catch_expression) @local.scope
 (impl_item) @local.scope
 (struct_item) @local.scope
+(derive_item) @local.scope
+(expand_clause) @local.scope
+(decorator_item) @local.scope
 (schema_item) @local.scope
 (enum_item) @local.scope
 (trait_item) @local.scope
@@ -165,3 +168,7 @@
     (expression_statement
       (binary_expression left: (identifier) @local.definition.var "in"))))
  (#eq? @directive "v:for"))
+
+; The binding of a derive clause names the reflected declaration.
+(expand_clause
+  binding: (identifier) @local.definition.parameter)

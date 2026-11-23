@@ -11,7 +11,7 @@ navigation and refactoring.
 ## Features covered
 
 - Top-level items: `fn`, `fn*` (generator), `struct`, `enum`, `trait`, `impl`, `use`, `mod`, `type`, `newtype`, `const`, `const_assert`, `macro`, `on`
-- Decorators: `@derive(Eq, Hash)`, `@get("/path")`, `@memoize`, etc.
+- Decorators: `@get("/path")`, `@memoize`, etc.; `decorator` declarations, `derive` blocks and `deriving` requests
 - Expressions: literals, calls, methods, `?.`, `??`, `?`, `..`, `..=`, `|>`, `&.`, `as`, `is`
 - Match with guards and patterns (struct, enum, tuple, array, range, or, `@` binding)
 - Generics `<T: Bound>` and `where` clauses

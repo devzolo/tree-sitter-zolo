@@ -66,7 +66,12 @@ test('contextual query tokens retain ordinary type names and scanner token IDs',
   const tokens = scanner.match(/enum TokenType\s*\{([\s\S]*?)\};/)[1]
     .replace(/\/\/[^\n]*/g, '')
     .split(',').map(token => token.trim()).filter(Boolean);
-  const externalNames = after.externals.map(rule => rule.name.replace(/^_/, '').toUpperCase());
+  // The scanner serves the final grammar, including tokens appended by later extensions.
+  const endOfExtensions = source.indexOf('function contextRule(');
+  assert.ok(endOfExtensions > end);
+  const allExternals = JSON.parse(vm.runInNewContext(source.slice(0, endOfExtensions)
+    + 'JSON.stringify(contextGrammarData.externals)'));
+  const externalNames = allExternals.map(rule => rule.value === '<' ? 'LESS_THAN' : rule.name.replace(/^_/, '').toUpperCase());
   assert.deepEqual(tokens.slice(0, -1), externalNames);
   assert.equal(tokens.at(-1), 'SCANNER_TOKEN_COUNT');
 });

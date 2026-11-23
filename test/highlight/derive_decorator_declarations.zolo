@@ -1,0 +1,113 @@
+struct User deriving Model(table: "users"), Eq { id: int }
+//          ^ keyword
+//                   ^ type
+//                         ^ variable.parameter
+//                                          ^ type
+struct Note { id: int } deriving Model(table: "notes", strict: true), Eq
+//                      ^ keyword
+//                               ^ type
+//                                     ^ variable.parameter
+//                                                     ^ variable.parameter
+//                                                                    ^ type
+enum State deriving Model(table: "states"), Eq { Ready }
+//         ^ keyword
+//                  ^ type
+//                        ^ variable.parameter
+//                                          ^ type
+
+pub derive Model(table: str = "") owns marks emits siblings {
+//  ^ keyword
+//         ^ type
+//               ^ variable.parameter
+//                                ^ keyword.modifier
+//                                     ^ attribute
+//                                           ^ keyword.modifier
+//                                                 ^ constant.builtin
+  expand struct, newtype(info) -> Syntax<.Items> {
+//^ keyword
+//       ^ constant.builtin
+//               ^ constant.builtin
+//                       ^ variable.parameter
+    nil
+  }
+}
+
+derive Query uses marks::join, column { expand enum(e) -> Syntax<.Items> { nil } }
+//           ^ keyword.modifier
+//                ^ module
+//                       ^ attribute
+//                             ^ attribute
+//                                      ^ keyword
+//                                             ^ constant.builtin
+
+pub decorator column(name: str) mark field
+//  ^ keyword
+//            ^ attribute
+//                   ^ variable.parameter
+//                              ^ keyword
+//                                   ^ constant.builtin
+
+decorator version mark fn, method once where type: int conflicts key
+//        ^ attribute
+//                ^ keyword
+//                     ^ constant.builtin
+//                         ^ constant.builtin
+//                                ^ keyword.modifier
+//                                     ^ keyword
+//                                           ^ keyword
+//                                                 ^ type.builtin
+//                                                     ^ keyword.modifier
+//                                                               ^ attribute
+
+decorator storage(kind: str) mark field requires marks::codec
+//                                      ^ keyword.modifier
+//                                               ^ module
+//                                                      ^ attribute
+
+pub decorator tag mark struct(name: str) repeatable
+//            ^ attribute
+//                                       ^ keyword.modifier
+
+pub decorator key required {
+//            ^ attribute
+//                ^ keyword.modifier
+  mark field(generated: bool = false)
+//^ keyword
+//     ^ constant.builtin
+//           ^ variable.parameter
+  check { nil }
+//^ keyword
+}
+
+let derive = 2
+//  ^ variable
+derive(x)
+//^ function.call
+
+decorator unique mark field
+requires foo
+
+decorator scaled(factor: int = 2) wrap fn -> int {
+//                                ^ keyword
+//                                     ^ constant.builtin
+  return inner() * factor
+}
+
+let wrap = 1
+//  ^ variable
+
+decorator counted(start: int = 0) {
+  var calls = start
+//^ keyword
+//    ^ variable
+  wrap fn -> int {
+    return inner()
+  }
+}
+
+decorator cleanup expand let(b) -> [Syntax<.Stmt>] {
+//                ^ keyword
+//                       ^ constant.builtin
+//                           ^ variable.parameter
+  return []
+}

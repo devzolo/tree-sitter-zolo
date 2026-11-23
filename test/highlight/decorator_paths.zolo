@@ -1,0 +1,12 @@
+@marks::audit::tracked
+// ^ module
+//        ^ module
+//               ^ attribute
+fn run() -> int {
+  return 1
+}
+@memoize
+// ^ attribute
+fn plain() -> int {
+  return 1
+}
