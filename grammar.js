@@ -678,14 +678,33 @@ function extendDeriveAndDecoratorDeclarations(data) {
   const structSuffix = structMembers[7];
   const structEnd = structMembers[8];
   const headerClause = field('deriving', sym('deriving_clause'));
+  // After a compact form's fields, `deriving` may come before the methods:
+  // `struct Name(fields) deriving T { methods }`, as the Rust parser reads
+  // it. The methods stay optional after the clause, so the bodyless
+  // `struct Name(fields) deriving T` keeps parsing.
+  const [compactBranch, braceBody] = structBody.members;
+  const [compactFields, compactMethods] = compactBranch.members;
+  const compactTail = seq(compactFields, opt(choice(
+    seq(compactMethods.members[0], structSuffix),
+    seq(headerClause, compactMethods))));
   r._struct_tail = choice(
-    seq(structBody, structSuffix, structEnd),
+    seq(choice(compactTail, seq(braceBody, structSuffix)), structEnd),
     seq(headerClause, structEnd),
     structMembers[8].members[0],
     seq(headerClause, structBody, structSuffix, structEnd));
   r._struct_tail = {type: 'PREC_RIGHT', value: 0, content: r._struct_tail};
   structMembers.splice(6, 3, opt(sym('_struct_tail')));
   const enumBody = r._enum_body_tail.content;
+  // The enum twin of the compact struct tail above:
+  // `enum Name(Variants) deriving T { methods }`.
+  const [enumBodies, enumSuffix] = enumBody.members;
+  const [variantList, compactEnum] = enumBodies.members;
+  const [compactVariants, enumMethods] = compactEnum.members;
+  enumBody.members = [choice(
+    seq(variantList, enumSuffix),
+    seq(compactVariants, opt(choice(
+      seq(enumMethods.members[0], enumSuffix),
+      seq(headerClause, enumMethods)))))];
   enumBody.members.unshift(opt(field('deriving', sym('deriving_clause'))));
   // `schema Settings deriving Columns(prefix: "cfg_"), Eq { ... }`: the same
   // header clause, between the name (and generics) and the body. A schema has

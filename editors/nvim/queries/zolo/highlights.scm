@@ -224,7 +224,6 @@
 ; A decorator by path, `@marks::audit::tracked`: the module segments are
 ; namespaces, the last segment is the decorator.
 (decorator module: (identifier) @module)
-(mixin_parameter name: (identifier) @variable.parameter)
 
 ; -- Items ------------------------------------------------------------------
 (function_item name: (identifier) @function)
@@ -1108,6 +1107,11 @@
 ((type_pattern (identifier) @variable.builtin)
   (#eq? @variable.builtin "_"))
 (decorator_check "check" @keyword)
+(wrap_clause "wrap" @keyword)
+(wrap_clause context: _ @constant.builtin)
+(decorator_expand_clause "expand" @keyword)
+(decorator_expand_clause "let" @constant.builtin)
+(decorator_expand_clause binding: (identifier) @variable.parameter)
 
 ; A decorator or module path: leading segments are namespaces, the last is a
 ; decorator.

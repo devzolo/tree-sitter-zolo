@@ -40,6 +40,44 @@ struct Box<T> where T: traits::Clone (value: T) {
     (deriving_clause (identifier))))
 
 ==================
+Compact struct deriving clause between fields and methods keeps the methods
+==================
+struct Point(x: int) deriving Debug {
+  fn marker() -> int { 7 }
+}
+struct Pair(a: int) deriving Clone
+---
+(source_file
+  (struct_item (identifier)
+    (compact_field_list (field_declaration (identifier) (primitive_type)))
+    (deriving_clause (identifier))
+    (declaration_body
+      (function_item (identifier) (parameter_list) (primitive_type)
+        (block (expression_statement (integer_literal))))))
+  (struct_item (identifier)
+    (compact_field_list (field_declaration (identifier) (primitive_type)))
+    (deriving_clause (identifier))))
+
+==================
+Compact enum deriving clause between variants and methods keeps the methods
+==================
+enum Choice(Yes, No) deriving Eq {
+  fn marker() -> int { 7 }
+}
+enum Side(Left, Right) deriving Eq
+---
+(source_file
+  (enum_item (identifier)
+    (enum_compact_list (enum_variant (identifier)) (enum_variant (identifier)))
+    (deriving_clause (identifier))
+    (declaration_body
+      (function_item (identifier) (parameter_list) (primitive_type)
+        (block (expression_statement (integer_literal))))))
+  (enum_item (identifier)
+    (enum_compact_list (enum_variant (identifier)) (enum_variant (identifier)))
+    (deriving_clause (identifier))))
+
+==================
 Compact enum methods belong to the complete declaration before deriving
 ==================
 enum Choice<T>(Value(T), Empty) {
